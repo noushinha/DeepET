@@ -9,12 +9,12 @@
 # ============================================================================================
 
 from PyQt5 import QtWidgets
-from theme_style import *
+from gui.theme_style import *
 from PyQt5.QtGui import QIcon
-from deeptomo.gui.mask_generation import mask_generation
-from deeptomo.utils.utility_tools import *
-from deeptomo.utils.params import *
-from deeptomo.gui.mask_generation import OrthosliceWidget
+from gui.mask_generation import mask_generation
+from utils.utility_tools import *
+from utils.params import *
+from gui.mask_generation import OrthosliceWidget
 
 class MaskGenerationwindow(QtWidgets.QMainWindow):
     def __init__(self):
