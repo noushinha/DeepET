@@ -1,7 +1,7 @@
 from pathlib import Path
 
 VERSION = 1.0
-ROOT_DIR = ROOT_DIR = Path(__file__).parent.parent.parent
+ROOT_DIR = ROOT_DIR = Path(__file__).parent.parent
 print(ROOT_DIR)
 print(VERSION)
 
