@@ -12,9 +12,8 @@ import pyqtgraph as pg
 import numpy as np
 import matplotlib  # for lmap colormap
 import matplotlib.cm
-from gui.mask_generation import mask_generation
 
-class DisplayOrthoslicesWidget(QWidget):
+class OrthoslicesWidget(QWidget):
     def __init__(self):
         QWidget.__init__(self)
 
@@ -249,6 +248,9 @@ class DisplayOrthoslicesWidget(QWidget):
         #     display_message_box('Please load a volume first (tomogram or label map)')
 
     def mouseClick(self, evt):
+        # we set the lmap as soon as the tomo is loaded
+        # thus we need to have this always true
+        self.isLmapLoaded = True
         pos = evt.scenePos()
         if self.vb_xy.sceneBoundingRect().contains(pos):
             mousePoint = self.vb_xy.mapSceneToView(pos)
@@ -334,10 +336,9 @@ class CustomViewBox(pg.ViewBox):
             mv = mask[axis]
             mask[:] = 0
             mask[axis] = mv
-        s = ((mask * 0.02) + 1) ** (ev.delta() * self.state['wheelScaleFactor'])  # actual scaling factor
+        s = ((mask * 0.02) + 1) ** (ev.delta() * self.state['wheelScaleFactor'])  # scale back to the actual size
 
-        # center = Point(fn.invertQTransform(self.childGroup.transform()).map(ev.pos()))
-        center = (self.x_zoom, self.y_zoom)  # now zoom towards (x_zoom,y_zoom) instead of where mouse points
+        center = (self.x_zoom, self.y_zoom)
 
         self._resetTarget()
         self.scaleBy(s, center)

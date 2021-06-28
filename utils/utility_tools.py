@@ -21,18 +21,32 @@ def display(message):
     print(message)
 
 
-def is_list(v, varname):
-    if type(v) != list:
-        display('DeepFinder message: variable "' + varname + '" is ' + str(type(v)) + '. Expected is list.')
+def is_list(listl, var):
+    if type(listl) != list:
+        display('variable "' + var + '" is ' + str(type(listl)) + '. list is expected.')
         sys.exit()
 
-def is_3D_nparray(v, varname):
-    if type(v)!=np.ndarray:
-        display('DeepFinder message: variable "'+varname+'" is '+str(type(v))+'. Expected is numpy array.')
+
+def is_3D(arr, var):
+    if type(arr) != np.ndarray or len(arr.shape) != 3:
+        display('variable "' + var + '" is ' + str(len(arr.shape)) + str(type(arr)) + '. 3D Numpy array is expected.')
         sys.exit()
-    if len(v.shape)!=3:
-        display('DeepFinder message: variable "'+varname+'" is a '+str(len(v.shape))+'D array. Expected is a 3D array.')
+
+
+def is_empty(arr, var):
+   if arr.size == 0:
+       display('array "' + var + '" is empty. Non empty array is expected.')
+       sys.exit()
+
+
+def is_file(filename):
+    from pathlib import Path
+    if not Path(filename).is_file():
+        display('file "' + filename + '" does not exist. A valid file is required.')
         sys.exit()
+    else:
+        return 1
+
 
 def file_attributes(Qtfile):
     """ This function receives a QtFile object that is selected through browse button and
@@ -53,10 +67,11 @@ def file_attributes(Qtfile):
     return filename, filetype
 
 
-def throwErr(ErrType='None'):
-    errval = ErrType.split(":")
+def throwErr(errtype='None'):
+    errval = errtype.split(":")
     if errval[0] == 'ext':
-        print('DeepTomo message: The file extension {extension} is not supported.'.format(extension=errval[1]))
+        print('The file extension {extension} is not supported.'.format(extension=errval[1]))
+
 
 def read_xml(filename):
     """ This function receives the xml file path, reads it and returns an object
@@ -96,15 +111,18 @@ def read_starfile(filename):
     # rlnImageName', 'rlnCoordinateX', 'rlnCoordinateY',
     return content
 
+
 def read_mrc(filename):
     """ This function reads an mrc file and returns the 3D array
         Args: filename: path to mrc file
         Returns: 3d array
     """
-    import mrcfile as mrc
-    with mrc.open(filename, permissive=True) as mc:
-        array = mc.data
-    return array
+    if is_file(filename):
+        import mrcfile as mrc
+        with mrc.open(filename, permissive=True) as mc:
+            mrc_tomo = mc.data
+        is_empty(mrc_tomo, 'mrc_tomo')
+    return mrc_tomo
 
 
 def write_mrc(array, filename):
@@ -116,22 +134,22 @@ def write_mrc(array, filename):
     with mrc.new(filename, overwrite=True) as mc:
         mc.set_data(array)
 
+
 def get_coords(dim):
-    """ This function receives dimensions of a 3D volume and returns center slices.
+    """ This function receives dimensions of a 3D volume and returns center coords.
         Args: dim: the 3D volume shape(tomogram - e.g an mrc file)
-        Returns: z, y, x center coordination
+        Returns: center coordination in x, y, z
     """
     x = np.int(np.round(dim[1] / 2))
     y = np.int(np.round(dim[2] / 2))
     z = np.int(np.round(dim[0] / 2))
     return x, y, z
 
+
 def get_planes(vol):
     """ This function receives a 3D volume and returns orthoclices of xy, zx, and zy planes.
-        Args:
-            vol : the 3D volume (tomogram - e.g an mrc file)
-            coords : look get_coords
-                     coords[0] -> z, coords[1] -> y, coords[2] -> x
+        Args: vol : the 3D volume (tomogram - e.g an mrc file)
+              coords : look get_coords (coords[0] -> z, coords[1] -> y, coords[2] -> x)
         Returns: xy_plane, zx_plane, zy_plane: orthoslices of planes
     """
     x, y, z = get_coords(vol.shape)
@@ -147,10 +165,10 @@ def normalize_image(img):
         Args: img: image nd.array that has a range of value like [-1, 1] or [0,1]
         Returns: image nd.array with range [0, 255]
     """
-    # np.round((xy_plane + 1) * 255 / 2)
     img = cv2.normalize(img, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)
     img = img.astype('float32')
     return img
+
 
 def g2c_image(img):
     """ This function converts the image from grayscale to RGB
@@ -167,16 +185,16 @@ def color_pallete(class_num, class_name):
     # boxcolor = dict.fromkeys(class_name, 0.0)
     # for i in class_name:
     #     boxcolor[i] = np.random.randint(low=0, high=255)
-    boxcolor = np.random.permutation(255)[:class_num]
+    ########## or ##########
     # for i in range(class_num):
     #     boxcolor.append(np.random.randint(low=0, high=255))
-
-
+    # NOPE, none worked better than the following one
+    boxcolor = np.random.permutation(255)[:class_num]
     return boxcolor
 
 
-def radius_list(class_name, radiuslisttext):
-    radiuslist = radiuslisttext.split(",")
+def radius_list(class_name, str_radiuslist):
+    radiuslist = str_radiuslist.split(",")
     class_radlist = dict.fromkeys(class_name, 0)
     cnt = 0
     for i in class_name:
@@ -186,133 +204,112 @@ def radius_list(class_name, radiuslisttext):
     return class_radlist
 
 
-def create_sphere(dim, r):
-    C = np.floor((dim[0]/2, dim[1]/2, dim[2]/2))
-    x,y,z = np.meshgrid(range(dim[0]), range(dim[1]), range(dim[2]))
-
-    sphere = ((x - C[0])/r)**2 + ((y - C[1])/r)**2 + ((z - C[2])/r)**2
-    sphere = np.int8(sphere <= 1)
-    return sphere
-
-
-def generate_with_spheres(objl, target_array, class_radilist):
-    """Generates segmentation targets from object list. Here macromolecules are annotated with spheres.
-    This method does not require knowledge of the macromolecule shape nor Euler angles in the objl.
-    On the other hand, it can be that a network trained with 'sphere targets' is less accurate than with 'shape targets'.
-
-    Args:
-        objl: array of coordination
-        target_array (3D numpy array): array that initializes the training target. Allows to pass an array already containing annotated structures like membranes.
-            index order of array should be [z,y,x]
-        radius_list (list of int): contains sphere radii per class (in voxels).
-            The radii order in list should correspond to the class label.
-            For ex: 1st element of list -> sphere radius for class 1, 2nd element of list -> sphere radius for class 2 etc.
-
-    Returns:
-        3D numpy array: Target array, where '0' for background class, {'1','2',...} for object classes.
+def generate_masks(content, target_mask, class_radilist):
+    """ Having a annotation list, this function generates the segmentation mask
+    Args: content: Should contain the following data and in order:
+                   [Path/to/image/file,z,y,x,[...optional columns],label]
+        target_mask: all zero 3D numpy array to initializes the mask target.
+                     dimension order should be [z,y,x] to be compatible with content
+    Returns: 3D np array of the mask, '0' is taken for background class, '1','2',... for rest of classes.
     """
+
+    # radi_ref: reference list for radius of classes (spheres)
+    # The references order should be the same as order of class labels.
+    # e.g: 1st list item -> reference for label 1;
+    # 2nd list item -> reference for label 2; etc.
+
     radius_vals = list(class_radilist.values())
     Rmax = max(radius_vals)
-    # dim = [2*Rmax, 2*Rmax, 2*Rmax]
-    ref_list = []
+    radi_ref = []
     for idx in range(len(radius_vals)):
-        dim = [2 * radius_vals[idx], 2 * radius_vals[idx], 2 * radius_vals[idx]]
-        my_sphere = create_sphere(dim, radius_vals[idx])
-        ref_list.append(my_sphere)
-    target_array = generate_with_shapes(objl, target_array, ref_list, class_radilist)
-    return target_array
+        sphere = build_sphere(radius_vals[idx])
+        radi_ref.append(sphere)
 
-
-def generate_with_shapes(objl, target_array, ref_list, class_radilist):
-    """Generates segmentation targets from object list. Here macromolecules are annotated with their shape.
-
-    Args:
-        objl (list of dictionaries): Needs to contain [phi,psi,the] Euler angles for orienting the shapes.
-        target_array (3D numpy array): array that initializes the training target. Allows to pass an array already containing annotated structures like membranes.
-            index order of array should be [z,y,x]
-        ref_list (list of 3D numpy arrays): These reference arrays are expected to be cubic and to contain the shape of macromolecules ('1' for 'is object' and '0' for 'is not object')
-            The references order in list should correspond to the class label.
-            For ex: 1st element of list -> reference of class 1; 2nd element of list -> reference of class 2 etc.
-
-    Returns:
-        3D numpy array: Target array, where '0' for background class, {'1','2',...} for object classes.
-    """
-    # is_list(objl, 'objl')
-    is_3D_nparray(target_array, 'target_array')
-    is_list(ref_list, 'ref_list')
+    is_3D(target_mask, 'target_mask')
+    is_list(radi_ref, 'radi_ref')
     boxcolor = color_pallete(len(class_radilist.keys()), list(class_radilist.keys()))
 
-    N = objl.shape[0]
-    dim = target_array.shape
-    for row in range(N):
-        lbl = int(tuple(class_radilist.keys()).index(objl[row][-1]))
-        x = int(objl[row][3])
-        y = int(objl[row][2])
-        z = int(objl[row][1])
-        display('Annotating point ' + str(row + 1) + ' / ' + str(N) +
-                ' with class ' + str(objl[row][-1]) +
-                ' and color ' + str(boxcolor[lbl]))
+    ann_num = content.shape[0]  # number of available annotation we have
+    dim = target_mask.shape  # image shape (mask shape is same as image shape)
 
-        ref = ref_list[lbl - 1]
-        centeroffset = np.int(np.floor(ref.shape[0] / 2)) # here we expect ref to be cubic
+    # for each annotation
+    for row in range(ann_num):
+        cls_ann = int(tuple(class_radilist.keys()).index(content[row][-1]))
+        z = int(content[row][1])
+        y = int(content[row][2])
+        x = int(content[row][3])
+        display('Annotating point ' + str(row + 1) + ' / ' + str(ann_num) +
+                ' with class ' + str(content[row][-1]) +
+                ' and color ' + str(boxcolor[cls_ann]))
 
-        # Get the coordinates of object voxels in target_array
+        ref = radi_ref[cls_ann - 1]
+        cOffset = np.int(np.floor(ref.shape[0] / 2))  # guarantees a cubic reference
+
+        # identify coordinates of particle in mask
         obj_voxels = np.nonzero(ref == 1)
-        x_vox = obj_voxels[2] + x - centeroffset #+1
-        y_vox = obj_voxels[1] + y - centeroffset #+1
-        z_vox = obj_voxels[0] + z - centeroffset #+1
+        x_coord = obj_voxels[2] + x - cOffset
+        y_coord = obj_voxels[1] + y - cOffset
+        z_coord = obj_voxels[0] + z - cOffset
 
-        for idx in range(x_vox.size):
-            xx = x_vox[idx]
-            yy = y_vox[idx]
-            zz = z_vox[idx]
-            if xx >= 0 and xx < dim[2] and yy >= 0 and yy < dim[1] and zz >= 0 and zz < dim[0]:  # if in tomo bounds
+        for idx in range(x_coord.size):
+            xVox = x_coord[idx]
+            yVox = y_coord[idx]
+            zVox = z_coord[idx]
 
-                target_array[zz, yy, xx] = boxcolor[lbl]
+            # check that after offset transfer the coords are in the boudnary of tomo
+            if xVox >= 0 and xVox < dim[2] and yVox >= 0 and yVox < dim[1] and zVox >= 0 and zVox < dim[0]:
+                target_mask[zVox, yVox, xVox] = boxcolor[cls_ann]
 
-    return np.int8(target_array)
+    return np.int8(target_mask)
+    # target_array = generate_mask(objl, target_array, ref_list, class_radilist)
+    # return target_array
 
+def build_sphere(radi):
+    """ This function creates a sphere for the radius it receives
+        Args: radi: list of particle radius
+              dim: list of x, y, z radius of the sphere
+        Returns: a sphere
+    """
+    dim = [2 * radi, 2 * radi, 2 * radi]  # not necessary but makes the code legible
+    center = np.floor((dim[0]/2, dim[1]/2, dim[2]/2))
+    x, y, z = np.meshgrid(range(dim[0]), range(dim[1]), range(dim[2]))
 
-# Writes an image file containing ortho-slices of the input volume. Generates same visualization as matlab function
-# 'tom_volxyz' from TOM toolbox.
-# If volume type is int8, the function assumes that the volume is a labelmap, and hence plots in color scale.
-# Else, it assumes that the volume is tomographic data, and plots in gray scale.
-# INPUTS:
-#   vol     : 3D numpy array
-#   filename: string '/path/to/file.png'
-def plot_volume_orthoslices(vol, filename):
-    """Writes an image file containing ortho-slices of the input volume. Generates same visualization as matlab function
-    'tom_volxyz' from TOM toolbox.
-    If volume type is int8, the function assumes that the volume is a labelmap, and hence plots in color scale.
-    Else, it assumes that the volume is tomographic data, and plots in gray scale.
+    Sph = ((x - center[0])/radi)**2 + ((y - center[1])/radi)**2 + ((z - center[2])/radi)**2
+    Sph = np.int8(Sph <= 1)
+    return Sph
 
-    Args:
-        vol (3D numpy array)
-        filename (str): '/path/to/file.png'
+def save_volume(input_array, filename):
+    """saves a png image from the generated masks if int8 type: a labelmap is saved in color scale.
+       otherwise, saves in gray scale.
+    Args: vol (3D numpy array)
+          filename (str): '/path/to/file'
+    returns: image file
     """
 
     # Get central slices along each dimension:
-    dim = vol.shape
-    idx0 = np.int( np.round(dim[0]/2) )
-    idx1 = np.int( np.round(dim[1]/2) )
-    idx2 = np.int( np.round(dim[2]/2) )
+    dim = input_array.shape
+    z = np.int(np.round(dim[0]/2))
+    y = np.int(np.round(dim[1]/2))
+    x = np.int(np.round(dim[2]/2))
 
-    slice0 = vol[idx0,:,:]
-    slice1 = vol[:,idx1,:]
-    slice2 = vol[:,:,idx2]
+    slice0 = input_array[z, :, :]
+    slice1 = input_array[:, y, :]
+    slice2 = input_array[:, :, x]
 
-    # Build image containing orthoslices:
-    img_array = np.zeros((slice0.shape[0]+slice1.shape[0], slice0.shape[1]+slice1.shape[0]))
-    img_array[0:slice0.shape[0], 0:slice0.shape[1]] = slice0
-    img_array[slice0.shape[0]-1:-1, 0:slice0.shape[1]] = slice1
-    img_array[0:slice0.shape[0], slice0.shape[1]-1:-1] = np.flipud(np.rot90(slice2))
+    # creating an image out of ortho-slices:
+    input_img = np.zeros((slice0.shape[0]+slice1.shape[0], slice0.shape[1]+slice1.shape[0]))
+    input_img[0:slice0.shape[0], 0:slice0.shape[1]] = slice0
+    input_img[slice0.shape[0]-1:-1, 0:slice0.shape[1]] = slice1
+    input_img[0:slice0.shape[0], slice0.shape[1]-1:-1] = np.flipud(np.rot90(slice2))
 
-    # Drop the plot:
-    fig = plt.figure(figsize=(10,10))
-    if vol.dtype==np.int8:
-        plt.imshow(img_array, cmap='CMRmap', vmin=np.min(vol), vmax=np.max(vol))
+    # plot and save:
+    fig = plt.figure(figsize=(10, 10))
+    if input_array.dtype == np.int8:
+        plt.imshow(input_img, cmap='CMRmap', vmin=np.min(input_array), vmax=np.max(input_array))
     else:
-        mu  = np.mean(vol) # Get mean and std of data for plot range:
-        sig = np.std(vol)
-        plt.imshow(img_array, cmap='gray', vmin=mu-5*sig, vmax=mu+5*sig)
+        # calculating mean and std of data
+        mu = np.mean(input_array)
+        sig = np.std(input_array)
+        plt.imshow(input_img, cmap='gray', vmin=mu-5*sig, vmax=mu+5*sig)
+    # plt.show()
     fig.savefig(filename)

@@ -8,7 +8,7 @@
 # License: GPL v3.0. See <https://www.gnu.org/licenses/>
 # ============================================================================================
 
-from PyQt5 import QtWidgets
+from PyQt5.QtWidgets import QFileDialog, QTableWidgetItem, QApplication, QMainWindow
 from gui.theme_style import *
 from PyQt5.QtGui import QIcon
 from gui.mask_generation import mask_generation
@@ -16,7 +16,7 @@ from utils.utility_tools import *
 from utils.params import *
 from gui.mask_generation import OrthosliceWidget
 
-class MaskGenerationwindow(QtWidgets.QMainWindow):
+class MaskGenerationwindow(QMainWindow):
     def __init__(self):
         super(MaskGenerationwindow, self).__init__()
 
@@ -25,7 +25,7 @@ class MaskGenerationwindow(QtWidgets.QMainWindow):
         self.setWindowTitle("Mask Generation")
         self.setWindowIcon(QIcon('../../icon.jpg'))
 
-        self.dwidget = OrthosliceWidget.DisplayOrthoslicesWidget()
+        self.dwidget = OrthosliceWidget.OrthoslicesWidget()
         self.ui.gridLayout_5.addWidget(self.dwidget, 0, 0, 1, 1)
 
         self.extension = 'mrc'
@@ -50,7 +50,10 @@ class MaskGenerationwindow(QtWidgets.QMainWindow):
         self.ui.annTable.setPalette(p)
 
     def getfiles(self):
-        selected_file = QtWidgets.QFileDialog.getOpenFileName(self, 'Single File', '../data', "CSV files (*.csv);;Text files (*.txt);;XML files (*.xml);;Star files (*.star)")
+        # download_path = self.ui.inputPath.text()
+        # dialog = QFileDialog()
+        # dialog.setDirectory(os.path.abspath(__file__))
+        selected_file = QFileDialog.getOpenFileName(self, 'Single File', '../data', "CSV files (*.csv);;Text files (*.txt);;XML files (*.xml);;Star files (*.star)")
         self.ui.inputPath.setText(selected_file[0])
         self.readfile(selected_file)
 
@@ -72,7 +75,7 @@ class MaskGenerationwindow(QtWidgets.QMainWindow):
             for column_number in range(cols):
                 # self.ui.annTable.insertColumn(column_number)
                 data = str(self.content[row_number][column_number])
-                self.ui.annTable.setItem(row_number, column_number, QtWidgets.QTableWidgetItem(str(data)))
+                self.ui.annTable.setItem(row_number, column_number, QTableWidgetItem(str(data)))
 
     def loadimage(self):
         self.extension = self.content[0][0].split(".")[1]
@@ -90,37 +93,10 @@ class MaskGenerationwindow(QtWidgets.QMainWindow):
         self.getradiuslength()
 
         # generate spheres and map them to the 2D image
-        self.dwidget.lmap = generate_with_spheres(self.content, self.mask_image, self.class_radilist)
+        self.dwidget.lmap = generate_masks(self.content, self.mask_image, self.class_radilist)
         self.dwidget.update_lmap(self.dwidget.lmap)
         # coord = [100, 256, 256]
         # self.dwidget.goto_coord(coord)
-
-
-        # self.dwidget.goto_coord(coord)
-        # xy_plane, zx_plane, zy_plane = get_planes(self.input_image)
-        # xy_plane = normalize_image(xy_plane)
-        # xy_plane = g2c_image(xy_plane)
-        # for row_number in range(rows):
-        #     coord1 = self.content[row_number][3]
-        #     coord2 = self.content[row_number][2]
-        #
-        #     classcolor = tuple(boxcolor[self.content[row_number, -1]][0])
-        #     classcolor = (int(classcolor[0]), int(classcolor[1]), int(classcolor[2]))
-        #     # radilen = int(self.class_radilist[self.content[row_number][-1]])
-
-            # if self.mask_shape == "circle":
-                # target_image = cv2.circle(target_image, (coord1, coord2), radilen, color=classcolor, thickness=-1)
-                # cv2.circle(g2c_image(self.dwidget.img_xy.image), (coord1, coord2), radilen, color=classcolor, thickness=-1)
-                # self.dwidget.img_xy.image[][]
-            # elif self.mask_shape == "rectangle":
-            #     top_left_x, top_left_y = coord2 - radilen // 2, coord1 - radilen // 2
-            #     bottom_right_x, bottom_right_y = coord2 + radilen // 2, coord1 + radilen // 2
-                # target_image = cv2.rectangle(target_image, (top_left_x, top_left_y), (bottom_right_x, bottom_right_y),
-                #                              color=classcolor, thickness=-1)
-                # xy_plane = cv2.rectangle(target_image, (top_left_x, top_left_y), (bottom_right_x, bottom_right_y),
-                #                              color=classcolor, thickness=-1)
-            # else:
-            #     print("The mask shape is not supported")
 
     def readfile(self, selected_file):
         filepath, filetype = file_attributes(selected_file)
@@ -161,8 +137,8 @@ class MaskGenerationwindow(QtWidgets.QMainWindow):
         output_path = ROOT_DIR.__str__() + self.ui.outputPath.text()
 
         # save the generated mask
-        filename = 'target_' + self.image_path.split("\\")[-1]
-        plot_volume_orthoslices(self.dwidget.lmap, output_path + 'orthoslices_target_spheres.png')
+        filename = 'target_' + self.image_path.split("/")[-1]
+        save_volume(self.dwidget.lmap, output_path + filename + '.png')
         write_mrc(self.dwidget.lmap, output_path + filename)
 
     def set_opacity(self):
@@ -188,7 +164,7 @@ class MaskGenerationwindow(QtWidgets.QMainWindow):
         self.dwidget.set_vol(self.input_image)
 
 if __name__ == "__main__":
-    app = QtWidgets.QApplication(sys.argv)
+    app = QApplication(sys.argv)
     set_theme_style(app)
 
 
