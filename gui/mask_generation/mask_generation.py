@@ -151,7 +151,7 @@ class Ui_MainWindow(object):
         self.gridLayout.addWidget(self.sliderL, 4, 0, 1, 1)
         self.slider = QtWidgets.QSlider(self.gridLayoutWidget)
         self.slider.setMaximumSize(QtCore.QSize(200, 16777215))
-        self.slider.setMaximum(200)
+        self.slider.setMaximum(199)
         self.slider.setOrientation(QtCore.Qt.Horizontal)
         self.slider.setObjectName("slider")
         self.gridLayout.addWidget(self.slider, 4, 1, 1, 1)

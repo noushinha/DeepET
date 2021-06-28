@@ -156,12 +156,17 @@ class MaskGenerationwindow(QMainWindow):
 
     def set_sldier(self):
         self.ui.slider.setMaximum(0)
-        self.ui.slider.setMaximum(200)  # self.tomodim[0])
+        self.ui.slider.setMaximum(199)  # self.tomodim[0])
         self.ui.slider.setValue(np.round(100))  # self.tomodim[0] / 2
 
     def change_slide(self):
         self.dwidget.slide = self.ui.slider.value()
         self.dwidget.set_vol(self.input_image)
+        self.dwidget.set_lmap(self.mask_image)
+        #
+        # # # generate spheres and map them to the 2D image
+        # self.dwidget.lmap = generate_masks(self.content, self.mask_image, self.class_radilist)
+        # self.dwidget.update_lmap(self.dwidget.lmap)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

@@ -36,10 +36,6 @@ class OrthoslicesWidget(QWidget):
         self.vb_zy.setAspectLocked(lock=True, ratio=1)
         self.vb_zx.setAspectLocked(lock=True, ratio=1)
 
-        # self.vb_xy.setMouseEnabled(x=False, y=False) # disable move image and zoom with mouse
-        # self.vb_zx.setMouseEnabled(x=False, y=False)
-        # self.vb_zy.setMouseEnabled(x=False, y=False)
-
         self.img_xy = pg.ImageItem()  # tomogram slices
         self.img_zy = pg.ImageItem()
         self.img_zx = pg.ImageItem()
@@ -250,7 +246,7 @@ class OrthoslicesWidget(QWidget):
     def mouseClick(self, evt):
         # we set the lmap as soon as the tomo is loaded
         # thus we need to have this always true
-        self.isLmapLoaded = True
+
         pos = evt.scenePos()
         if self.vb_xy.sceneBoundingRect().contains(pos):
             mousePoint = self.vb_xy.mapSceneToView(pos)
