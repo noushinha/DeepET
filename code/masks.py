@@ -41,6 +41,10 @@ class MaskGenerationwindow(QtWidgets.QMainWindow):
         self.ui.loadBtn.clicked.connect(self.getfiles)
         self.ui.saveBtn.clicked.connect(self.save_mask)
 
+        self.ui.opacity.valueChanged.connect(self.change_opacity)
+        self.set_sldier()
+        self.ui.slider.valueChanged.connect(self.change_slide)
+
         p = self.ui.annTable.palette()
         p.setColor(QPalette.Base, Qt.gray)
         self.ui.annTable.setPalette(p)
@@ -81,6 +85,7 @@ class MaskGenerationwindow(QtWidgets.QMainWindow):
         self.mask_image = np.zeros(self.tomodim)
         self.dwidget.set_lmap(self.mask_image)
 
+        self.set_opacity()
         self.getmaskshape()
         self.getradiuslength()
 
@@ -153,13 +158,34 @@ class MaskGenerationwindow(QtWidgets.QMainWindow):
         self.class_num = len(self.class_names)
 
     def save_mask(self):
-        output_path = self.ui.outputPath.text()
+        output_path = ROOT_DIR.__str__() + self.ui.outputPath.text()
 
         # save the generated mask
         filename = 'target_' + self.image_path.split("\\")[-1]
         plot_volume_orthoslices(self.dwidget.lmap, output_path + 'orthoslices_target_spheres.png')
         write_mrc(self.dwidget.lmap, output_path + filename)
 
+    def set_opacity(self):
+        self.dwidget.isLmapLoaded = True
+        self.ui.opacity.setMinimum(self.getdatavalue(self.dwidget.vol_mu))
+        self.ui.opacity.setMaximum(self.getdatavalue(self.dwidget.vol_max))
+        self.ui.opacity.setValue(self.getdatavalue(self.dwidget.levels[1]))
+
+    def getdatavalue(self, val):
+        return 100*(val-self.dwidget.vol_min)/(self.dwidget.vol_max-self.dwidget.vol_min)
+
+    def change_opacity(self):
+        opacity = float(self.ui.opacity.value()) / 100
+        self.dwidget.set_lmap_opacity(opacity)
+
+    def set_sldier(self):
+        self.ui.slider.setMaximum(0)
+        self.ui.slider.setMaximum(200)  # self.tomodim[0])
+        self.ui.slider.setValue(np.round(100))  # self.tomodim[0] / 2
+
+    def change_slide(self):
+        self.dwidget.slide = self.ui.slider.value()
+        self.dwidget.set_vol(self.input_image)
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)

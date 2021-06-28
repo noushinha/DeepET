@@ -12,6 +12,7 @@ import pyqtgraph as pg
 import numpy as np
 import matplotlib  # for lmap colormap
 import matplotlib.cm
+from gui.mask_generation import mask_generation
 
 class DisplayOrthoslicesWidget(QWidget):
     def __init__(self):
@@ -87,11 +88,12 @@ class DisplayOrthoslicesWidget(QWidget):
         self.x = None
         self.y = None
         self.z = None
+        self.slide = None
         self.isTomoLoaded = False
 
         # Relative to displayed label map, needs to be initialized by set_lmap()
         self.lmap = None
-        self.levels_lmap = (0, 4)  # supposed max nb of classes TODO: adapt if >25
+        self.levels_lmap = (0, 256)  # supposed max nb of classes TODO: adapt if >25
         self.isLmapLoaded = False
 
         # Connect click signal to dedicated function:
@@ -143,7 +145,10 @@ class DisplayOrthoslicesWidget(QWidget):
         # Stuff that needs to be intialized after loading a volume (tomogram or label map)
         self.x = np.int(np.round(self.dim[2] / 2))
         self.y = np.int(np.round(self.dim[1] / 2))
-        self.z = np.int(np.round(self.dim[0] / 2))
+        if self.slide != None:
+            self.z = np.int(np.round(self.slide))
+        else:
+            self.z = np.int(np.round(self.dim[0] / 2))
 
         self.lineV_xy.setPos(self.x)
         self.lineH_xy.setPos(self.y)
@@ -190,10 +195,11 @@ class DisplayOrthoslicesWidget(QWidget):
         # self.initialize_orthoslice_linking()
 
     def set_lmap_color_map(self):
-        colormap = matplotlib.cm.get_cmap('rainbow')  # CMRmap
+        colormap = matplotlib.cm.get_cmap('gist_ncar')  # CMRmap
         colormap._init()
         lut = (colormap._lut * 255).view(np.ndarray)
         lut = np.random.permutation(lut)  # so that adjacent classes (e.g. 1 & 2) colors are not too similar
+        lut = np.random.permutation(lut)
         # edit alpha channel so that '0'->transparent
         alpha = np.ones(lut.shape[0]) * 255
         alpha[0] = 0

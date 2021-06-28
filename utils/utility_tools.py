@@ -245,7 +245,7 @@ def generate_with_shapes(objl, target_array, ref_list, class_radilist):
     N = objl.shape[0]
     dim = target_array.shape
     for row in range(N):
-        lbl = int(class_radilist[objl[row][-1]])
+        lbl = int(tuple(class_radilist.keys()).index(objl[row][-1]))
         x = int(objl[row][3])
         y = int(objl[row][2])
         z = int(objl[row][1])

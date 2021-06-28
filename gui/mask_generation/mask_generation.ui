@@ -42,11 +42,122 @@
       <height>718</height>
      </rect>
     </property>
-    <layout class="QGridLayout" name="gridLayout" rowstretch="0,0,0,0,0,0">
+    <layout class="QGridLayout" name="gridLayout" rowstretch="0,0,0,0,0,0,0,0">
      <property name="sizeConstraint">
       <enum>QLayout::SetMinimumSize</enum>
      </property>
-     <item row="5" column="0">
+     <item row="1" column="0">
+      <widget class="QLabel" name="maskShapeL">
+       <property name="text">
+        <string>Mask Shape</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QLineEdit" name="radiLen">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>450</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>6, 6, 3, 6, 6, 7, 6, 4, 4, 3, 10, 8</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="0">
+      <widget class="QLabel" name="outputPathL">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>output path</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="radiLenL">
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>radius  / length list of particles</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="0">
+      <widget class="QLabel" name="inputPathL">
+       <property name="text">
+        <string>Annotation file: (XML, CSV, txt, and star)</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="1">
+      <layout class="QHBoxLayout" name="outputPathHLayout">
+       <item>
+        <widget class="QLineEdit" name="outputPath">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>460</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="dragEnabled">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="saveBtn">
+         <property name="maximumSize">
+          <size>
+           <width>120</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>Save</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="outputPathEmptyL">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+     <item row="7" column="0">
       <widget class="QTableWidget" name="annTable">
        <property name="minimumSize">
         <size>
@@ -126,113 +237,11 @@
        <column/>
       </widget>
      </item>
-     <item row="4" column="0">
-      <widget class="QLabel" name="outputPathL">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>16777215</width>
-         <height>16777215</height>
-        </size>
-       </property>
-       <property name="text">
-        <string>output path</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="0">
-      <widget class="QLabel" name="radiLenL">
-       <property name="maximumSize">
-        <size>
-         <width>16777215</width>
-         <height>16777215</height>
-        </size>
-       </property>
-       <property name="text">
-        <string>radius  / length list of particles</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="1">
-      <widget class="QLineEdit" name="radiLen">
-       <property name="sizePolicy">
-        <sizepolicy hsizetype="Ignored" vsizetype="Fixed">
-         <horstretch>0</horstretch>
-         <verstretch>0</verstretch>
-        </sizepolicy>
-       </property>
-       <property name="maximumSize">
-        <size>
-         <width>450</width>
-         <height>16777215</height>
-        </size>
-       </property>
-       <property name="text">
-        <string>6, 6, 3, 6, 6, 7, 6, 4, 4, 3, 10, 8</string>
-       </property>
-       <property name="alignment">
-        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-       </property>
-      </widget>
-     </item>
      <item row="3" column="0">
       <widget class="QLabel" name="showAnnL">
        <property name="text">
         <string>Show annotations</string>
        </property>
-      </widget>
-     </item>
-     <item row="1" column="1">
-      <widget class="QGroupBox" name="groupBox">
-       <property name="maximumSize">
-        <size>
-         <width>16777215</width>
-         <height>16777215</height>
-        </size>
-       </property>
-       <property name="title">
-        <string/>
-       </property>
-       <widget class="QRadioButton" name="CircRBtn">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>0</y>
-          <width>100</width>
-          <height>31</height>
-         </rect>
-        </property>
-        <property name="maximumSize">
-         <size>
-          <width>16777215</width>
-          <height>16777215</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Circle</string>
-        </property>
-        <property name="checked">
-         <bool>true</bool>
-        </property>
-       </widget>
-       <widget class="QRadioButton" name="RecRBtn">
-        <property name="geometry">
-         <rect>
-          <x>170</x>
-          <y>0</y>
-          <width>161</width>
-          <height>31</height>
-         </rect>
-        </property>
-        <property name="text">
-         <string>Rectangle</string>
-        </property>
-       </widget>
       </widget>
      </item>
      <item row="0" column="1">
@@ -296,6 +305,22 @@
        </item>
       </layout>
      </item>
+     <item row="5" column="1">
+      <widget class="QSlider" name="opacity">
+       <property name="maximumSize">
+        <size>
+         <width>200</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="maximum">
+        <number>100</number>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
      <item row="3" column="1">
       <widget class="QCheckBox" name="ShowAnnBtn">
        <property name="text">
@@ -303,21 +328,62 @@
        </property>
       </widget>
      </item>
-     <item row="0" column="0">
-      <widget class="QLabel" name="inputPathL">
+     <item row="1" column="1">
+      <widget class="QGroupBox" name="groupBox">
+       <property name="maximumSize">
+        <size>
+         <width>16777215</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="title">
+        <string/>
+       </property>
+       <widget class="QRadioButton" name="CircRBtn">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>100</width>
+          <height>31</height>
+         </rect>
+        </property>
+        <property name="maximumSize">
+         <size>
+          <width>16777215</width>
+          <height>16777215</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Circle</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+       <widget class="QRadioButton" name="RecRBtn">
+        <property name="geometry">
+         <rect>
+          <x>170</x>
+          <y>0</y>
+          <width>161</width>
+          <height>31</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>Rectangle</string>
+        </property>
+       </widget>
+      </widget>
+     </item>
+     <item row="5" column="0">
+      <widget class="QLabel" name="opacityL">
        <property name="text">
-        <string>Annotation file: (XML, CSV, txt, and star)</string>
+        <string>Opacity</string>
        </property>
       </widget>
      </item>
-     <item row="1" column="0">
-      <widget class="QLabel" name="maskShapeL">
-       <property name="text">
-        <string>Mask Shape</string>
-       </property>
-      </widget>
-     </item>
-     <item row="5" column="1">
+     <item row="7" column="1">
       <layout class="QGridLayout" name="gridLayout_5">
        <item row="1" column="0">
         <widget class="QPushButton" name="zxPlaneLocation">
@@ -377,48 +443,28 @@
        </item>
       </layout>
      </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="sliderL">
+       <property name="text">
+        <string>Slider</string>
+       </property>
+      </widget>
+     </item>
      <item row="4" column="1">
-      <layout class="QHBoxLayout" name="outputPathHLayout">
-       <item>
-        <widget class="QLineEdit" name="outputPath">
-         <property name="sizePolicy">
-          <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
-           <horstretch>0</horstretch>
-           <verstretch>0</verstretch>
-          </sizepolicy>
-         </property>
-         <property name="maximumSize">
-          <size>
-           <width>460</width>
-           <height>16777215</height>
-          </size>
-         </property>
-         <property name="dragEnabled">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="saveBtn">
-         <property name="maximumSize">
-          <size>
-           <width>120</width>
-           <height>16777215</height>
-          </size>
-         </property>
-         <property name="text">
-          <string>Save</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLabel" name="outputPathEmptyL">
-         <property name="text">
-          <string/>
-         </property>
-        </widget>
-       </item>
-      </layout>
+      <widget class="QSlider" name="slider">
+       <property name="maximumSize">
+        <size>
+         <width>200</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="maximum">
+        <number>200</number>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
      </item>
     </layout>
    </widget>
