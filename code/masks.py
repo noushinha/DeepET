@@ -37,6 +37,7 @@ class MaskGenerationwindow(QMainWindow):
         self.mask_image = []
         self.mask_shape = 'circle'
         self.content = pd.DataFrame()
+        self.isNotDragged = False
 
         self.ui.loadBtn.clicked.connect(self.getfiles)
         self.ui.saveBtn.clicked.connect(self.save_mask)
@@ -84,19 +85,16 @@ class MaskGenerationwindow(QMainWindow):
 
     def loadmask(self):
         # load the tomogram and coordinates
-        self.dwidget.set_vol(self.input_image)
         self.mask_image = np.zeros(self.tomodim)
-        self.dwidget.set_lmap(self.mask_image)
+        self.isNotDragged = True
 
-        self.set_opacity()
         self.getmaskshape()
         self.getradiuslength()
 
-        # generate spheres and map them to the 2D image
-        self.dwidget.lmap = generate_masks(self.content, self.mask_image, self.class_radilist)
-        self.dwidget.update_lmap(self.dwidget.lmap)
-        # coord = [100, 256, 256]
-        # self.dwidget.goto_coord(coord)
+        self.dwidget.lmap = generate_spheres(self.content, self.mask_image, self.class_radilist)
+
+        self.change_slide()
+        self.set_opacity()
 
     def readfile(self, selected_file):
         filepath, filetype = file_attributes(selected_file)
@@ -137,9 +135,9 @@ class MaskGenerationwindow(QMainWindow):
         output_path = ROOT_DIR.__str__() + self.ui.outputPath.text()
 
         # save the generated mask
-        filename = 'target_' + self.image_path.split("/")[-1]
+        filename = 'target_' + self.image_path.split(OS_path_separator)[-1]
         save_volume(self.dwidget.lmap, output_path + filename + '.png')
-        write_mrc(self.dwidget.lmap, output_path + filename)
+        write_mrc(np.array(self.dwidget.lmap).astype(np.int8), output_path + filename)
 
     def set_opacity(self):
         self.dwidget.isLmapLoaded = True
@@ -158,23 +156,30 @@ class MaskGenerationwindow(QMainWindow):
         self.ui.slider.setMaximum(0)
         self.ui.slider.setMaximum(199)  # self.tomodim[0])
         self.ui.slider.setValue(np.round(100))  # self.tomodim[0] / 2
+        slide_tootip = "value" + str(self.ui.slider.value())
+        self.ui.slider.setToolTip(slide_tootip)
+        # self.change_slide()
 
     def change_slide(self):
         self.dwidget.slide = self.ui.slider.value()
         self.dwidget.set_vol(self.input_image)
+
+        if self.isNotDragged:
+            self.dwidget.isColorLoaded = True
+
         self.dwidget.set_lmap(self.mask_image)
-        #
-        # # # generate spheres and map them to the 2D image
-        # self.dwidget.lmap = generate_masks(self.content, self.mask_image, self.class_radilist)
-        # self.dwidget.update_lmap(self.dwidget.lmap)
+        slide_tootip = "value" + str(self.ui.slider.value())
+        self.ui.slider.setToolTip(slide_tootip)
+        self.isNotDragged = False
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     set_theme_style(app)
 
-
     application = MaskGenerationwindow()
     application.show()
+
     sys.exit(app.exec_())
 
 # self.graphLayout = pg.GraphicsLayoutWidget()

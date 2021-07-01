@@ -204,7 +204,24 @@ def radius_list(class_name, str_radiuslist):
     return class_radlist
 
 
-def generate_masks(content, target_mask, class_radilist):
+def generate_spheres(content, target_mask, class_radilist):
+    """ preprocessing and preparing lists of ref. spheres for generating masks
+    """
+    # radi_ref: reference list for radius of classes (spheres)
+    # The references order should be the same as order of class labels.
+    # e.g: 1st list item -> reference for label 1;
+    # 2nd list item -> reference for label 2; etc.
+    radius_vals = list(class_radilist.values())
+    Rmax = max(radius_vals)
+    radi_ref = []
+    for idx in range(len(radius_vals)):
+        sphere = prepare_ref_sphere(radius_vals[idx])
+        radi_ref.append(sphere)
+    target_array = generate_masks(content, target_mask, radi_ref, class_radilist)
+    return target_array
+
+
+def generate_masks(content, target_mask, radi_ref, class_radilist):
     """ Having a annotation list, this function generates the segmentation mask
     Args: content: Should contain the following data and in order:
                    [Path/to/image/file,z,y,x,[...optional columns],label]
@@ -212,26 +229,13 @@ def generate_masks(content, target_mask, class_radilist):
                      dimension order should be [z,y,x] to be compatible with content
     Returns: 3D np array of the mask, '0' is taken for background class, '1','2',... for rest of classes.
     """
-
-    # radi_ref: reference list for radius of classes (spheres)
-    # The references order should be the same as order of class labels.
-    # e.g: 1st list item -> reference for label 1;
-    # 2nd list item -> reference for label 2; etc.
-
-    radius_vals = list(class_radilist.values())
-    Rmax = max(radius_vals)
-    radi_ref = []
-    for idx in range(len(radius_vals)):
-        sphere = build_sphere(radius_vals[idx])
-        radi_ref.append(sphere)
-
     is_3D(target_mask, 'target_mask')
     is_list(radi_ref, 'radi_ref')
+
     boxcolor = color_pallete(len(class_radilist.keys()), list(class_radilist.keys()))
 
     ann_num = content.shape[0]  # number of available annotation we have
     dim = target_mask.shape  # image shape (mask shape is same as image shape)
-
     # for each annotation
     for row in range(ann_num):
         cls_ann = int(tuple(class_radilist.keys()).index(content[row][-1]))
@@ -255,16 +259,13 @@ def generate_masks(content, target_mask, class_radilist):
             xVox = x_coord[idx]
             yVox = y_coord[idx]
             zVox = z_coord[idx]
-
             # check that after offset transfer the coords are in the boudnary of tomo
             if xVox >= 0 and xVox < dim[2] and yVox >= 0 and yVox < dim[1] and zVox >= 0 and zVox < dim[0]:
-                target_mask[zVox, yVox, xVox] = boxcolor[cls_ann]
+                target_mask[zVox, yVox, xVox] = cls_ann  # boxcolor[cls_ann]
+    return target_mask
 
-    return np.int8(target_mask)
-    # target_array = generate_mask(objl, target_array, ref_list, class_radilist)
-    # return target_array
 
-def build_sphere(radi):
+def prepare_ref_sphere(radi):
     """ This function creates a sphere for the radius it receives
         Args: radi: list of particle radius
               dim: list of x, y, z radius of the sphere
@@ -277,6 +278,7 @@ def build_sphere(radi):
     Sph = ((x - center[0])/radi)**2 + ((y - center[1])/radi)**2 + ((z - center[2])/radi)**2
     Sph = np.int8(Sph <= 1)
     return Sph
+
 
 def save_volume(input_array, filename):
     """saves a png image from the generated masks if int8 type: a labelmap is saved in color scale.

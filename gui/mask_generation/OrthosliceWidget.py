@@ -1,6 +1,8 @@
 # ============================================================================================
-# DeepFinder - a deep learning approach to localize macromolecules in cryo electron tomograms
+# DEEPET - a deep learning framework for segmentation and classification of
+#                  macromolecules in Cryo Electron Tomograms (Cryo-ET)
 # ============================================================================================
+# this widget is Inspired by DeepFinder
 # Copyright (c) 2019 - now
 # Inria - Centre de Rennes Bretagne Atlantique, France
 # Author: Emmanuel Moebel (Serpico team)
@@ -84,6 +86,7 @@ class OrthoslicesWidget(QWidget):
         self.y = None
         self.z = None
         self.slide = None
+        self.isColorLoaded = True
         self.isTomoLoaded = False
 
         # Relative to displayed label map, needs to be initialized by set_lmap()
@@ -199,10 +202,10 @@ class OrthoslicesWidget(QWidget):
         alpha = np.ones(lut.shape[0]) * 255
         alpha[0] = 0
         lut[:, 3] = alpha
-
-        self.img_lmap_xy.setLookupTable(lut)
-        self.img_lmap_zy.setLookupTable(lut)
-        self.img_lmap_zx.setLookupTable(lut)
+        if self.isColorLoaded:
+            self.img_lmap_xy.setLookupTable(lut)
+            self.img_lmap_zy.setLookupTable(lut)
+            self.img_lmap_zx.setLookupTable(lut)
 
     def set_lmap_opacity(self, opacity):
         self.img_lmap_xy.setOpacity(opacity)
