@@ -132,5 +132,5 @@ class Ui_MainWindow(object):
         self.depthL.setText(_translate("MainWindow", "Depth:"))
         self.width.setText(_translate("MainWindow", "512"))
         self.height.setText(_translate("MainWindow", "512"))
-        self.depth.setText(_translate("MainWindow", "512"))
+        # self.depth.setText(_translate("MainWindow", "512"))
 
