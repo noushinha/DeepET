@@ -15,6 +15,8 @@ from keras.optimizers import Adam, Adamax, RMSprop, SGD
 from gui.theme_style import *
 from utils.params import *
 from models import *
+from PyQt5.QtWidgets import QRadioButton, QHBoxLayout, QGridLayout, QButtonGroup
+from PyQt5.QtCore import pyqtSignal, QObject
 
 
 class TrainingWindow(QMainWindow):
@@ -26,40 +28,121 @@ class TrainingWindow(QMainWindow):
         self.setWindowTitle("Training Models")
         self.setWindowIcon(QIcon('../../icon.jpg'))
 
-        # inititalize some parameters
-        self.epochs = 100
-        self.batch_size = 20
-        self.patch_size = 64
-        self.lr = 0.01
-        self.opt = "Adam"
+        self.generate_model_radio_btns(4)
+        self.generate_optimizer_radio_btns(4)
+        self.generate_loss_radio_btns(2)
+
+        self.ui.trainBtn.clicked.connect(self.start_train)
+
+        # initialize learning parameters
+        self.epochs = None
+        self.batch_size = None
+        self.patch_size = None
+        self.lr = None
         self.optimizer = None
-        self.loss = "binary"
+        self.loss = None
+        self.model = None
 
-        self.model = CNNModels.unet3d()
-        self.set_optimizer()
-        self.set_loss()
-        self.set_lr()
-        self.save_weights()
+        self.set_params()
+        # self.get_model()
 
-    def set_optimizer(self):
-        if self.opt == "RMS":
+    def generate_model_radio_btns(self, number):
+        model_names= ["2D UNet", "3D UNet", "RPN", "Mask R-CNN"]
+
+        horizontalLayoutModel = QHBoxLayout()
+        horizontalBox = QGridLayout()
+
+        horizontalLayoutModel.addLayout(horizontalBox)
+
+        modelgroup_btns = QButtonGroup(self)
+        modelgroup_btns.buttonClicked.connect(lambda btn: self.set_model(btn.text()))
+
+        for btn_num in range(number):
+            model_rbtn = QRadioButton()
+            modelgroup_btns.addButton(model_rbtn)
+            horizontalBox.addWidget(model_rbtn, 1, btn_num, 1, 1)
+            model_rbtn.setText(model_names[btn_num])
+            if btn_num == 0:
+                model_rbtn.setChecked(True)
+
+        self.ui.gridLayout_2.addLayout(horizontalLayoutModel, 2, 1, 1, 1)
+
+    def generate_loss_radio_btns(self, number):
+        model_names = ["Binary", "Categorical"]
+
+        horizontalLayoutLoss = QHBoxLayout()
+        horizontalBox = QGridLayout()
+
+        horizontalLayoutLoss.addLayout(horizontalBox)
+
+        modelgroup_btns = QButtonGroup(self)
+        modelgroup_btns.buttonClicked.connect(lambda btn: self.set_loss(btn.text()))
+
+        for btn_num in range(number):
+            model_rbtn = QRadioButton()
+            modelgroup_btns.addButton(model_rbtn)
+            horizontalBox.addWidget(model_rbtn, 1, btn_num, 1, 1)
+            model_rbtn.setText(model_names[btn_num])
+            if btn_num == 0:
+                model_rbtn.setChecked(True)
+
+        self.ui.gridLayout_2.addLayout(horizontalLayoutLoss, 6, 1, 1, 1)
+
+    def generate_optimizer_radio_btns(self, number):
+        model_names = ["Adam", "AdaMaX", "SGD", "RMS Prop"]
+
+        horizontalLayoutOpt = QHBoxLayout()
+        horizontalBox = QGridLayout()
+
+        horizontalLayoutOpt.addLayout(horizontalBox)
+
+        modelgroup_btns = QButtonGroup(self)
+        modelgroup_btns.buttonClicked.connect(lambda btn: self.set_opt(btn.text()))
+
+        for btn_num in range(number):
+            model_rbtn = QRadioButton()
+            modelgroup_btns.addButton(model_rbtn)
+            horizontalBox.addWidget(model_rbtn, 1, btn_num, 1, 1)
+            model_rbtn.setText(model_names[btn_num])
+            if btn_num == 0:
+                model_rbtn.setChecked(True)
+
+        self.ui.gridLayout_2.addLayout(horizontalLayoutOpt, 4, 1, 1, 1)
+
+    def set_params(self):
+        self.epochs = int(self.ui.epochs.text())
+        self.batch_size = int(self.ui.batchsize.text())
+        self.patch_size = int(self.ui.patchsize.text())
+        self.lr = float(self.ui.LR.text())
+
+        # ToDo: if you want to have particular learning rates
+        # self.set_lr()
+
+    def set_model(self, radio_text):
+        self.model = radio_text
+
+    def set_opt(self, radio_text):
+        if radio_text == "RMS":
             self.optimizer = RMSprop(lr=self.lr, rho=0.9, epsilon=1e-06, clipnorm=0, clipvalue=10)
-        elif self.opt == "SGD":
+        elif radio_text == "SGD":
             self.optimizer = SGD(lr=self.lr, momentum=0.0, decay=0.0, nesterov=False, clipnorm=0, clipvalue=10)
-        elif self.opt == "Adam":
+        elif radio_text == "Adam":
             self.optimizer = Adam(lr=self.lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08, clipnorm=0, clipvalue=10)
-        elif self.opt == "Ada":
+        elif radio_text == "AdaMaX":
             self.optimizer = Adamax(lr=self.lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08, clipnorm=0, clipvalue=10)
 
-    def set_loss(self):
-        if self.loss == "binary":
-            return "binary_crossentropy"
-        elif self.loss == "multi":
-            return "categorical_crossentropy"
+    def set_loss(self, radio_text):
+        if radio_text == "Binary":
+            self.loss = "binary_crossentropy"
+        elif radio_text == "Categorical":
+            self.loss = "categorical_crossentropy"
 
-    def get_lr(self):
-        return 1
-    # def set_params(self):
+    def start_train(self):
+        model_obj = CNNModels(self)
+        if self.model == "2D UNet":
+            model_obj.unet2d(self)
+        elif self.model == "3DUNet":
+            model_obj.unet3d(self)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

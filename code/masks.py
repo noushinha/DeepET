@@ -180,6 +180,8 @@ if __name__ == "__main__":
     application = MaskGenerationwindow()
     application.show()
 
+    application.showMaximized()
+
     sys.exit(app.exec_())
 
 # self.graphLayout = pg.GraphicsLayoutWidget()

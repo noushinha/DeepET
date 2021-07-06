@@ -46,17 +46,16 @@ class DataPreparation(keras.utils.Sequence):
         return x, y
 
 
-class CNNModels:
-    def __init__(self):
-        datum = DataPreparation()
+class CNNModels():
+    def __init__(self, obj):
+        datum = DataPreparation(obj.batch_size, obj.img_size, obj.imagePath, obj.targetPath)
         self.width = datum.img_size[0]
         self.height = datum.img_size[1]
 
         self.depth = 64
         self.num_class = 12
-        self.model_type = "2D"
 
-    def unet2d(self):
+    def unet2d(self, obj):
         # The original 2D UNET mdoel
         # inputs = keras.Input(shape=self.width + (3,))
         inputs = Input(shape=(self.width, self.height, 1))
@@ -110,7 +109,7 @@ class CNNModels:
         model = keras.Model(inputs, outputs)
         return model
 
-    def unet3d(self):
+    def unet3d(self, obj):
         # The UNET model from DeepFinder
         input = Input(shape=(self.width, self.height, self.depth, 1))
 
