@@ -44,7 +44,7 @@ class TrainingWindow(QMainWindow):
         self.model = None
 
         self.set_params()
-        self.get_model()
+        # self.get_model()
 
     def generate_model_radio_btns(self, number):
         model_names= ["2D UNet", "3D UNet", "RPN", "Mask R-CNN"]

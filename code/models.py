@@ -57,7 +57,7 @@ class CNNModels():
 
     def unet2d(self, obj):
         # The original 2D UNET mdoel
-        inputs = keras.Input(shape=self.width + (3,))
+        # inputs = keras.Input(shape=self.width + (3,))
         inputs = Input(shape=(self.width, self.height, 1))
 
         # down-sampling part of the network
