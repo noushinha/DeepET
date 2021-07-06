@@ -1,13 +1,28 @@
+# ============================================================================================
+# DeepET - a deep learning framework for segmentation and classification of
+#                  macromolecules in Cryo Electron Tomograms (Cryo-ET)
+# ============================================================================================
+# Copyright (c) 2021 - now
+# ZIB - Department of Visual and Data Centric
+# Author: Noushin Hajarolasvadi
+# Team Leader: Daniel Baum
+# License: GPL v3.0. See <https://www.gnu.org/licenses/>
+# ============================================================================================
 import os
+
+import numpy
 import numpy as np
 import itertools
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, auc
-from scipy import interpolate as interp
+from scipy import interp
 
 
 # Smoothing the plots
 def smooth_curve(points, factor=0.8):
+    """ This function smooths the fluctuation of a plot by
+        calculating the moving average of the points based on factor
+    """
     smoothed_points = []
     for point in points:
         if smoothed_points:
@@ -37,7 +52,7 @@ def plot_confusion_matrix(cm, classes,
 
     plt.imshow(cm, interpolation='nearest', cmap=cmap)
     plt.title(title)
-    # plt.colorbar()
+    plt.colorbar()
     tick_marks = np.arange(len(classes))
     plt.xticks(tick_marks, classes, rotation=45)
     plt.yticks(tick_marks, classes)
@@ -53,16 +68,19 @@ def plot_confusion_matrix(cm, classes,
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
     if normalize:
-        CF_NonNormalized_filename = os.path.join(eps_dir, "NonNormalized_" + str(epoch) + "_Epochs.eps")
-        plt.savefig(CF_NonNormalized_filename, format='eps', dpi=500, bbox_inches="tight")
+        cf_nonnormalized_filename = os.path.join(eps_dir, "NonNormalized_" + str(epoch) + "_Epochs.eps")
+        plt.savefig(cf_nonnormalized_filename, format='eps', dpi=500, bbox_inches="tight")
     else:
-        CF_Normalized_filename = os.path.join(eps_dir, "Normalized_" + str(epoch) + "_Epochs.eps")
-        plt.savefig(CF_Normalized_filename, format='eps', dpi=500, bbox_inches="tight")
+        cf_normalized_filename = os.path.join(eps_dir, "Normalized_" + str(epoch) + "_Epochs.eps")
+        plt.savefig(cf_normalized_filename, format='eps', dpi=500, bbox_inches="tight")
 
 
-def plot_train_vs_vald(train_points, vald_points, eps_dir, epoch, isLoss=False):
+def plot_train_vs_vald(train_points, vald_points, eps_dir, epoch, is_loss=False):
+    """
+    This function plots the accuracy/loss of training process versus the validation.
+    """
     plot_label = 'Accuracy'
-    if isLoss == True:
+    if is_loss:
         plot_label = 'Loss'
 
     epochs = range(1, len(train_points) + 1)
@@ -81,6 +99,10 @@ def plot_train_vs_vald(train_points, vald_points, eps_dir, epoch, isLoss=False):
 
 
 def plot_folds_accuracy(model_history, start_point, eps_dir, epoch):
+    """
+    if cross-fold validation is used, this function plot accuracy in training
+    process versus validation process per fold.
+    """
     color_map = ['red', 'black', 'green', 'blue', 'magenta', 'cyan', 'yellow', 'orange', 'violet', 'pink']
 
     plt.title('Train Accuracy (T) vs Validation Accuracy (V)')
@@ -88,7 +110,6 @@ def plot_folds_accuracy(model_history, start_point, eps_dir, epoch):
     pointslen = model_history[0].history['acc']
     pointslen = pointslen[start_point:]
     epochs = range(1, len(pointslen) + 1)
-
 
     for i in range(10):
         points1 = model_history[i].history['acc']
@@ -108,15 +129,16 @@ def plot_folds_accuracy(model_history, start_point, eps_dir, epoch):
 
 
 def plot_folds_loss(model_history, start_point, eps_dir, epoch):
-
+    """
+    if cross-fold validation is used, this function plot loss in training
+    process versus validation process per fold.
+    """
     color_map = ['red', 'black', 'green', 'blue', 'magenta', 'cyan', 'yellow', 'orange', 'violet', 'pink']
-
     plt.title('Train Loss (T) vs Validation Loss (V)')
 
     pointslen = model_history[0].history['loss']
     pointslen = pointslen[start_point:]
     epochs = range(1, len(pointslen) + 1)
-
 
     for i in range(10):
         points1 = model_history[i].history['loss']
@@ -136,6 +158,9 @@ def plot_folds_loss(model_history, start_point, eps_dir, epoch):
 
 
 def plot_folds_barchart(t_data, v_data, fold_number, fold_dir, epoch):
+    """
+    This function plots number of samples selected for each fold as a bar chart.
+    """
     y_pos = np.arange(6)
     width = 0.32
 
@@ -144,8 +169,8 @@ def plot_folds_barchart(t_data, v_data, fold_number, fold_dir, epoch):
 
     t_values, t_counts = np.unique(t_data, return_counts=True)
     v_values, v_counts = np.unique(v_data, return_counts=True)
-    rects1 = ax.bar(y_pos, t_counts, width, color='SkyBlue', alpha = 0.5,)
-    rects2 = ax.bar(y_pos+width, v_counts, width, color='IndianRed',  alpha = 0.5,)
+    rects1 = ax.bar(y_pos, t_counts, width, color='SkyBlue', alpha=0.5,)
+    rects2 = ax.bar(y_pos+width, v_counts, width, color='IndianRed',  alpha=0.5)
 
     ax.set_ylabel('# Labels')
     ax.set_xlabel('Categories')
@@ -170,11 +195,14 @@ def autolabel(ax, rects):
 
 
 # Compute and plot ROC curve and ROC area for each class
-def plot_ROC(y_test, y_score, classes_num, eps_dir, epoch):
-    # plot line width
-    lw =1
+def plot_roc(y_test, y_score, classes_num, eps_dir, epoch):
+    """
+    This function plots ROC for multi-class classification.
+    One ROC plot for each class, also it plots micro and macro ROCs.
+    """
 
     # variable definition
+    lw = 1  # plot line width
     fpr = dict()
     tpr = dict()
     roc_auc = dict()
@@ -189,14 +217,13 @@ def plot_ROC(y_test, y_score, classes_num, eps_dir, epoch):
     roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
 
     # Compute macro-average ROC curve and ROC area
-
     # First aggregate all false positive rates
     all_fpr = np.unique(np.concatenate([fpr[i] for i in range(classes_num)]))
 
     # Then interpolate all ROC curves at this points
     mean_tpr = np.zeros_like(all_fpr)
     for i in range(classes_num):
-        mean_tpr += interp(all_fpr, fpr[i], tpr[i])
+        mean_tpr += numpy.interp(all_fpr, fpr[i], tpr[i])
 
     # Finally average it and compute AUC
     mean_tpr /= classes_num
@@ -219,9 +246,9 @@ def plot_ROC(y_test, y_score, classes_num, eps_dir, epoch):
     plt.plot(fpr["macro"], tpr["macro"],
              label='macro-average ROC curve (area = {0:0.2f})'
                    ''.format(roc_auc["macro"]),
-             color='blue', linestyle='-.', linewidth=1)
+             color='blue', linestyle='-.', linewidth=lw)
 
-    plt.plot([0, 1], [0, 1], color='silver', linestyle='--', linewidth=1)
+    plt.plot([0, 1], [0, 1], color='silver', linestyle='--', linewidth=lw)
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
     plt.xlabel('False Positive Rate')
@@ -234,7 +261,9 @@ def plot_ROC(y_test, y_score, classes_num, eps_dir, epoch):
 
 # plotting learning rate
 def plot_lr(lr_points, eps_dir, epoch):
-
+    """
+    This function plots learning rate versus number of epochs.
+    """
     epochs = range(1, len(lr_points) + 1)
 
     lines1 = plt.plot(epochs, lr_points, label='learning rate')

@@ -1,27 +1,30 @@
-import os
-import PIL
-import random
-
-import cv2
+# ============================================================================================
+# DeepET - a deep learning framework for segmentation and classification of
+#                  macromolecules in Cryo Electron Tomograms (Cryo-ET)
+# ============================================================================================
+# Copyright (c) 2021 - now
+# ZIB - Department of Visual and Data Centric
+# Author: Noushin Hajarolasvadi
+# Team Leader: Daniel Baum
+# License: GPL v3.0. See <https://www.gnu.org/licenses/>
+# ============================================================================================
 import numpy as np
-from IPython.display import Image, display
-from PIL import ImageOps
-# import matplotlib.pyplot as plt
 from tensorflow import keras
-from tensorflow.keras.preprocessing.image import load_img, array_to_img
-from tensorflow.keras.layers import *
-from tensorflow.keras import backend, callbacks, Model
+from tensorflow.keras.preprocessing.image import load_img
 from tensorflow.keras import layers
+from tensorflow.keras import backend, callbacks, Model
+
 
 # loading batches of data
 class DataPreparation(keras.utils.Sequence):
     """we iterate over the data as numpy arrays"""
 
-    def __init__(self, batch_size, img_size, input_img_paths, target_img_paths):
-        self.batch_size = batch_size
-        self.img_size = img_size
-        self.input_img_paths = input_img_paths
-        self.target_img_paths = target_img_paths
+    def __init__(self, obj):
+        self.batch_size = obj.batch_size
+        self.patch_size = obj.patch_size
+        self.img_size = obj.img_size
+        self.input_img_paths = obj.input_img_paths
+        self.target_img_paths = obj.target_img_paths
 
     def __len__(self):
         return len(self.target_img_paths) // self.batch_size
@@ -46,22 +49,26 @@ class DataPreparation(keras.utils.Sequence):
         return x, y
 
 
-class CNNModels():
+class CNNModels:
     def __init__(self, obj):
-        datum = DataPreparation(obj.batch_size, obj.img_size, obj.imagePath, obj.targetPath)
-        self.width = datum.img_size[0]
-        self.height = datum.img_size[1]
+        datum = DataPreparation(obj)
+        self.obj = obj
+        dim = len(self.obj.img_size)
+        self.width = self.obj.img_size[0]
+        self.height = self.obj.img_size[1]
 
-        self.depth = 64
-        self.num_class = 12
+        if dim == 3:
+            self.depth = self.obj.img_size[2]
 
-    def unet2d(self, obj):
+        self.num_class = self.obj.num_class
+
+    def unet2d(self):
         # The original 2D UNET mdoel
         # inputs = keras.Input(shape=self.width + (3,))
-        inputs = Input(shape=(self.width, self.height, 1))
+        input_img = layers.Input(shape=(self.width, self.height, 1))
 
         # down-sampling part of the network
-        x = layers.Conv2D(32, 3, strides=2, padding="same")(inputs)
+        x = layers.Conv2D(32, 3, strides=2, padding="same")(input_img)
         x = layers.BatchNormalization()(x)
         x = layers.Activation("relu")(x)
 
@@ -106,43 +113,43 @@ class CNNModels():
         outputs = layers.Conv2D(self.num_class, 3, activation="softmax", padding="same")(x)
 
         # Define the model
-        model = keras.Model(inputs, outputs)
+        model = Model(input_img, outputs)
         return model
 
     def unet3d(self, obj):
         # The UNET model from DeepFinder
-        input = Input(shape=(self.width, self.height, self.depth, 1))
+        input_img = layers.Input(shape=(self.width, self.height, self.depth, 1))
 
-        x = Conv3D(32, (3, 3, 3), padding='same', activation='relu')(input)
-        high = Conv3D(32, (3, 3, 3), padding='same', activation='relu')(x)
+        x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(input_img)
+        high = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(x)
 
-        x = MaxPooling3D((2, 2, 2), strides=None)(high)
+        x = layers.MaxPooling3D((2, 2, 2), strides=None)(high)
 
-        x = Conv3D(48, (3, 3, 3), padding='same', activation='relu')(x)
-        mid = Conv3D(48, (3, 3, 3), padding='same', activation='relu')(x)
+        x = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu')(x)
+        mid = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu')(x)
 
-        x = MaxPooling3D((2, 2, 2), strides=None)(mid)
+        x = layers.MaxPooling3D((2, 2, 2), strides=None)(mid)
 
-        x = Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
-        x = Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
-        x = Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
-        x = Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
+        x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
+        x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
+        x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
+        x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
 
-        x = UpSampling3D(size=(2, 2, 2), data_format='channels_last')(x)
-        x = Conv3D(64, (2, 2, 2), padding='same', activation='relu')(x)
+        x = layers.UpSampling3D(size=(2, 2, 2), data_format='channels_last')(x)
+        x = layers.Conv3D(64, (2, 2, 2), padding='same', activation='relu')(x)
 
-        x = concatenate([x, mid])
-        x = Conv3D(48, (3, 3, 3), padding='same', activation='relu')(x)
-        x = Conv3D(48, (3, 3, 3), padding='same', activation='relu')(x)
+        x = layers.concatenate([x, mid])
+        x = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu')(x)
+        x = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu')(x)
 
-        x = UpSampling3D(size=(2, 2, 2), data_format='channels_last')(x)
-        x = Conv3D(48, (2, 2, 2), padding='same', activation='relu')(x)
+        x = layers.UpSampling3D(size=(2, 2, 2), data_format='channels_last')(x)
+        x = layers.Conv3D(48, (2, 2, 2), padding='same', activation='relu')(x)
 
-        x = concatenate([x, high])
-        x = Conv3D(32, (3, 3, 3), padding='same', activation='relu')(x)
-        x = Conv3D(32, (3, 3, 3), padding='same', activation='relu')(x)
+        x = layers.concatenate([x, high])
+        x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(x)
+        x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(x)
 
-        output = Conv3D(self.num_class, (1, 1, 1), padding='same', activation='softmax')(x)
+        output = layers.Conv3D(self.num_class, (1, 1, 1), padding='same', activation='softmax')(x)
 
-        model = Model(input, output)
-        return 1
+        model = Model(input_img, output)
+        return model

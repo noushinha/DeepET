@@ -1,10 +1,11 @@
 # ============================================================================================
-# DeepTomo - a deep learning framework for segmentation and classification of
-#                  macromolecules in cryo electron tomograms
+# DeepET - a deep learning framework for segmentation and classification of
+#                  macromolecules in Cryo Electron Tomograms (Cryo-ET)
 # ============================================================================================
 # Copyright (c) 2021 - now
 # ZIB - Department of Visual and Data Centric
-# Author: Noushin Hajarolasvadi, Willy (Daniel team)
+# Author: Noushin Hajarolasvadi
+# Team Leader: Daniel Baum
 # License: GPL v3.0. See <https://www.gnu.org/licenses/>
 # ============================================================================================
 import pandas as pd
@@ -13,8 +14,6 @@ import sys
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
-# from pathlib import Path
-# from deeptomo.utils import params
 
 
 def display(message):

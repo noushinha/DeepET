@@ -1,11 +1,7 @@
 # -*- coding: utf-8 -*-
-
 # Form implementation generated from reading ui file 'train.ui'
-#
 # Created by: PyQt5 UI code generator 5.13.2
-#
 # WARNING! All changes made in this file will be lost!
-
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
@@ -88,6 +84,12 @@ class Ui_MainWindow(object):
         self.depth = QtWidgets.QLineEdit(self.gridLayoutWidget)
         self.depth.setObjectName("depth")
         self.horizontalLayout9.addWidget(self.depth)
+        self.classNumL = QtWidgets.QLabel(self.gridLayoutWidget)
+        self.classNumL.setObjectName("classNumL")
+        self.horizontalLayout9.addWidget(self.classNumL)
+        self.classNum = QtWidgets.QLineEdit(self.gridLayoutWidget)
+        self.classNum.setObjectName("classNum")
+        self.horizontalLayout9.addWidget(self.classNum)
         self.gridLayout_2.addLayout(self.horizontalLayout9, 5, 1, 1, 1)
         self.trainBtn = QtWidgets.QPushButton(self.gridLayoutWidget)
         self.trainBtn.setObjectName("trainBtn")
@@ -130,7 +132,9 @@ class Ui_MainWindow(object):
         self.widthL.setText(_translate("MainWindow", "Width:"))
         self.heightL.setText(_translate("MainWindow", "Height:"))
         self.depthL.setText(_translate("MainWindow", "Depth:"))
+        self.classNumL.setText(_translate("MainWindow", "#Class:"))
         self.width.setText(_translate("MainWindow", "512"))
         self.height.setText(_translate("MainWindow", "512"))
         self.depth.setText(_translate("MainWindow", "512"))
+        self.classNum.setText(_translate("MainWindow", "2"))
 

@@ -1,13 +1,10 @@
 # -*- coding: utf-8 -*-
-
 # Form implementation generated from reading ui file 'mask_generation.ui'
-#
 # Created by: PyQt5 UI code generator 5.13.2
-#
 # WARNING! All changes made in this file will be lost!
 
 
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5 import QtCore, QtWidgets
 
 
 class Ui_MainWindow(object):
@@ -30,22 +27,10 @@ class Ui_MainWindow(object):
         self.maskShapeL.setObjectName("maskShapeL")
         self.gridLayout.addWidget(self.maskShapeL, 1, 0, 1, 1)
         self.radiLen = QtWidgets.QLineEdit(self.gridLayoutWidget)
-        # sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Fixed)
-        # sizePolicy.setHorizontalStretch(0)
-        # sizePolicy.setVerticalStretch(0)
-        # sizePolicy.setHeightForWidth(self.radiLen.sizePolicy().hasHeightForWidth())
-        # self.radiLen.setSizePolicy(sizePolicy)
-        # self.radiLen.setMaximumSize(QtCore.QSize(360, 16777215))
         self.radiLen.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
         self.radiLen.setObjectName("radiLen")
         self.gridLayout.addWidget(self.radiLen, 2, 1, 1, 1)
         self.outputPathL = QtWidgets.QLabel(self.gridLayoutWidget)
-        # sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
-        # sizePolicy.setHorizontalStretch(0)
-        # sizePolicy.setVerticalStretch(0)
-        # sizePolicy.setHeightForWidth(self.outputPathL.sizePolicy().hasHeightForWidth())
-        # self.outputPathL.setSizePolicy(sizePolicy)
-        # self.outputPathL.setMaximumSize(QtCore.QSize(16777215, 16777215))
         self.outputPathL.setObjectName("outputPathL")
         self.gridLayout.addWidget(self.outputPathL, 6, 0, 1, 1)
         self.radiLenL = QtWidgets.QLabel(self.gridLayoutWidget)
@@ -59,12 +44,6 @@ class Ui_MainWindow(object):
         self.outputPathHLayout.setSpacing(6)
         self.outputPathHLayout.setObjectName("outputPathHLayout")
         self.outputPath = QtWidgets.QLineEdit(self.gridLayoutWidget)
-        # sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
-        # sizePolicy.setHorizontalStretch(0)
-        # sizePolicy.setVerticalStretch(0)
-        # sizePolicy.setHeightForWidth(self.outputPath.sizePolicy().hasHeightForWidth())
-        # self.outputPath.setSizePolicy(sizePolicy)
-        # self.outputPath.setMaximumSize(QtCore.QSize(360, 16777215))
         self.outputPath.setDragEnabled(True)
         self.outputPath.setObjectName("outputPath")
         self.outputPathHLayout.addWidget(self.outputPath)
@@ -93,12 +72,6 @@ class Ui_MainWindow(object):
         self.inputPathHLayout.setObjectName("inputPathHLayout")
         self.inputPath = QtWidgets.QLineEdit(self.gridLayoutWidget)
         self.inputPath.setEnabled(True)
-        # sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
-        # sizePolicy.setHorizontalStretch(0)
-        # sizePolicy.setVerticalStretch(0)
-        # sizePolicy.setHeightForWidth(self.inputPath.sizePolicy().hasHeightForWidth())
-        # self.inputPath.setSizePolicy(sizePolicy)
-        # self.inputPath.setMaximumSize(QtCore.QSize(360, 16777215))
         self.inputPath.setCursorPosition(20)
         self.inputPath.setDragEnabled(True)
         self.inputPath.setObjectName("inputPath")

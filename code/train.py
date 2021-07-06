@@ -1,10 +1,11 @@
 # ============================================================================================
-# DeepTomo - a deep learning framework for segmentation and classification of
+# DeepET - a deep learning framework for segmentation and classification of
 #                  macromolecules in Cryo Electron Tomograms (Cryo-ET)
 # ============================================================================================
 # Copyright (c) 2021 - now
 # ZIB - Department of Visual and Data Centric
-# Author: Noushin Hajarolasvadi, Willy (Daniel team)
+# Author: Noushin Hajarolasvadi
+# Team Leader: Daniel Baum
 # License: GPL v3.0. See <https://www.gnu.org/licenses/>
 # ============================================================================================
 
@@ -140,9 +141,9 @@ class TrainingWindow(QMainWindow):
     def start_train(self):
         model_obj = CNNModels(self)
         if self.model == "2D UNet":
-            model_obj.unet2d(self)
+            model_obj.unet2d()
         elif self.model == "3DUNet":
-            model_obj.unet3d(self)
+            model_obj.unet3d()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
