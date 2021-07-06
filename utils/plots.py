@@ -9,13 +9,10 @@
 # License: GPL v3.0. See <https://www.gnu.org/licenses/>
 # ============================================================================================
 import os
-
-import numpy
 import numpy as np
 import itertools
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, auc
-from scipy import interp
 
 
 # Smoothing the plots
@@ -223,7 +220,7 @@ def plot_roc(y_test, y_score, classes_num, eps_dir, epoch):
     # Then interpolate all ROC curves at this points
     mean_tpr = np.zeros_like(all_fpr)
     for i in range(classes_num):
-        mean_tpr += numpy.interp(all_fpr, fpr[i], tpr[i])
+        mean_tpr += np.interp(all_fpr, fpr[i], tpr[i])
 
     # Finally average it and compute AUC
     mean_tpr /= classes_num

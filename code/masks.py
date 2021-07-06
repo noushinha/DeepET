@@ -137,7 +137,7 @@ class MaskGenerationwindow(QMainWindow):
 
         # save the generated mask
         filename = 'target_' + self.image_path.split(OS_path_separator)[-1]
-        save_volume(self.dwidget.lmap, output_path + filename + '.png')
+        # save_volume(self.dwidget.lmap, output_path + filename + '.png')
         write_mrc(np.array(self.dwidget.lmap).astype(np.int8), output_path + filename)
 
     def set_opacity(self):

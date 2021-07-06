@@ -36,14 +36,18 @@ class TrainingWindow(QMainWindow):
         self.ui.trainBtn.clicked.connect(self.start_train)
 
         # initialize learning parameters
+        self.img_path = None
+        self.target_path = None
+        self.output_path = None
         self.epochs = None
         self.batch_size = None
         self.patch_size = None
         self.lr = None
-        self.optimizer = None
+        self.opt = None
         self.loss = None
         self.model = None
-
+        self.dim_num = None
+        self.img_dim = None
         self.set_params()
         # self.get_model()
 
@@ -66,7 +70,7 @@ class TrainingWindow(QMainWindow):
             if btn_num == 0:
                 model_rbtn.setChecked(True)
 
-        self.ui.gridLayout_2.addLayout(horizontalLayoutModel, 2, 1, 1, 1)
+        self.ui.gridLayout_2.addLayout(horizontalLayoutModel, 3, 1, 1, 1)
 
     def generate_loss_radio_btns(self, number):
         model_names = ["Binary", "Categorical"]
@@ -87,7 +91,7 @@ class TrainingWindow(QMainWindow):
             if btn_num == 0:
                 model_rbtn.setChecked(True)
 
-        self.ui.gridLayout_2.addLayout(horizontalLayoutLoss, 6, 1, 1, 1)
+        self.ui.gridLayout_2.addLayout(horizontalLayoutLoss, 7, 1, 1, 1)
 
     def generate_optimizer_radio_btns(self, number):
         model_names = ["Adam", "AdaMaX", "SGD", "RMS Prop"]
@@ -108,13 +112,23 @@ class TrainingWindow(QMainWindow):
             if btn_num == 0:
                 model_rbtn.setChecked(True)
 
-        self.ui.gridLayout_2.addLayout(horizontalLayoutOpt, 4, 1, 1, 1)
+        self.ui.gridLayout_2.addLayout(horizontalLayoutOpt, 5, 1, 1, 1)
 
     def set_params(self):
         self.epochs = int(self.ui.epochs.text())
         self.batch_size = int(self.ui.batchsize.text())
         self.patch_size = int(self.ui.patchsize.text())
+        self.img_path = self.ui.imagePath.text()
+        self.target_path = self.ui.targetPath.text()
+        self.output_path = self.ui.outputPath.text()
         self.lr = float(self.ui.LR.text())
+
+        if self.ui.depth == 0:
+            self.dim_num = 2
+            self.img_dim = (self.ui.width, self.ui.height)
+        else:
+            self.dim_num = 3
+            self.img_dim = (self.ui.width, self.ui.height, self.ui.depth)
 
         # ToDo: if you want to have particular learning rates
         # self.set_lr()
@@ -123,14 +137,7 @@ class TrainingWindow(QMainWindow):
         self.model = radio_text
 
     def set_opt(self, radio_text):
-        if radio_text == "RMS":
-            self.optimizer = RMSprop(lr=self.lr, rho=0.9, epsilon=1e-06, clipnorm=0, clipvalue=10)
-        elif radio_text == "SGD":
-            self.optimizer = SGD(lr=self.lr, momentum=0.0, decay=0.0, nesterov=False, clipnorm=0, clipvalue=10)
-        elif radio_text == "Adam":
-            self.optimizer = Adam(lr=self.lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08, clipnorm=0, clipvalue=10)
-        elif radio_text == "AdaMaX":
-            self.optimizer = Adamax(lr=self.lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08, clipnorm=0, clipvalue=10)
+        self.opt = radio_text
 
     def set_loss(self, radio_text):
         if radio_text == "Binary":
@@ -140,10 +147,6 @@ class TrainingWindow(QMainWindow):
 
     def start_train(self):
         model_obj = CNNModels(self)
-        if self.model == "2D UNet":
-            model_obj.unet2d()
-        elif self.model == "3DUNet":
-            model_obj.unet3d()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

@@ -47,6 +47,33 @@ def is_file(filename):
         return 1
 
 
+def is_dir(dirpath):
+    if not os.path.isdir(dirpath):
+        display('path "' + dirpath + '" does not exist. A valid directory is required.')
+        sys.exit()
+    else:
+        return 1
+
+
+def is_int(self, num, var):
+    if type(num)!=int and type(num)!=np.int8 and type(num)!=np.int16:
+        display('variable "' + var + '" is ' + str(type(num)) + '. An integer is required.')
+        sys.exit()
+
+
+def is_positive(self, num, var):
+    is_int(num, var)
+    if num <= 0:
+        display('variable "'+var+'" is negative. positive value is required.')
+        sys.exit()
+
+
+# def is_factor4(self, num, var):
+#     self.is_int(num, var)
+#     if num % 4 != 0:
+#         display('variable "' + var + '" should be a multiple of 4.')
+#         sys.exit()
+
 def file_attributes(Qtfile):
     """ This function receives a QtFile object that is selected through browse button and
         returns file path and file type of it.
