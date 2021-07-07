@@ -55,13 +55,13 @@ def is_dir(dirpath):
         return 1
 
 
-def is_int(self, num, var):
+def is_int(num, var):
     if type(num)!=int and type(num)!=np.int8 and type(num)!=np.int16:
         display('variable "' + var + '" is ' + str(type(num)) + '. An integer is required.')
         sys.exit()
 
 
-def is_positive(self, num, var):
+def is_positive(num, var):
     is_int(num, var)
     if num <= 0:
         display('variable "'+var+'" is negative. positive value is required.')

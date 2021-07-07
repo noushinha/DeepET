@@ -18,3 +18,5 @@
 # should NOT be excluded as they contain compiler settings and other important
 # information for Eclipse / Flash Builder.
 /data/
+RML_VideoBase_Video_CNN_KFold.py
+

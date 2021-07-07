@@ -8,12 +8,23 @@
 # Team Leader: Daniel Baum
 # License: GPL v3.0. See <https://www.gnu.org/licenses/>
 # ============================================================================================
-import numpy as np
-from tensorflow import keras
-from tensorflow.keras.preprocessing.image import load_img
-from tensorflow.keras import layers
-from tensorflow.keras import Model  # backend, callbacks,
+# import numpy as np
+import time
+import math
+import shutil
 from utils.plots import *
+from utils.utility_tools import *
+from utils.CyclicLR.clr_callback import CyclicLR
+from sklearn.metrics import confusion_matrix
+
+from tensorflow import keras
+from keras.optimizers import *
+from tensorflow.keras import Model  # backend, callbacks,
+from tensorflow.keras import layers
+from keras.callbacks import LearningRateScheduler
+from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau
+from tensorflow.keras.preprocessing.image import load_img
+
 
 # loading batches of data
 class DataPreparation(keras.utils.Sequence):
@@ -29,8 +40,8 @@ class DataPreparation(keras.utils.Sequence):
         # check values
         self.is_positive(self.batch_size, 'batch_size')
         self.is_positive(self.patch_size, 'patch_size')
-        self.is_dir(img_path)
-        self.is_dir(target_path)
+        self.is_dir(self.img_path)
+        self.is_dir(self.target_path)
 
     def __len__(self):
         return len(self.target_path) // self.batch_size
@@ -61,19 +72,28 @@ class CNNModels:
     def __init__(self, obj):
         self.data = DataPreparation(obj)
 
-        # initialize values
+        # define values
+        self.lrr = []
+        self.lrT = None
         self.net = None
-        self.obj = obj
-        self.lr = obj.lr
-        self.loss = obj.loss
+        self.history = None
         self.optimizer = None
         self.checkpoint = None
-        self.history = None
-        self.model_type = obj.model
+        self.layer_name = None
+        self.process_time = None
+
+        # initialize values
+        self.obj = obj
+        self.lr = obj.lr
+        self.opt = obj.opt
+        self.loss = obj.loss
         self.epochs = obj.epochs
-        self.batch_size = obj.batch_size
-        self.output_path = obj.output_path
         self.metrics = obj.metrics
+        self.model_type = obj.model
+        self.batch_size = obj.batch_size
+        self.img_path = obj.img_path
+        self.target_path = obj.target_path
+        self.output_path = obj.output_path
         self.num_class = self.obj.classNum
         self.width = self.obj.img_dim[0]
         self.height = self.obj.img_dim[1]
@@ -81,35 +101,33 @@ class CNNModels:
             self.depth = self.obj.img_dim[2]
 
         # check values
-        self.is_positive(self.epochs, 'epochs')
-        self.is_positive(self.num_class, 'num_class')
+        is_positive(self.epochs, 'epochs')
+        is_positive(self.num_class, 'num_class')
 
         # initialize model
         self.train_model()
 
     def train_model(self):
-        self.set_optimizer(obj.opt)
-        self.get_model(self.model_type)
-        self.set_compile()
+        self.get_model()
         self.fit_model()
         self.plots()
         self.save()
         plt.show(block=True)
 
-    def set_optimizer(self, opt):
+    def set_optimizer(self):
         self.optimizer = Adam(lr=self.lr, beta_1=.9, beta_2=.999, epsilon=1e-08, decay=0.0)
 
-        if opt == "SGD":
+        if self.opt == "SGD":
             self.optimizer = SGD(lr=self.lr, decay=0.0, momentum=0.9, nesterov=True)
-        elif opt == "Adagrad":
+        elif self.opt == "Adagrad":
             self.optimizer = Adagrad(lr=self.lr, epsilon=1e-08, decay=0.0)
-        elif opt == "Adadelta":
+        elif self.opt == "Adadelta":
             self.optimizer = Adadelta(lr=self.lr, rho=0.95, epsilon=1e-08, decay=0.0)
-        elif opt == "Adamax":
+        elif self.opt == "Adamax":
             self.optimizer = Adamax(lr=self.lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
-        elif opt == "Nadam":
+        elif self.opt == "Nadam":
             self.optimizer = Nadam(lr=self.lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08, schedule_decay=0.004)
-        elif opt == "RMSprop":
+        elif self.opt == "RMSprop":
             self.optimizer = RMSprop(lr=self.lr, rho=0.9, epsilon=1e-08, decay=0.0)
 
     # learning rate schedule
@@ -118,7 +136,7 @@ class CNNModels:
         drop = 0.5
         epochs_drop = 50
         lrate = initial_lrate * math.pow(drop, math.floor((1 + self.epochs) / epochs_drop))
-        lrr.append(lrate)
+        self.lrr.append(lrate)
         return lrate
 
     def set_lr(self):
@@ -126,37 +144,31 @@ class CNNModels:
         self.lr = ReduceLROnPlateau(monitor='val_loss', factor=0.25, patience=10,
                                     min_lr=1e-06, mode='min', verbose=1)
         if self.lrT == "step_decay":
-            self.lr = LearningRateScheduler(step_decay)
-        elif lrT == "lambda":
-            self.lr = LearningRateScheduler(lambda epoch: self.lr * 0.99 ** self.epochs)
-        elif lrT == "cyclic":
-            self.lr = CyclicLR(base_lr=base_lr, max_lr=6e-04, step_size=500., mode='exp_range', gamma=0.99994)
+            self.lr = LearningRateScheduler(self.step_decay())
+        elif self.lrT == "lambda":
+            self.lr = LearningRateScheduler(lambda this_epoch: self.lr * 0.99 ** this_epoch)
+        elif self.lrT == "cyclic":
+            self.lr = CyclicLR(base_lr=self.lr, max_lr=6e-04, step_size=500., mode='exp_range', gamma=0.99994)
 
     def get_lr_metric(self):
         def lr(y_true, y_pred):
             # lrr.append(float(K.get_value(optimizer.lr)))
-            return self.optimizer.lr
-
-        self.lr = lr
+            self.lr = self.optimizer.lr
 
     def set_compile(self):
-        lr_metric = get_lr_metric(optimizer)
-        self.metrics = ['accuracy', lr_metric]
-        if self.loss == "Binary":
-            self.net.compile(optimizer=self.optimizer, loss="binary_crossentropy", metrics=[self.metrics])
-        elif self.loss == "Categorical":
-            self.net.compile(optimizer=self.optimizer, loss="categorical_crossentropy", metrics=[self.metrics])
-        elif self.loss == "sparse":
-            self.net.compile(optimizer=self.optimizer, loss="sparse_categorical_crossentropy", metrics=[self.metrics])
+        self.get_lr_metric()
+        self.metrics = ['accuracy', self.lr]
+        if self.loss != "tversky":
+            self.net.compile(optimizer=self.optimizer, loss=self.loss, metrics=[self.metrics])
         else:
-            self.net.compile(optimizer=self.optimizer, loss=losses.tversky_loss, metrics=[self.metrics])
+            self.net.compile(optimizer=self.optimizer, loss=self.tversky_loss, metrics=[self.metrics])
 
     def set_checkpoint(self):
         self.checkpoint = ModelCheckpoint(self.output_path, monitor='val_acc',
                                           verbose=1, save_best_only=True, mode='max')
 
     def set_callback(self):
-        callbacks_list = [checkpoint, self.lr]
+        callbacks_list = [self.checkpoint, self.lr]
         self.callbacks = "[checkpoint, reduce_lr]"
         # self.callbacks = [callbacks.ModelCheckpoint("weights.h5", save_best_only=True)]
 
@@ -166,12 +178,24 @@ class CNNModels:
         elif self.model_type == "3DUNet":
             self.net = self.unet3d()
 
+        # set the properties of the mdoel
+        self.set_optimizer()
+        self.get_lr_metric()
+        self.set_compile()
+        print(self.net.summary())
+
     def fit_model(self):
-        self.history = model.fit(self.train_data[train], self.train_labels_one_hot_coded,
+        start = time.clock()
+        self.history = self.net.fit(self.train_data[train], self.train_labels_one_hot_coded,
                             epochs=self.epoch, batch_size=self.batch_size, shuffle=True,
                             validation_data=(self.train_data[vald], self.vald_labels_one_hot_coded),
                             callbacks=self.callbacks_list)
-    def plot(self):
+        end = time.clock()
+        self.process_time = (end - start)
+
+    def plots(self):
+        start_point = 10 # dropping the first few point in plots due to unstable behavior of model
+        cnf_matrix = np.zeros(shape=[self.num_class, self.num_class])
         # figure(num=1, figsize=(8, 6), dpi=80)
         # plot_folds_accuracy(model_history)
 
@@ -189,102 +213,112 @@ class CNNModels:
 
         # Plot all ROC curves
         plt.figure(num=4, figsize=(8, 6), dpi=100)
-        plot_ROC(test_labels_one_hot_coded, test_predicted_probs)
+        plot_roc(test_labels_one_hot_coded, test_predicted_probs)
 
         # Compute confusion matrix
         cnf_matrix = confusion_matrix(test_labels, test_predicted_labels)
         np.set_printoptions(precision=2)
 
+        cnf_matrix2 = cnf_matrix.astype('float') / cnf_matrix.sum(axis=1)[:, np.newaxis]
+        print(np.average(cnf_matrix2.diagonal()))
+
         # Plot and save non-normalized confusion matrix
         plt.figure(num=5, figsize=(5, 5), dpi=100)
-        plot_confusion_matrix(cnf_matrix, classes=class_names)
+        plot_confusion_matrix(cnf_matrix, classes=self.num_class)
         CF_NonNormalized_filename = os.path.join(self.output_path, "Non_Normalized_" + str(self.epochs) + "_Epochs.eps")
         plt.savefig(CF_NonNormalized_filename, format='eps', dpi=500, bbox_inches="tight")
 
         # Plot normalized confusion matrix
         plt.figure(num=6, figsize=(5, 5), dpi=100)
-        plot_confusion_matrix(cnf_matrix, classes=class_names, normalize=True)
+        plot_confusion_matrix(cnf_matrix, classes=self.num_class, normalize=True)
         CF_Normalized_filename = os.path.join(self.output_path, "Normalized_" + str(self.epochs) + "_Epochs.eps")
         plt.savefig(CF_Normalized_filename, format='eps', dpi=500, bbox_inches="tight")
         cnf_matrix2 = cnf_matrix.astype('float') / cnf_matrix.sum(axis=1)[:, np.newaxis]
         print(np.average(cnf_matrix2.diagonal()))
 
     def save(self):
+
         # serialize model to JSON
-        model_json = model.to_json()
+        model_json = self.net.to_json()
         with open(os.path.join(self.output_path, "model.json"), "w") as json_file:
             json_file.write(model_json)
 
         # evaluation on train
-        train_loss, train_acc, train_lr = model.evaluate(train_data, train_labels_one_hot_coded, batch_size=1)
+        train_loss, train_acc, train_lr = self.net.evaluate(train_data, train_labels_one_hot_coded, batch_size=1)
         print(train_loss, train_acc, train_lr)
 
-        train_predicted_probs = model.predict(train_data, batch_size=1)
+        train_predicted_probs = self.net.predict(train_data, batch_size=1)
         train_predicted_labels = train_predicted_probs.argmax(axis=-1)
 
         # Saving Train results
-        save_npy(train_predicted_probs, flag="Train", name="Probabilities")
-        save_npy(train_predicted_labels, flag="Train", name="ClassLabels")
-        save_csv(train_predicted_probs, flag="Train", name="Probabilities")
-        save_csv(train_predicted_labels, flag="Train", name="ClassLabels")
+        self.save_npy(train_predicted_probs, flag="Train", name="Probabilities")
+        self.save_npy(train_predicted_labels, flag="Train", name="ClassLabels")
+        self.save_csv(train_predicted_probs, flag="Train", name="Probabilities")
+        self.save_csv(train_predicted_labels, flag="Train", name="ClassLabels")
 
         # evaluation on Test
-        test_loss, test_acc, test_lr = model.evaluate(test_data, test_labels_one_hot_coded, batch_size=1)
+        test_loss, test_acc, test_lr = self.net.evaluate(test_data, test_labels_one_hot_coded, batch_size=1)
         print(test_loss, test_acc, test_lr)
 
-        cnf_matrix2 = cnf_matrix.astype('float') / cnf_matrix.sum(axis=1)[:, np.newaxis]
-        print(np.average(cnf_matrix2.diagonal()))
-
-        HyperParameter_Setting = save_settings()
+        HyperParameter_Setting = self.collect_results()
         with open(os.path.join(self.output_path, "HyperParameters.txt"), "w") as text_file:
             text_file.write(HyperParameter_Setting)
 
         print(HyperParameter_Setting)
         shutil.copyfile(os.path.join(self.output_path, "models.py"),
-                        os.path.join(cur_res_dir, "models.txt"))
+                        os.path.join(self.output_path, "models.txt"))
 
     # saving labels or predicted probablities as a npy file
-    def save_npy(self, data, flag="Train", name="Probabilities", path=npy_dir):
+    def save_npy(self, data, flag="Train", name="Probabilities"):
         np.save(os.path.join(self.output_path, flag + "_" + name + "_" + str(self.epochs) + "_Epochs.npy"), data)
 
     # saving labels or predicted probablities as a csv file
-    def save_csv(self, data, flag="Train", name="Probabilities", path=csv_dir):
+    def save_csv(self, data, flag="Train", name="Probabilities"):
         df = pd.DataFrame(data)
-        df.to_csv(os.path.join(path, flag + "_" + name + "_" + str(self.epochs) + "_Epochs.csv"))
+        df.to_csv(os.path.join(self.output_path, flag + "_" + name + "_" + str(self.epochs) + "_Epochs.csv"))
 
-    def save_layer_output(X, path=feature_dir, name="Train"):
-        intermediate_layer_model = Model(inputs=model.input, outputs=model.get_layer(layer_name).output)
+    def save_layer_output(self, X, name="Train"):
+        intermediate_layer_model = Model(inputs=self.net.input, outputs=self.net.get_layer(self.layer_name).output)
         intermediate_output = intermediate_layer_model.predict(X)
         filename = name + "_fc6_Layer_Features"
-        np.save(os.path.join(path, filename), intermediate_output)
+        np.save(os.path.join(self.output_path, filename), intermediate_output)
 
-    # def collect_results(self):
+    def collect_results(self):
     # TODO: add calculation of union of interest in plots file.
-    #     setting_info = setting_info + "Saving folder Path =" + random_str
-    #     setting_info = setting_info + "\nSeed for Random Numbers = " + str(seednum)
-    #     setting_info = setting_info + "\nNumber of Folds = " + str(k)
-    #     setting_info = setting_info + "\nNumber of Epochs In Training = " + str(epoch)
-    #     setting_info = setting_info + "\nNumber of Epochs After Training = " + str(fitepoch)
-    #     setting_info = setting_info + "\nBatchsize = " + str(batchsize)
-    #     setting_info = setting_info + "\nMinimum Learning Rate = " + str(min_lr)
-    #     setting_info = setting_info + "\nLearning Rate = " + str(base_lr)
-    #     setting_info = setting_info + "\nMaximum Learning Rate = " + str(max_lr)
-    #     setting_info = setting_info + "\nLearning Rate decay factor = " + str(lr_factor)
-    #     setting_info = setting_info + "\nLearning Rate Patience = " + str(patience)
-    #     setting_info = setting_info + "\nDropout Rate = " + str(dropout_rate)
-    #     setting_info = setting_info + "\nFeatures Saved For Layer = " + str(layer_name)
-    #     setting_info = setting_info + "\nStarting Point = " + str(start_point)
-    #     setting_info = setting_info + "\nData Path = " + str(base_dir)
-    #     setting_info = setting_info + "\nData Type = " + str(data_type)
-    #     setting_info = setting_info + "\nShuffle = " + str(shuffle)
-    #     setting_info = setting_info + "\nCallbacks = " + callbacks_list_str
-    #     setting_info = setting_info + "\nTrain accuracy = " + str(train_acc)
-    #     setting_info = setting_info + "\nTrain loss = " + str(train_loss)
-    #     setting_info = setting_info + "\nValidation accuracy = " + str(np.mean(vald_acc))
-    #     setting_info = setting_info + "\nValidation loss = " + str(np.mean(vald_loss))
-    #     setting_info = setting_info + "\nTest accuracy = " + str(test_acc)
-    #     setting_info = setting_info + "\nTest loss = " + str(test_loss)
-    #     setting_info = setting_info + "\nProcess Time in seconds = " + str(process_time)
+        setting_info = "Saving folder Path =" + str(self.output_path)
+        setting_info = setting_info + "\nData Path = " + str(self.img_path)
+        # setting_info = setting_info + "\nSeed for Random Numbers = " + str(seednum)
+        # setting_info = setting_info + "\nNumber of Folds = " + str(k)
+        setting_info = setting_info + "\nNumber of Epochs In Training = " + str(self.epochs)
+        setting_info = setting_info + "\nBatchsize = " + str(self.batch_size)
+        setting_info = setting_info + "\nLearning Rate = " + str(self.lr)
+        setting_info = setting_info + "\nFeatures Saved For Layer = " + str(self.layer_name)
+        setting_info = setting_info + "\nCallbacks = " + self.callbacks
+        setting_info = setting_info + "\nTrain accuracy = " + str(self.train_acc)
+        setting_info = setting_info + "\nTrain loss = " + str(self.train_loss)
+        setting_info = setting_info + "\nValidation accuracy = " + str(np.mean(self.vald_acc))
+        setting_info = setting_info + "\nValidation loss = " + str(np.mean(self.vald_loss))
+        setting_info = setting_info + "\nTest accuracy = " + str(self.test_acc)
+        setting_info = setting_info + "\nTest loss = " + str(self.test_loss)
+        setting_info = setting_info + "\nProcess Time in seconds = " + str(self.process_time)
+
+    def tversky_loss(y_true, y_pred):
+        alpha = 0.5
+        beta = 0.5
+
+        ones = K.ones(K.shape(y_true))
+        p0 = y_pred  # proba that voxels are class i
+        p1 = ones - y_pred  # proba that voxels are not class i
+        g0 = y_true
+        g1 = ones - y_true
+
+        num = K.sum(p0 * g0, (0, 1, 2, 3))
+        den = num + alpha * K.sum(p0 * g1, (0, 1, 2, 3)) + beta * K.sum(p1 * g0, (0, 1, 2, 3))
+
+        T = K.sum(num / den)  # when summing over classes, T has dynamic range [0 Ncl]
+
+        Ncl = K.cast(K.shape(y_true)[-1], 'float32')
+        return Ncl - T
 
     def unet2d(self):
         # The original 2D UNET mdoel

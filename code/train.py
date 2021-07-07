@@ -12,7 +12,6 @@
 from PyQt5.QtWidgets import QFileDialog, QTableWidgetItem, QApplication, QMainWindow
 from PyQt5.QtGui import QIcon
 from gui.train import train
-from keras.optimizers import Adam, Adamax, RMSprop, SGD
 from gui.theme_style import *
 from utils.params import *
 from models import *
@@ -144,6 +143,10 @@ class TrainingWindow(QMainWindow):
             self.loss = "binary_crossentropy"
         elif radio_text == "Categorical":
             self.loss = "categorical_crossentropy"
+        elif radio_text == "Sparse":
+            self.loss = "sparse_categorical_crossentropy"
+        elif radio_text == "tversky":
+            self.loss = "tversky"
 
     def start_train(self):
         model_obj = CNNModels(self)
