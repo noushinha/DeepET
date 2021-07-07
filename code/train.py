@@ -28,15 +28,18 @@ class TrainingWindow(QMainWindow):
         self.setWindowTitle("Training Models")
         self.setWindowIcon(QIcon('../../icon.jpg'))
 
+        self.model_names = ["3D UNet", "YOLOv3", "R-CNN", "Mask R-CNN"]
+        self.loss_names = ["Binary", "Categorical", "Sparse", "tversky"]
+        self.opt_names = ["Adam", "SGD", "RMS Prop"]
+
         self.generate_model_radio_btns(4)
-        self.generate_optimizer_radio_btns(4)
-        self.generate_loss_radio_btns(2)
+        self.generate_optimizer_radio_btns(3)
+        self.generate_loss_radio_btns(4)
 
         self.ui.trainBtn.clicked.connect(self.start_train)
 
         # initialize learning parameters
-        self.img_path = None
-        self.target_path = None
+        self.base_path = None
         self.output_path = None
         self.epochs = None
         self.batch_size = None
@@ -47,12 +50,12 @@ class TrainingWindow(QMainWindow):
         self.model = None
         self.dim_num = None
         self.img_dim = None
+        self.class_names = None
+        self.metrics = ["accuracy"]
         self.set_params()
         # self.get_model()
 
     def generate_model_radio_btns(self, number):
-        model_names= ["2D UNet", "3D UNet", "RPN", "Mask R-CNN"]
-
         horizontalLayoutModel = QHBoxLayout()
         horizontalBox = QGridLayout()
 
@@ -65,15 +68,13 @@ class TrainingWindow(QMainWindow):
             model_rbtn = QRadioButton()
             modelgroup_btns.addButton(model_rbtn)
             horizontalBox.addWidget(model_rbtn, 1, btn_num, 1, 1)
-            model_rbtn.setText(model_names[btn_num])
+            model_rbtn.setText(self.model_names[btn_num])
             if btn_num == 0:
                 model_rbtn.setChecked(True)
 
         self.ui.gridLayout_2.addLayout(horizontalLayoutModel, 3, 1, 1, 1)
 
     def generate_loss_radio_btns(self, number):
-        model_names = ["Binary", "Categorical"]
-
         horizontalLayoutLoss = QHBoxLayout()
         horizontalBox = QGridLayout()
 
@@ -86,15 +87,13 @@ class TrainingWindow(QMainWindow):
             model_rbtn = QRadioButton()
             modelgroup_btns.addButton(model_rbtn)
             horizontalBox.addWidget(model_rbtn, 1, btn_num, 1, 1)
-            model_rbtn.setText(model_names[btn_num])
+            model_rbtn.setText(self.loss_names[btn_num])
             if btn_num == 0:
                 model_rbtn.setChecked(True)
 
         self.ui.gridLayout_2.addLayout(horizontalLayoutLoss, 7, 1, 1, 1)
 
     def generate_optimizer_radio_btns(self, number):
-        model_names = ["Adam", "AdaMaX", "SGD", "RMS Prop"]
-
         horizontalLayoutOpt = QHBoxLayout()
         horizontalBox = QGridLayout()
 
@@ -107,7 +106,7 @@ class TrainingWindow(QMainWindow):
             model_rbtn = QRadioButton()
             modelgroup_btns.addButton(model_rbtn)
             horizontalBox.addWidget(model_rbtn, 1, btn_num, 1, 1)
-            model_rbtn.setText(model_names[btn_num])
+            model_rbtn.setText(self.opt_names[btn_num])
             if btn_num == 0:
                 model_rbtn.setChecked(True)
 
@@ -117,20 +116,22 @@ class TrainingWindow(QMainWindow):
         self.epochs = int(self.ui.epochs.text())
         self.batch_size = int(self.ui.batchsize.text())
         self.patch_size = int(self.ui.patchsize.text())
-        self.img_path = self.ui.imagePath.text()
-        self.target_path = self.ui.targetPath.text()
-        self.output_path = self.ui.outputPath.text()
+        self.base_path = self.ui.basePath.text()
+        self.output_path = os.path.join(str(self.ui.basePath.text()), "results/")
         self.lr = float(self.ui.LR.text())
+        self.class_names = self.ui.classnames.text()
 
         if self.ui.depth == 0:
             self.dim_num = 2
-            self.img_dim = (self.ui.width, self.ui.height)
+            self.img_dim = (int(self.ui.width.text()), int(self.ui.height.text()))
         else:
             self.dim_num = 3
-            self.img_dim = (self.ui.width, self.ui.height, self.ui.depth)
+            self.img_dim = (int(self.ui.width.text()), int(self.ui.height.text()), int(self.ui.depth.text()))
 
         # ToDo: if you want to have particular learning rates
-        # self.set_lr()
+        self.set_model(self.model_names[0])
+        self.set_loss(self.loss_names[0])
+        self.set_opt(self.opt_names[0])
 
     def set_model(self, radio_text):
         self.model = radio_text

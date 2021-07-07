@@ -8,10 +8,12 @@
 # Team Leader: Daniel Baum
 # License: GPL v3.0. See <https://www.gnu.org/licenses/>
 # ============================================================================================
-# import numpy as np
+
 import time
 import math
 import shutil
+import random
+import string
 from utils.plots import *
 from utils.utility_tools import *
 from utils.CyclicLR.clr_callback import CyclicLR
@@ -34,23 +36,34 @@ class DataPreparation(keras.utils.Sequence):
         self.batch_size = obj.batch_size
         self.patch_size = obj.patch_size
         self.img_size = obj.img_dim
-        self.img_path = obj.img_path
-        self.target_path = obj.target_path
+        self.train_img_path = os.path.join(obj.base_path, "images/train/")
+        self.train_target_path = os.path.join(obj.base_path, "targets/train/")
+        self.test_img_path = os.path.join(obj.base_path, "images/test/")
+        self.test_target_path = os.path.join(obj.base_path, "targets/test/")
+
+        seednum = 2
+        np.random.seed(seednum)
+        random_str = ''.join([random.choice(string.ascii_uppercase + string.digits) for n in range(16)])
+        self.output_path = os.path.join(obj.output_path, random_str)
+        os.makedirs(self.output_path)
 
         # check values
-        self.is_positive(self.batch_size, 'batch_size')
-        self.is_positive(self.patch_size, 'patch_size')
-        self.is_dir(self.img_path)
-        self.is_dir(self.target_path)
+        is_positive(self.batch_size, 'batch_size')
+        is_positive(self.patch_size, 'patch_size')
+        is_dir(self.train_img_path)
+        is_dir(self.train_target_path)
+        is_dir(self.test_img_path)
+        is_dir(self.test_target_path)
+        is_dir(self.output_path)
 
     def __len__(self):
-        return len(self.target_path) // self.batch_size
+        return len(self.train_target_path) // self.batch_size
 
     def __getitem__(self, idx):
         # Returns tuple (input, target) correspond to batch #idx
         i = idx * self.batch_size
-        batch_img_path = self.img_path[i: i + self.batch_size]
-        batch_target_path = self.target_path[i: i + self.batch_size]
+        batch_img_path = self.train_img_path[i: i + self.batch_size]
+        batch_target_path = self.train_target_path[i: i + self.batch_size]
         x = np.zeros((self.batch_size,) + self.img_size + (3,), dtype="float32")
         for j, path in enumerate(batch_img_path):
             img = load_img(path, target_size=self.img_size)
@@ -90,10 +103,6 @@ class CNNModels:
         self.epochs = obj.epochs
         self.metrics = obj.metrics
         self.model_type = obj.model
-        self.batch_size = obj.batch_size
-        self.img_path = obj.img_path
-        self.target_path = obj.target_path
-        self.output_path = obj.output_path
         self.num_class = self.obj.classNum
         self.width = self.obj.img_dim[0]
         self.height = self.obj.img_dim[1]
@@ -108,6 +117,10 @@ class CNNModels:
         self.train_model()
 
     def train_model(self):
+        """
+        This function starts the training procedure by calling
+        different built-in functions of the class CNNModel
+        """
         self.get_model()
         self.fit_model()
         self.plots()
@@ -164,7 +177,8 @@ class CNNModels:
             self.net.compile(optimizer=self.optimizer, loss=self.tversky_loss, metrics=[self.metrics])
 
     def set_checkpoint(self):
-        self.checkpoint = ModelCheckpoint(self.output_path, monitor='val_acc',
+
+        self.checkpoint = ModelCheckpoint(self.data.output_path, monitor='val_acc',
                                           verbose=1, save_best_only=True, mode='max')
 
     def set_callback(self):
@@ -175,7 +189,7 @@ class CNNModels:
     def get_model(self):
         if self.model_type == "2D UNet":
             self.net = self.unet2d()
-        elif self.model_type == "3DUNet":
+        elif self.model_type == "3D UNet":
             self.net = self.unet3d()
 
         # set the properties of the mdoel
@@ -186,10 +200,10 @@ class CNNModels:
 
     def fit_model(self):
         start = time.clock()
-        self.history = self.net.fit(self.train_data[train], self.train_labels_one_hot_coded,
-                            epochs=self.epoch, batch_size=self.batch_size, shuffle=True,
-                            validation_data=(self.train_data[vald], self.vald_labels_one_hot_coded),
-                            callbacks=self.callbacks_list)
+        # self.history = self.net.fit(self.train_data[train], self.train_labels_one_hot_coded,
+        #                     epochs=self.epoch, batch_size=self.data.batch_size, shuffle=True,
+        #                     validation_data=(self.train_data[vald], self.vald_labels_one_hot_coded),
+        #                     callbacks=self.callbacks_list)
         end = time.clock()
         self.process_time = (end - start)
 
@@ -213,10 +227,10 @@ class CNNModels:
 
         # Plot all ROC curves
         plt.figure(num=4, figsize=(8, 6), dpi=100)
-        plot_roc(test_labels_one_hot_coded, test_predicted_probs)
+        # plot_roc(test_labels_one_hot_coded, test_predicted_probs)
 
         # Compute confusion matrix
-        cnf_matrix = confusion_matrix(test_labels, test_predicted_labels)
+        # cnf_matrix = confusion_matrix(test_labels, test_predicted_labels)
         np.set_printoptions(precision=2)
 
         cnf_matrix2 = cnf_matrix.astype('float') / cnf_matrix.sum(axis=1)[:, np.newaxis]
@@ -225,13 +239,13 @@ class CNNModels:
         # Plot and save non-normalized confusion matrix
         plt.figure(num=5, figsize=(5, 5), dpi=100)
         plot_confusion_matrix(cnf_matrix, classes=self.num_class)
-        CF_NonNormalized_filename = os.path.join(self.output_path, "Non_Normalized_" + str(self.epochs) + "_Epochs.eps")
+        CF_NonNormalized_filename = os.path.join(self.data.output_path, "Non_Normalized_" + str(self.epochs) + "_Epochs.eps")
         plt.savefig(CF_NonNormalized_filename, format='eps', dpi=500, bbox_inches="tight")
 
         # Plot normalized confusion matrix
         plt.figure(num=6, figsize=(5, 5), dpi=100)
         plot_confusion_matrix(cnf_matrix, classes=self.num_class, normalize=True)
-        CF_Normalized_filename = os.path.join(self.output_path, "Normalized_" + str(self.epochs) + "_Epochs.eps")
+        CF_Normalized_filename = os.path.join(self.data.output_path, "Normalized_" + str(self.epochs) + "_Epochs.eps")
         plt.savefig(CF_Normalized_filename, format='eps', dpi=500, bbox_inches="tight")
         cnf_matrix2 = cnf_matrix.astype('float') / cnf_matrix.sum(axis=1)[:, np.newaxis]
         print(np.average(cnf_matrix2.diagonal()))
@@ -240,57 +254,57 @@ class CNNModels:
 
         # serialize model to JSON
         model_json = self.net.to_json()
-        with open(os.path.join(self.output_path, "model.json"), "w") as json_file:
+        with open(os.path.join(self.data.output_path, "model.json"), "w") as json_file:
             json_file.write(model_json)
 
         # evaluation on train
-        train_loss, train_acc, train_lr = self.net.evaluate(train_data, train_labels_one_hot_coded, batch_size=1)
-        print(train_loss, train_acc, train_lr)
-
-        train_predicted_probs = self.net.predict(train_data, batch_size=1)
-        train_predicted_labels = train_predicted_probs.argmax(axis=-1)
-
-        # Saving Train results
-        self.save_npy(train_predicted_probs, flag="Train", name="Probabilities")
-        self.save_npy(train_predicted_labels, flag="Train", name="ClassLabels")
-        self.save_csv(train_predicted_probs, flag="Train", name="Probabilities")
-        self.save_csv(train_predicted_labels, flag="Train", name="ClassLabels")
-
-        # evaluation on Test
-        test_loss, test_acc, test_lr = self.net.evaluate(test_data, test_labels_one_hot_coded, batch_size=1)
-        print(test_loss, test_acc, test_lr)
+        # train_loss, train_acc, train_lr = self.net.evaluate(train_data, train_labels_one_hot_coded, batch_size=1)
+        # print(train_loss, train_acc, train_lr)
+        #
+        # train_predicted_probs = self.net.predict(train_data, batch_size=1)
+        # train_predicted_labels = train_predicted_probs.argmax(axis=-1)
+        #
+        # # Saving Train results
+        # self.save_npy(train_predicted_probs, flag="Train", name="Probabilities")
+        # self.save_npy(train_predicted_labels, flag="Train", name="ClassLabels")
+        # self.save_csv(train_predicted_probs, flag="Train", name="Probabilities")
+        # self.save_csv(train_predicted_labels, flag="Train", name="ClassLabels")
+        #
+        # # evaluation on Test
+        # test_loss, test_acc, test_lr = self.net.evaluate(test_data, test_labels_one_hot_coded, batch_size=1)
+        # print(test_loss, test_acc, test_lr)
 
         HyperParameter_Setting = self.collect_results()
-        with open(os.path.join(self.output_path, "HyperParameters.txt"), "w") as text_file:
+        with open(os.path.join(self.data.output_path, "HyperParameters.txt"), "w") as text_file:
             text_file.write(HyperParameter_Setting)
 
         print(HyperParameter_Setting)
-        shutil.copyfile(os.path.join(self.output_path, "models.py"),
-                        os.path.join(self.output_path, "models.txt"))
+        shutil.copyfile(os.path.join(self.data.output_path, "models.py"),
+                        os.path.join(self.data.output_path, "models.txt"))
 
     # saving labels or predicted probablities as a npy file
     def save_npy(self, data, flag="Train", name="Probabilities"):
-        np.save(os.path.join(self.output_path, flag + "_" + name + "_" + str(self.epochs) + "_Epochs.npy"), data)
+        np.save(os.path.join(self.data.output_path, flag + "_" + name + "_" + str(self.epochs) + "_Epochs.npy"), data)
 
     # saving labels or predicted probablities as a csv file
     def save_csv(self, data, flag="Train", name="Probabilities"):
         df = pd.DataFrame(data)
-        df.to_csv(os.path.join(self.output_path, flag + "_" + name + "_" + str(self.epochs) + "_Epochs.csv"))
+        df.to_csv(os.path.join(self.data.output_path, flag + "_" + name + "_" + str(self.epochs) + "_Epochs.csv"))
 
     def save_layer_output(self, X, name="Train"):
         intermediate_layer_model = Model(inputs=self.net.input, outputs=self.net.get_layer(self.layer_name).output)
         intermediate_output = intermediate_layer_model.predict(X)
         filename = name + "_fc6_Layer_Features"
-        np.save(os.path.join(self.output_path, filename), intermediate_output)
+        np.save(os.path.join(self.data.output_path, filename), intermediate_output)
 
     def collect_results(self):
     # TODO: add calculation of union of interest in plots file.
-        setting_info = "Saving folder Path =" + str(self.output_path)
-        setting_info = setting_info + "\nData Path = " + str(self.img_path)
+        setting_info = "Saving folder Path =" + str(self.data.output_path)
+        setting_info = setting_info + "\nData Path = " + str(self.data.train_img_path)
         # setting_info = setting_info + "\nSeed for Random Numbers = " + str(seednum)
         # setting_info = setting_info + "\nNumber of Folds = " + str(k)
         setting_info = setting_info + "\nNumber of Epochs In Training = " + str(self.epochs)
-        setting_info = setting_info + "\nBatchsize = " + str(self.batch_size)
+        setting_info = setting_info + "\nBatchsize = " + str(self.data.batch_size)
         setting_info = setting_info + "\nLearning Rate = " + str(self.lr)
         setting_info = setting_info + "\nFeatures Saved For Layer = " + str(self.layer_name)
         setting_info = setting_info + "\nCallbacks = " + self.callbacks

@@ -7,7 +7,7 @@ def set_theme_style(app):
     qp = QPalette()
     qp.setColor(QPalette.ButtonText, Qt.black)
     qp.setColor(QPalette.WindowText, Qt.white)
-    qp.setColor(QPalette.Window, Qt.darkGray)
+    qp.setColor(QPalette.Window, Qt.black)
     qp.setColor(QPalette.Button, Qt.gray)
     app.setPalette(qp)
 

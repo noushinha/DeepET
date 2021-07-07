@@ -185,6 +185,10 @@ def plot_folds_barchart(t_data, v_data, fold_number, fold_dir, epoch):
 
 
 def autolabel(ax, rects):
+    """
+    An auxilary function to generate the axis labels of the
+    bar charts
+    """
     for rect in rects:
         h = rect.get_height()
         ax.text(rect.get_x()+rect.get_width()/2., 1.05*h, '%d'%int(h),
