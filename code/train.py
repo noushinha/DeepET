@@ -47,7 +47,7 @@ class TrainingWindow(QMainWindow):
         self.lr = None
         self.opt = None
         self.loss = None
-        self.model = None
+        self.model_type = None
         self.dim_num = None
         self.img_dim = None
         self.class_names = None
@@ -113,13 +113,15 @@ class TrainingWindow(QMainWindow):
         self.ui.gridLayout_2.addLayout(horizontalLayoutOpt, 5, 1, 1, 1)
 
     def set_params(self):
+        (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
         self.epochs = int(self.ui.epochs.text())
         self.batch_size = int(self.ui.batchsize.text())
         self.patch_size = int(self.ui.patchsize.text())
-        self.base_path = self.ui.basePath.text()
-        self.output_path = os.path.join(str(self.ui.basePath.text()), "results/")
+        self.base_path = ROOT_DIR.__str__() + self.ui.basePath.text()
+        self.output_path = ROOT_DIR.__str__() + str(self.ui.basePath.text()) + "results/"
         self.lr = float(self.ui.LR.text())
         self.class_names = self.ui.classnames.text()
+        self.classNum = len(self.class_names.split(","))
 
         if self.ui.depth == 0:
             self.dim_num = 2
@@ -134,7 +136,7 @@ class TrainingWindow(QMainWindow):
         self.set_opt(self.opt_names[0])
 
     def set_model(self, radio_text):
-        self.model = radio_text
+        self.model_type = radio_text
 
     def set_opt(self, radio_text):
         self.opt = radio_text

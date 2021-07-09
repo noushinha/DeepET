@@ -5,7 +5,7 @@
 
 
 from PyQt5 import QtCore, QtWidgets
-
+from utils import params
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -16,10 +16,10 @@ class Ui_MainWindow(object):
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
         self.gridLayoutWidget = QtWidgets.QWidget(self.centralwidget)
-        # self.gridLayoutWidget.setGeometry(QtCore.QRect(10, 10, 1100, 718))
+        self.gridLayoutWidget.setGeometry(QtCore.QRect(10, 10, 1400, 718))
         self.gridLayoutWidget.setObjectName("gridLayoutWidget")
         self.gridLayout = QtWidgets.QGridLayout(self.gridLayoutWidget)
-        # self.gridLayout.setSizeConstraint(QtWidgets.QLayout.SetMinimumSize)
+        self.gridLayout.setSizeConstraint(QtWidgets.QLayout.SetMinimumSize)
         self.gridLayout.setContentsMargins(9, 9, 9, 9)
         self.gridLayout.setSpacing(6)
         self.gridLayout.setObjectName("gridLayout")
@@ -28,13 +28,14 @@ class Ui_MainWindow(object):
         self.gridLayout.addWidget(self.maskShapeL, 1, 0, 1, 1)
         self.radiLen = QtWidgets.QLineEdit(self.gridLayoutWidget)
         self.radiLen.setAlignment(QtCore.Qt.AlignLeading|QtCore.Qt.AlignLeft|QtCore.Qt.AlignVCenter)
+        self.radiLen.setMaximumSize(QtCore.QSize(400, 16777215))
         self.radiLen.setObjectName("radiLen")
         self.gridLayout.addWidget(self.radiLen, 2, 1, 1, 1)
         self.outputPathL = QtWidgets.QLabel(self.gridLayoutWidget)
         self.outputPathL.setObjectName("outputPathL")
         self.gridLayout.addWidget(self.outputPathL, 6, 0, 1, 1)
         self.radiLenL = QtWidgets.QLabel(self.gridLayoutWidget)
-        # self.radiLenL.setMaximumSize(QtCore.QSize(16777215, 16777215))
+        self.radiLenL.setMaximumSize(QtCore.QSize(16777215, 16777215))
         self.radiLenL.setObjectName("radiLenL")
         self.gridLayout.addWidget(self.radiLenL, 2, 0, 1, 1)
         self.inputPathL = QtWidgets.QLabel(self.gridLayoutWidget)
@@ -44,6 +45,7 @@ class Ui_MainWindow(object):
         self.outputPathHLayout.setSpacing(6)
         self.outputPathHLayout.setObjectName("outputPathHLayout")
         self.outputPath = QtWidgets.QLineEdit(self.gridLayoutWidget)
+        self.outputPath.setMaximumSize(QtCore.QSize(400, 16777215))
         self.outputPath.setDragEnabled(True)
         self.outputPath.setObjectName("outputPath")
         self.outputPathHLayout.addWidget(self.outputPath)
@@ -57,8 +59,8 @@ class Ui_MainWindow(object):
         self.outputPathHLayout.addWidget(self.outputPathEmptyL)
         self.gridLayout.addLayout(self.outputPathHLayout, 6, 1, 1, 1)
         self.annTable = QtWidgets.QTableWidget(self.gridLayoutWidget)
-        # self.annTable.setMinimumSize(QtCore.QSize(360, 512))
-        # self.annTable.setMaximumSize(QtCore.QSize(460, 16777215))
+        self.annTable.setMinimumSize(QtCore.QSize(360, 1000))
+        self.annTable.setMaximumSize(QtCore.QSize(460, 16777215))
         self.annTable.setRowCount(50)
         self.annTable.setColumnCount(4)
         self.annTable.setObjectName("annTable")
@@ -71,6 +73,7 @@ class Ui_MainWindow(object):
         self.inputPathHLayout.setSpacing(6)
         self.inputPathHLayout.setObjectName("inputPathHLayout")
         self.inputPath = QtWidgets.QLineEdit(self.gridLayoutWidget)
+        self.inputPath.setMaximumSize(QtCore.QSize(400, 16777215))
         self.inputPath.setEnabled(True)
         self.inputPath.setCursorPosition(20)
         self.inputPath.setDragEnabled(True)
@@ -140,7 +143,7 @@ class Ui_MainWindow(object):
         self.saveBtn.setText(_translate("MainWindow", "Save"))
         item = self.annTable.horizontalHeaderItem(0)
         item.setText(_translate("MainWindow", "New Column"))
-        self.inputPath.setText(_translate("MainWindow", "/mnt/Data/Cryo-ET/DeepET/data/SHREC/2"))
+        self.inputPath.setText(_translate("MainWindow", str(params.ROOT_DIR)))
         self.loadBtn.setText(_translate("MainWindow", "load"))
         self.CircRBtn.setText(_translate("MainWindow", "Circle"))
         self.RecRBtn.setText(_translate("MainWindow", "Rectangle"))

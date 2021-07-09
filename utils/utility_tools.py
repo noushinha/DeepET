@@ -14,6 +14,7 @@ import sys
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+from gui import theme_style
 
 
 def display(message):
@@ -22,26 +23,26 @@ def display(message):
 
 def is_list(listl, var):
     if type(listl) != list:
-        display('variable "' + var + '" is ' + str(type(listl)) + '. list is expected.')
+        theme_style.display_message('variable "' + var + '" is ' + str(type(listl)) + '. list is expected.')
         sys.exit()
 
 
 def is_3D(arr, var):
     if type(arr) != np.ndarray or len(arr.shape) != 3:
-        display('variable "' + var + '" is ' + str(len(arr.shape)) + str(type(arr)) + '. 3D Numpy array is expected.')
+        theme_style.display_message('variable "' + var + '" is ' + str(len(arr.shape)) + str(type(arr)) + '. 3D Numpy array is expected.')
         sys.exit()
 
 
 def is_empty(arr, var):
    if arr.size == 0:
-       display('array "' + var + '" is empty. Non empty array is expected.')
+       theme_style.display_message('array "' + var + '" is empty. Non empty array is expected.')
        sys.exit()
 
 
 def is_file(filename):
     from pathlib import Path
     if not Path(filename).is_file():
-        display('file "' + filename + '" does not exist. A valid file is required.')
+        theme_style.display_message('file "' + filename + '" does not exist. A valid file is required.')
         sys.exit()
     else:
         return 1
@@ -49,7 +50,8 @@ def is_file(filename):
 
 def is_dir(dirpath):
     if not os.path.isdir(dirpath):
-        display('path "' + dirpath + '" does not exist. A valid directory is required.')
+        # display('path "' + dirpath + '" does not exist. A valid directory is required.')
+        theme_style.display_message('path "' + dirpath + '" does not exist. A valid directory is required.')
         sys.exit()
     else:
         return 1
@@ -57,14 +59,20 @@ def is_dir(dirpath):
 
 def is_int(num, var):
     if type(num)!=int and type(num)!=np.int8 and type(num)!=np.int16:
-        display('variable "' + var + '" is ' + str(type(num)) + '. An integer is required.')
+        theme_style.display_message('variable "' + var + '" is ' + str(type(num)) + '. An integer is required.')
         sys.exit()
 
 
 def is_positive(num, var):
     is_int(num, var)
     if num <= 0:
-        display('variable "'+var+'" is negative. positive value is required.')
+        theme_style.display_message('variable "'+var+'" is negative. positive value is required.')
+        sys.exit()
+
+
+def is_same_shape(num1, num2):
+    if num1 != num2:
+        theme_style.display_message('the image and the target mask are not of same size!')
         sys.exit()
 
 
@@ -73,7 +81,6 @@ def is_positive(num, var):
 #     if num % 4 != 0:
 #         display('variable "' + var + '" should be a multiple of 4.')
 #         sys.exit()
-
 def file_attributes(Qtfile):
     """ This function receives a QtFile object that is selected through browse button and
         returns file path and file type of it.
