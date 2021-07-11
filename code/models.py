@@ -9,7 +9,7 @@
 # License: GPL v3.0. See <https://www.gnu.org/licenses/>
 # ============================================================================================
 
-import h5py
+# import h5py
 import time
 import math
 import shutil
@@ -26,9 +26,9 @@ from tensorflow.keras.optimizers import *
 from tensorflow.keras import Model, callbacks  # backend, ,
 from tensorflow.keras import layers
 from tensorflow.keras import backend as bk
-from tensorflow.keras.utils import to_categorical
+# from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.callbacks import LearningRateScheduler, ModelCheckpoint, ReduceLROnPlateau
-from tensorflow.keras import preprocessing
+# from tensorflow.keras import preprocessing
 
 
 # loading batches of data
@@ -36,17 +36,13 @@ class DataPreparation(keras.utils.Sequence):
     """we iterate over the data as numpy arrays"""
 
     def __init__(self, obj):
-        self.tomos = None
-        self.masks = None
-        self.dataset = None
-        self.batched_dataset = None
+        self.dataset_tomos = None
+        self.dataset_masks = None
+        self.tomos_list = None
+        self.masks_list = None
 
-
-        self.batch_size = obj.batch_size
-        self.patch_size = obj.patch_size
-        self.img_size = obj.img_dim
-        self.train_img_path = os.path.join(obj.base_path, "images/train/")
-        self.train_target_path = os.path.join(obj.base_path, "targets/train/")
+        self.train_img_path = os.path.join(obj.base_path, "images/")
+        self.train_target_path = os.path.join(obj.base_path, "targets/")
 
         seednum = 2
         np.random.seed(seednum)
@@ -55,81 +51,29 @@ class DataPreparation(keras.utils.Sequence):
         os.makedirs(self.output_path)
 
         # check values
-        is_positive(self.batch_size, 'batch_size')
-        is_positive(self.patch_size, 'patch_size')
         is_dir(self.train_img_path)
         is_dir(self.train_target_path)
         is_dir(self.output_path)
 
         # load the train and validation data
-        # self.get_tomo_list()
-        self.generate_batches()
-
-    # def get_tomo_list(self):
-    #     """
-    #     the idea is to get only the name of all tomogram files and their corresponding targets
-    #     """
-    #     from glob import glob
-    #     self.tomo_name_list = glob(os.path.join(self.train_img_path, "*.mrc"))
-    #     self.target_name_list = glob(os.path.join(self.train_target_path, "*.mrc"))
-    #     # self.load_data()
-
-    # def load_data(self):
-    #     """
-    #     loads the whole dataset at once, can make the process slow,
-    #     reads the tomogram and target data from the list of names one by one
-    #     and adds them to two separate lists called tomo_list and target_list.
-    #     """
-    #     for idx in range(0, len(self.train_img_path)):
-    #         data = read_mrc(self.tomo_name_list[idx])
-    #         target = read_mrc(self.target_name_list[idx])
-    #
-    #         # check if the tomogram and the target has similar shape
-    #         is_same_shape(data.shape, target.shape)
-    #
-    #         self.tomo_list.append(data)
-    #         self.target_list.append(target)
-
-    def modify_image(self, type="tomo"):
-        """you can add a preprocessing functions here"""
-
-        image = tf.expand_dims(self.tomos, 0)
-        image = tf.extract_image_patches(image,
-                                        ksizes=[1, self.patch_size, self.patch_size, 1],
-                                        strides=[1, self.patch_size, self.patch_size, 1],
-                                        rates=[1, 1, 1, 1],
-                                        padding='SAME',
-                                        name=None)
-        image = tf.reshape(image, shape=[-1, self.patch_size, self.patch_size, 1])
-        if type != "tomo":
-            self.tomos = image
-        else:
-            self.masks = image
-
-    def parse_function(self):
-        self.tomos = tf.read_file(self.tomos)
-        self.tomos = tf.image.decode_image(self.tomos)
-        self.masks = tf.read_file(self.masks)
-        self.masks = tf.image.decode_image(self.masks)
-        self.modify_image("tomo")
-        self.modify_image("mask")
+        self.load_dataset()
 
     def load_dataset(self):
+        """
+        generates a list of all images and targets, then
+        """
         from glob import glob
-        self.tomos = glob(self.train_img_path, "*.mrc")
-        self.tomos = tf.constant(self.tomos)
-        self.masks = glob(self.train_target_path, "*.mrc")
-        self.masks = tf.constant(self.masks)
+        self.tomos_list = glob(os.path.join(self.train_img_path, "*.mrc"))
+        self.masks_list = glob(os.path.join(self.train_target_path, "*.mrc"))
 
-        self.dataset = tf.data.Dataset.from_tensor_slices((self.tomos, self.masks))
-        self.dataset = self.dataset.map(self.parse_function)
+        self.tomos_list.sort(key=lambda f: int(filter(str.isdigit, f)))
+        self.masks_list.sort(key=lambda r: int(filter(str.isdigit, r)))
 
-    def generate_batches(self):
-        """
-        fetches the nth set of batches required for patch generation
-        """
-        self.load_dataset()
-        self.batched_dataset = self.dataset.batch(self.batch_size)
+        for idx in range(len(self.tomos_list)):
+            tomo = read_mrc(self.tomos_list[idx])
+            mask = read_mrc(self.masks_list[idx])
+            self.dataset_tomos.append(tomo)
+            self.dataset_masks.append(mask)
 
 
 class CNNModels:
@@ -138,18 +82,29 @@ class CNNModels:
         self.data = DataPreparation(obj)
 
         # define values
-        self.lrr = []
-        self.lrT = None
+
         self.net = None
-        self.history = None
+        self.batch_index = 0
         self.optimizer = None
         self.checkpoint = None
         self.layer_name = None
         self.process_time = None
         self.callbacks = None
 
+        self.batch_tomo = []
+        self.batch_mask = []
+        self.history_train_loss = []
+        self.history_train_acc = []
+        self.history_vald_loss = []
+        self.history_vald_acc = []
+        self.history_f1 = []
+        self.history_recall = []
+        self.history_precision = []
+        self.history_lrr = []
+
         # initialize values
         self.obj = obj
+        self.lr = self.obj.lr
         self.width = self.obj.img_dim[0]
         self.height = self.obj.img_dim[1]
         if self.obj.dim_num > 2:
@@ -157,6 +112,7 @@ class CNNModels:
 
         # check values
         is_positive(self.obj.epochs, 'epochs')
+        is_positive(self.obj.batch_size, 'epochs')
         is_positive(self.obj.classNum, 'num_class')
 
         # initialize model
@@ -167,89 +123,37 @@ class CNNModels:
         This function starts the training procedure by calling
         different built-in functions of the class CNNModel
         """
+        self.fetch_batch()
         self.get_model()
         self.fit_model()
         self.plots()
         self.save()
         plt.show(block=True)
 
-    def set_optimizer(self):
-        self.optimizer = Adam(lr=self.obj.lr, beta_1=.9, beta_2=.999, epsilon=1e-08, decay=0.0)
+    def fetch_batch(self):
+        strt_indx = self.batch_index
+        stop_indx = strt_indx + self.obj.batch_size
 
-        if self.obj.opt == "SGD":
-            self.optimizer = SGD(lr=self.obj.lr, decay=0.0, momentum=0.9, nesterov=True)
-        elif self.obj.opt == "Adagrad":
-            self.obj.optimizer = Adagrad(lr=self.obj.lr, epsilon=1e-08, decay=0.0)
-        elif self.obj.opt == "Adadelta":
-            self.optimizer = Adadelta(lr=self.obj.lr, rho=0.95, epsilon=1e-08, decay=0.0)
-        elif self.obj.opt == "Adamax":
-            self.optimizer = Adamax(lr=self.obj.lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
-        elif self.obj.opt == "Nadam":
-            self.optimizer = Nadam(lr=self.obj.lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08, schedule_decay=0.004)
-        elif self.obj.opt == "RMSprop":
-            self.optimizer = RMSprop(lr=self.obj.lr, rho=0.9, epsilon=1e-08, decay=0.0)
+        for idx in range (strt_indx, stop_indx):
+            tomo = read_mrc(self.data.dataset_tomos[idx])
+            mask = read_mrc(self.data.dataset_masks[idx])
 
-    # learning rate schedule
-    def step_decay(self):
-        initial_lrate = self.obj.lr
-        drop = 0.5
-        epochs_drop = 50
-        lrate = initial_lrate * math.pow(drop, math.floor((1 + self.obj.epochs) / epochs_drop))
-        self.obj.lrr.append(lrate)
-        return lrate
+            if tomo.shape != mask.shape:
+                display("the tomogram and target must be of the same size.")
+                sys.exit()
 
-    def set_lr(self):
-        # learning schedule callback
-        self.obj.lr = ReduceLROnPlateau(monitor='val_loss', factor=0.25, patience=10,
-                                        min_lr=1e-06, mode='min', verbose=1)
-        if self.lrT == "step_decay":
-            self.obj.lr = LearningRateScheduler(self.step_decay())
-        elif self.lrT == "lambda":
-            self.obj.lr = LearningRateScheduler(lambda this_epoch: self.lr * 0.99 ** this_epoch)
-        elif self.lrT == "cyclic":
-            self.obj.lr = CyclicLR(base_lr=self.obj.lr, max_lr=6e-04, step_size=500., mode='exp_range', gamma=0.99994)
+            self.batch_tomo.append(tomo)
+            self.batch_mask.append(mask)
 
-    def get_lr_metric(self):
-        def lr(y_true, y_pred):
-            # lrr.append(float(K.get_value(optimizer.lr)))
-            self.obj.lr = self.optimizer.lr
-        return self.obj.lr
-
-    def set_compile(self):
-        # self.get_lr_metric()
-        # self.obj.metrics = ['accuracy', self.obj.lr]
-        self.obj.metrics = ['accuracy']
-        # self.obj.metrics = [keras.metrics.TruePositives(name='tp'),
-        #                     keras.metrics.FalsePositives(name='fp'),
-        #                     keras.metrics.TrueNegatives(name='tn'),
-        #                     keras.metrics.FalseNegatives(name='fn'),
-        #                     keras.metrics.BinaryAccuracy(name='accuracy'),
-        #                     keras.metrics.Precision(name='precision'),
-        #                     keras.metrics.Recall(name='recall'),
-        #                     keras.metrics.AUC(name='auc'),
-        #                     self.get_lr_metric()
-        #                     ]
-        if self.obj.loss != "tversky":
-            self.net.compile(optimizer=self.optimizer, loss=self.obj.loss, metrics=[self.obj.metrics])
-        else:
-            self.net.compile(optimizer=self.optimizer, loss=self.tversky_loss, metrics=[self.obj.metrics])
-
-    def set_checkpoint(self):
-        self.checkpoint = ModelCheckpoint(self.data.output_path, monitor='val_acc',
-                                          verbose=1, save_best_only=True, mode='max')
-
-    def set_callback(self):
-        # callbacks_list = [self.checkpoint, self.obj.lr]
-        # self.callbacks = "[checkpoint, reduce_lr]"
-        self.callbacks = [callbacks.ModelCheckpoint("weights.h5", save_best_only=True)]
+        self.batch_index = stop_indx
 
     def get_model(self):
         if self.obj.model_type == "2D UNet":
-            self.net = self.unet2d()
+            self.unet2d()
         elif self.obj.model_type == "3D UNet":
-            self.net = self.unet3d()
+            self.unet3d()
 
-        # set the properties of the mdoel
+        # set the properties of the model
         self.set_optimizer()
         self.set_compile()
         print(self.net.summary())
@@ -258,25 +162,23 @@ class CNNModels:
         start = time.clock()
         batch_idx = 0
         for e in range(self.obj.epochs):
-            # to collect training outputs
-            list_loss_train = []
-            list_acc_train = []
+            train_loss = []
+            train_acc = []
+            vald_loss = []
+            vald_acc = []
 
-            # dataset =  image_dataset_from_directory(self.obj.base_path,
-            #                                 label_mode = None,
-            #                                 seed = 1,
-            #                                 subset = 'training',
-            #                                 validation_split = 0.1,
-            #                                 image_size = (900, 900))
-            # batch_tomo: numpy array [batch_idx, z, y, x, channel] in our case only 1 channel
-            # batch_target: numpy array [batch_idx, z, y, x, class_idx] is one-hot encoded
-            batch_data = np.zeros((self.obj.batch_size, self.width, self.height, self.depth, 1))
-            batch_target = np.zeros((self.obj.batch_size, self.width, self.height, self.depth, self.obj.classNum))
+            for b in range(self.obj.batch_size):
+                data = self.batch_tomo[b]
+                mask = self.batch_mask[b]
 
-            # self.history = self.net.fit(self.train_data[train], self.train_labels_one_hot_coded,
-            #                     epochs=self.epoch, batch_size=self.data.batch_size, shuffle=True,
-            #                     validation_data=(self.train_data[vald], self.vald_labels_one_hot_coded),
-            #                     callbacks=self.callbacks_list)
+                # fetch patches
+                # Get patch:
+                # patch_data = sample_data[z - p_in:z + p_in, y - p_in:y + p_in, x - p_in:x + p_in]
+                # patch_target = sample_target[z - p_in:z + p_in, y - p_in:y + p_in, x - p_in:x + p_in]
+                # self.history = self.net.fit(self.train_data[train], self.train_labels_one_hot_coded,
+                #                     epochs=self.epoch, batch_size=self.data.batch_size, shuffle=True,
+                #                     validation_data=(self.train_data[vald], self.vald_labels_one_hot_coded),
+                #                     callbacks=self.callbacks_list)
         end = time.clock()
         self.process_time = (end - start)
 
@@ -290,11 +192,11 @@ class CNNModels:
         # plot_folds_loss(model_history)
 
         plt.figure(num=1, figsize=(8, 6), dpi=100)
-        plot_train_vs_vald(self.train_loss[start_point:], self.vald_loss[start_point:],
+        plot_train_vs_vald(self.history_train_loss[start_point:], self.history_vald_loss[start_point:],
                            self.obj.output_path, self.obj.epochs, is_loss=True)
 
         plt.figure(num=2, figsize=(8, 6), dpi=100)
-        plot_train_vs_vald(self.train_acc[start_point:], self.vald_acc[start_point:],
+        plot_train_vs_vald(self.history_train_acc[start_point:], self.history_vald_acc[start_point:],
                            self.obj.output_path, self.obj.epochs)
 
         plt.figure(num=3, figsize=(8, 6), dpi=100)
@@ -355,8 +257,80 @@ class CNNModels:
         shutil.copyfile(os.path.join(self.data.output_path, "models.py"),
                         os.path.join(self.data.output_path, "models.txt"))
 
-    # saving labels or predicted probablities as a npy file
+    def set_optimizer(self):
+        self.optimizer = Adam(lr=self.lr, beta_1=.9, beta_2=.999, epsilon=1e-08, decay=0.0)
+
+        if self.obj.opt == "SGD":
+            self.optimizer = SGD(lr=self.lr, decay=0.0, momentum=0.9, nesterov=True)
+        elif self.obj.opt == "Adagrad":
+            self.obj.optimizer = Adagrad(lr=self.lr, epsilon=1e-08, decay=0.0)
+        elif self.obj.opt == "Adadelta":
+            self.optimizer = Adadelta(lr=self.lr, rho=0.95, epsilon=1e-08, decay=0.0)
+        elif self.obj.opt == "Adamax":
+            self.optimizer = Adamax(lr=self.lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
+        elif self.obj.opt == "Nadam":
+            self.optimizer = Nadam(lr=self.lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08, schedule_decay=0.004)
+        elif self.obj.opt == "RMSprop":
+            self.optimizer = RMSprop(lr=self.lr, rho=0.9, epsilon=1e-08, decay=0.0)
+
+    # learning rate schedule
+    def step_decay(self):
+        initial_lrate = self.lr
+        drop = 0.5
+        epochs_drop = 50
+        lrate = initial_lrate * math.pow(drop, math.floor((1 + self.obj.epochs) / epochs_drop))
+        self.obj.lrr.append(lrate)
+        return lrate
+
+    def set_lr(self, lr_type):
+        # learning schedule callback
+
+        if lr_type == "step_decay":
+            self.lr = LearningRateScheduler(self.step_decay())
+        elif lr_type == "lambda":
+            self.lr = LearningRateScheduler(lambda this_epoch: self.lr * 0.99 ** this_epoch)
+        elif lr_type == "cyclic":
+            self.lr = CyclicLR(base_lr=self.lr, max_lr=6e-04, step_size=500., mode='exp_range', gamma=0.99994)
+        else:
+            self.lr = ReduceLROnPlateau(monitor='val_loss', factor=0.25, patience=10,
+                                            min_lr=1e-06, mode='min', verbose=1)
+
+    def get_lr_metric(self):
+        def lr(y_true, y_pred):
+            # lrr.append(float(K.get_value(optimizer.lr)))
+            self.lr = self.optimizer.lr
+        return self.lr
+
+    def set_compile(self):
+        # self.get_lr_metric()
+        # self.obj.metrics = ['accuracy', self.lr]
+        self.obj.metrics = ['accuracy']
+        # self.obj.metrics = [keras.metrics.TruePositives(name='tp'),
+        #                     keras.metrics.FalsePositives(name='fp'),
+        #                     keras.metrics.TrueNegatives(name='tn'),
+        #                     keras.metrics.FalseNegatives(name='fn'),
+        #                     keras.metrics.BinaryAccuracy(name='accuracy'),
+        #                     keras.metrics.Precision(name='precision'),
+        #                     keras.metrics.Recall(name='recall'),
+        #                     keras.metrics.AUC(name='auc'),
+        #                     self.get_lr_metric()
+        #                     ]
+        if self.obj.loss != "tversky":
+            self.net.compile(optimizer=self.optimizer, loss=self.obj.loss, metrics=[self.obj.metrics])
+        else:
+            self.net.compile(optimizer=self.optimizer, loss=self.tversky_loss, metrics=[self.obj.metrics])
+
+    def set_checkpoint(self):
+        self.checkpoint = ModelCheckpoint(self.data.output_path, monitor='val_acc',
+                                          verbose=1, save_best_only=True, mode='max')
+
+    def set_callback(self):
+        # callbacks_list = [self.checkpoint, self.lr]
+        # self.callbacks = "[checkpoint, reduce_lr]"
+        self.callbacks = [callbacks.ModelCheckpoint("weights.h5", save_best_only=True)]
+
     def save_npy(self, data, flag="Train", name="Probabilities"):
+        # saving labels or predicted probablities as a npy file
         np.save(os.path.join(self.data.output_path,
                              flag + "_" + name + "_" + str(self.obj.epochs) + "_Epochs.npy"), data)
 
@@ -377,7 +351,7 @@ class CNNModels:
         setting_info = setting_info + "\nData Path = " + str(self.data.train_img_path)
         setting_info = setting_info + "\nNumber of Epochs In Training = " + str(self.obj.epochs)
         setting_info = setting_info + "\nBatchsize = " + str(self.data.batch_size)
-        setting_info = setting_info + "\nLearning Rate = " + str(self.obj.lr)
+        setting_info = setting_info + "\nLearning Rate = " + str(self.lr)
         setting_info = setting_info + "\nFeatures Saved For Layer = " + str(self.layer_name)
         setting_info = setting_info + "\nCallbacks = " + self.callbacks
         setting_info = setting_info + "\nTrain accuracy = " + str(self.train_acc)
@@ -457,8 +431,7 @@ class CNNModels:
         outputs = layers.Conv2D(self.obj.classNum, 3, activation="softmax", padding="same")(x)
 
         # Define the model
-        model = Model(input_img, outputs)
-        return model
+        self.net = Model(input_img, outputs)
 
     def unet3d(self):
         # The UNET model from DeepFinder
@@ -495,5 +468,4 @@ class CNNModels:
 
         output = layers.Conv3D(self.obj.classNum, (1, 1, 1), padding='same', activation='softmax')(x)
 
-        model = Model(input_img, output)
-        return model
+        self.net = Model(input_img, output)
