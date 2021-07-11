@@ -8,7 +8,8 @@
 # Team Leader: Daniel Baum
 # License: GPL v3.0. See <https://www.gnu.org/licenses/>
 # ============================================================================================
-import re
+
+# import h5py
 import time
 import math
 import shutil
@@ -16,31 +17,30 @@ import random
 import string
 from utils.plots import *
 from utils.utility_tools import *
-from sklearn.metrics import confusion_matrix
 from utils.CyclicLR.clr_callback import CyclicLR
-from sklearn.model_selection import StratifiedKFold
+from sklearn.metrics import confusion_matrix
 
+import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.optimizers import *
 from tensorflow.keras import Model, callbacks  # backend, ,
 from tensorflow.keras import layers
 from tensorflow.keras import backend as bk
-from tensorflow.keras.utils import to_categorical
+# from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.callbacks import LearningRateScheduler, ModelCheckpoint, ReduceLROnPlateau
-# from sklearn.feature_extraction import image
-import tensorflow as tf
-from sklearn.model_selection import train_test_split
+# from tensorflow.keras import preprocessing
+
 
 # loading batches of data
 class DataPreparation(keras.utils.Sequence):
     """we iterate over the data as numpy arrays"""
 
     def __init__(self, obj):
-        self.list_tomos_IDs = None
-        self.list_masks_IDs = None
-        self.batch_size = obj.batch_size
-        self.patch_size = obj.patch_size
-        self.img_size = obj.img_dim
+        self.dataset_tomos = None
+        self.dataset_masks = None
+        self.tomos_list = None
+        self.masks_list = None
+
         self.train_img_path = os.path.join(obj.base_path, "images/")
         self.train_target_path = os.path.join(obj.base_path, "targets/")
 
@@ -51,29 +51,29 @@ class DataPreparation(keras.utils.Sequence):
         os.makedirs(self.output_path)
 
         # check values
-        is_positive(self.batch_size, 'batch_size')
-        is_positive(self.patch_size, 'patch_size')
         is_dir(self.train_img_path)
         is_dir(self.train_target_path)
         is_dir(self.output_path)
 
         # load the train and validation data
-        self.fetch_dataset()
+        self.load_dataset()
 
-    def fetch_dataset(self):
+    def load_dataset(self):
+        """
+        generates a list of all images and targets, then
+        """
         from glob import glob
-        self.list_tomos_IDs = glob(os.path.join(self.train_img_path, "*.mrc"))
-        self.list_masks_IDs = glob(os.path.join(self.train_target_path, "*.mrc"))
+        self.tomos_list = glob(os.path.join(self.train_img_path, "*.mrc"))
+        self.masks_list = glob(os.path.join(self.train_target_path, "*.mrc"))
 
-        # check if every tomo has a corresponding mask
-        if len(self.list_tomos_IDs) != len(self.list_masks_IDs):
-            display("Expected two" + str(len(self.list_tomos_IDs)) + ", received " +
-                   str(len(self.list_tomos_IDs)) + " and "+ str(len(self.list_masks_IDs)) +
-                    ". \n There is a missing pair of tomogram and target.")
-            sys.exit()
+        self.tomos_list.sort(key=lambda f: int(filter(str.isdigit, f)))
+        self.masks_list.sort(key=lambda r: int(filter(str.isdigit, r)))
 
-        self.list_tomos_IDs.sort(key=lambda f: int(re.sub('\D', '', f)))
-        self.list_masks_IDs.sort(key=lambda r: int(re.sub('\D', '', r)))
+        for idx in range(len(self.tomos_list)):
+            tomo = read_mrc(self.tomos_list[idx])
+            mask = read_mrc(self.masks_list[idx])
+            self.dataset_tomos.append(tomo)
+            self.dataset_masks.append(mask)
 
 
 class CNNModels:
@@ -82,27 +82,25 @@ class CNNModels:
         self.data = DataPreparation(obj)
 
         # define values
+
         self.net = None
+        self.batch_index = 0
         self.optimizer = None
         self.checkpoint = None
         self.layer_name = None
         self.process_time = None
         self.callbacks = None
-        self.model_weight = None
 
-        self.patch_overlap = False
-        self.batch_idx = 0
-
-        # values to collect outputs
-        self.model_history = []
-        self.history_lr = []
-        # self.history_recall = []
-        self.history_vald_acc = []
-        # self.history_f1_score = []
+        self.batch_tomo = []
+        self.batch_mask = []
+        self.history_train_loss = []
         self.history_train_acc = []
         self.history_vald_loss = []
-        # self.history_precision = []
-        self.history_train_loss = []
+        self.history_vald_acc = []
+        self.history_f1 = []
+        self.history_recall = []
+        self.history_precision = []
+        self.history_lrr = []
 
         # initialize values
         self.obj = obj
@@ -112,22 +110,9 @@ class CNNModels:
         if self.obj.dim_num > 2:
             self.depth = self.obj.img_dim[2]
 
-        self.nump_xaxis = int(np.floor(self.width / self.obj.patch_size))
-        self.nump_yaxis = int(np.floor(self.height / self.obj.patch_size))
-        self.nump_zaxis = int(np.floor(self.depth / 25))
-
-        self.nump_total = self.nump_xaxis * self.nump_yaxis * self.nump_zaxis
-
-        self.batch_tomo = []
-        self.batch_mask = []
-
-        # self.batch_tomo = np.zeros((self.nump_total, 25,
-        #                             self.obj.patch_size, self.obj.patch_size, 1))
-        # self.batch_mask = np.zeros((self.nump_total, 25,
-        #                             self.obj.patch_size, self.obj.patch_size, self.obj.classNum))
-
         # check values
         is_positive(self.obj.epochs, 'epochs')
+        is_positive(self.obj.batch_size, 'epochs')
         is_positive(self.obj.classNum, 'num_class')
 
         # initialize model
@@ -138,11 +123,29 @@ class CNNModels:
         This function starts the training procedure by calling
         different built-in functions of the class CNNModel
         """
+        self.fetch_batch()
         self.get_model()
         self.fit_model()
         self.plots()
         self.save()
         plt.show(block=True)
+
+    def fetch_batch(self):
+        strt_indx = self.batch_index
+        stop_indx = strt_indx + self.obj.batch_size
+
+        for idx in range (strt_indx, stop_indx):
+            tomo = read_mrc(self.data.dataset_tomos[idx])
+            mask = read_mrc(self.data.dataset_masks[idx])
+
+            if tomo.shape != mask.shape:
+                display("the tomogram and target must be of the same size.")
+                sys.exit()
+
+            self.batch_tomo.append(tomo)
+            self.batch_mask.append(mask)
+
+        self.batch_index = stop_indx
 
     def get_model(self):
         if self.obj.model_type == "2D UNet":
@@ -150,103 +153,34 @@ class CNNModels:
         elif self.obj.model_type == "3D UNet":
             self.unet3d()
 
-        # set the properties of the mdoel
+        # set the properties of the model
         self.set_optimizer()
         self.set_compile()
         print(self.net.summary())
 
     def fit_model(self):
         start = time.clock()
-        self.tomo_index = 0
-        batch_itr = int(np.floor(self.nump_total) / self.obj.batch_size)
+        batch_idx = 0
         for e in range(self.obj.epochs):
-            # fetch all patches of the current batch
-            for t in range(len(self.data.list_tomos_IDs)):
-                self.fetch_tomo()
-                for b in range(batch_itr):
-                    if b == batch_itr:
-                        self.batch_idx = 0
-                    else:
-                        self.batch_idx = b
+            train_loss = []
+            train_acc = []
+            vald_loss = []
+            vald_acc = []
 
-                    # fetch the current batch of patches
-                    self.fetch_batch()
-                    # Split the data
-                    x_train, x_vald, y_train, y_vald = train_test_split(self.batch_tomo, self.batch_mask_onehot,
-                                                                        test_size=0.2, shuffle=True)
-
-                    # train_loss = self.net.train_on_batch(self.batch_tomo, self.batch_mask_onehot,
-                    #                                      class_weight=self.model_weight)
-                    history = self.net.fit(x_train, y_train, epochs=self.obj.epochs,
-                                           batch_size=self.obj.batch_size, shuffle=False,
-                                           validation_data=(x_vald, y_vald),
-                                           callbacks=self.callbacks)
-
-                    self.model_history.append(history)
-                    self.history_train_acc.append(history.history['acc'])
-                    self.history_vald_acc.append(history.history['val_acc'])
-                    self.history_train_loss.append(history.history['loss'])
-                    self.history_vald_loss.append(history.history['val_loss'])
-                    self.history_lr.append(history.history['lr'])
-
-                    self.obj.ui.textEdit.setText()
-
+            for b in range(self.obj.batch_size):
+                data = self.batch_tomo[b]
+                mask = self.batch_mask[b]
+                    # dsfsdfsdf
+                # fetch patches
+                # Get patch:
+                # patch_data = sample_data[z - p_in:z + p_in, y - p_in:y + p_in, x - p_in:x + p_in]
+                # patch_target = sample_target[z - p_in:z + p_in, y - p_in:y + p_in, x - p_in:x + p_in]
+                # self.history = self.net.fit(self.train_data[train], self.train_labels_one_hot_coded,
+                #                     epochs=self.epoch, batch_size=self.data.batch_size, shuffle=True,
+                #                     validation_data=(self.train_data[vald], self.vald_labels_one_hot_coded),
+                #                     callbacks=self.callbacks_list)
         end = time.clock()
         self.process_time = (end - start)
-
-    def fetch_tomo(self):
-        """
-        this function reads only the current set of tomogram and its corresponding target
-        """
-        self.tomo = read_mrc(self.data.list_tomos_IDs[self.tomo_index])
-        self.mask = read_mrc(self.data.list_masks_IDs[self.tomo_index])
-
-        if self.tomo.shape != self.mask.shape:
-            display("the tomogram and the target must be of the same size. " +
-                    str(self.tomo.shape) + " is not equal to " + str(self.mask.shape) + ".")
-            sys.exit()
-
-        self.tomo = np.swapaxes(self.tomo, 0, 2)
-        self.tomo = np.expand_dims(self.tomo, axis=0)
-        self.tomo = np.expand_dims(self.tomo, axis=4)
-
-        self.mask = np.swapaxes(self.mask, 0, 2)
-        self.mask = np.expand_dims(self.mask, axis=0)
-        self.mask = np.expand_dims(self.mask, axis=4)
-
-        self.patches_tomo = tf.extract_volume_patches(self.tomo,
-                                                      [1, self.obj.patch_size, self.obj.patch_size, 25, 1],
-                                                      [1, self.obj.patch_size, self.obj.patch_size, 25, 1],
-                                                      padding='VALID')
-        self.patches_tomo = tf.reshape(self.patches_tomo, [-1, self.obj.patch_size, self.obj.patch_size, 25])
-        self.patches_tomo = tf.squeeze(self.patches_tomo)
-
-        self.patches_mask = tf.image.extract_patches(self.mask,
-                                                     [1, self.obj.patch_size, self.obj.patch_size, 25, 1],
-                                                     [1, self.obj.patch_size, self.obj.patch_size, 25, 1],
-                                                     padding='VALID')
-        self.patches_mask = tf.reshape(self.patches_mask, [-1, self.obj.patch_size, self.obj.patch_size, 25])
-        self.patches_mask = tf.squeeze(self.patches_mask)
-
-        self.patches_tomo = self.patches_tomo.eval(session=tf.compat.v1.Session())
-        self.patches_mask = self.patches_mask.eval(session=tf.compat.v1.Session())
-
-        self.patches_tomo = np.swapaxes(self.patches_tomo, 1, 3)
-        self.patches_mask = np.swapaxes(self.patches_mask, 1, 3)
-
-    def fetch_batch(self):
-        """
-        this function fetches the patches from the current tomo based on the batch index
-        """
-        bstart = self.batch_idx * self.obj.batch_size
-        bend = (self.batch_idx * self.obj.batch_size) + self.obj.batch_size
-
-        batch_tomo = self.patches_tomo[bstart:bend]
-        batch_mask = self.patches_mask[bstart:bend]
-
-        # Patch base normalization
-        self.batch_tomo = (batch_tomo - np.mean(batch_tomo)) / np.std(batch_tomo)
-        self.batch_mask_onehot = to_categorical(batch_mask, self.obj.classNum)
 
     def plots(self):
         start_point = 10  # dropping the first few point in plots due to unstable behavior of model
@@ -266,30 +200,30 @@ class CNNModels:
                            self.obj.output_path, self.obj.epochs)
 
         plt.figure(num=3, figsize=(8, 6), dpi=100)
-        plot_lr(self.history_lr[start_point:], self.obj.output_path, self.obj.epochs)
+        plot_lr(self.train_lr[start_point:], self.obj.output_path, self.obj.epochs)
 
         # Plot all ROC curves
-        # plt.figure(num=4, figsize=(8, 6), dpi=100)
-        # plot_roc(self.test_labels_one_hot_coded, self.test_predicted_probs,
-        #          self.obj.classNum, self.obj.output_path, self.obj.epochs)
+        plt.figure(num=4, figsize=(8, 6), dpi=100)
+        plot_roc(self.test_labels_one_hot_coded, self.test_predicted_probs,
+                 self.obj.classNum, self.obj.output_path, self.obj.epochs)
 
-        # # Compute confusion matrix
-        # cnf_matrix = confusion_matrix(self.test_labels, self.test_predicted_labels)
-        # np.set_printoptions(precision=2)
-        #
-        # cnf_matrix2 = cnf_matrix.astype('float') / cnf_matrix.sum(axis=1)[:, np.newaxis]
-        # print(np.average(cnf_matrix2.diagonal()))
-        #
-        # # Plot and save non-normalized confusion matrix
-        # plt.figure(num=5, figsize=(5, 5), dpi=100)
-        # plot_confusion_matrix(cnf_matrix, self.obj.classNum, self.obj.output_path, self.obj.epochs)
-        #
-        # # Plot normalized confusion matrix
-        # plt.figure(num=6, figsize=(5, 5), dpi=100)
-        # plot_confusion_matrix(cnf_matrix, self.obj.classNum, self.obj.output_path, self.obj.epochs, normalize=True)
-        #
-        # cnf_matrix2 = cnf_matrix.astype('float') / cnf_matrix.sum(axis=1)[:, np.newaxis]
-        # print(np.average(cnf_matrix2.diagonal()))
+        # Compute confusion matrix
+        cnf_matrix = confusion_matrix(self.test_labels, self.test_predicted_labels)
+        np.set_printoptions(precision=2)
+
+        cnf_matrix2 = cnf_matrix.astype('float') / cnf_matrix.sum(axis=1)[:, np.newaxis]
+        print(np.average(cnf_matrix2.diagonal()))
+
+        # Plot and save non-normalized confusion matrix
+        plt.figure(num=5, figsize=(5, 5), dpi=100)
+        plot_confusion_matrix(cnf_matrix, self.obj.classNum, self.obj.output_path, self.obj.epochs)
+
+        # Plot normalized confusion matrix
+        plt.figure(num=6, figsize=(5, 5), dpi=100)
+        plot_confusion_matrix(cnf_matrix, self.obj.classNum, self.obj.output_path, self.obj.epochs, normalize=True)
+
+        cnf_matrix2 = cnf_matrix.astype('float') / cnf_matrix.sum(axis=1)[:, np.newaxis]
+        print(np.average(cnf_matrix2.diagonal()))
 
     def save(self):
 
@@ -350,19 +284,22 @@ class CNNModels:
 
     def set_lr(self, lr_type):
         # learning schedule callback
-        self.lr = ReduceLROnPlateau(monitor='val_loss', factor=0.25, patience=10,
-                                        min_lr=1e-06, mode='min', verbose=1)
+
         if lr_type == "step_decay":
             self.lr = LearningRateScheduler(self.step_decay())
         elif lr_type == "lambda":
-            self.lr = LearningRateScheduler(lambda this_epoch: self.obj.lr * 0.99 ** this_epoch)
+            self.lr = LearningRateScheduler(lambda this_epoch: self.lr * 0.99 ** this_epoch)
         elif lr_type == "cyclic":
-            self.lr = CyclicLR(base_lr=self.obj.lr, max_lr=6e-04, step_size=500., mode='exp_range', gamma=0.99994)
+            self.lr = CyclicLR(base_lr=self.lr, max_lr=6e-04, step_size=500., mode='exp_range', gamma=0.99994)
+        else:
+            self.lr = ReduceLROnPlateau(monitor='val_loss', factor=0.25, patience=10,
+                                            min_lr=1e-06, mode='min', verbose=1)
 
     def get_lr_metric(self):
         def lr(y_true, y_pred):
             # lrr.append(float(K.get_value(optimizer.lr)))
             self.lr = self.optimizer.lr
+        return self.lr
 
     def set_compile(self):
         # self.get_lr_metric()
@@ -392,6 +329,16 @@ class CNNModels:
         # self.callbacks = "[checkpoint, reduce_lr]"
         self.callbacks = [callbacks.ModelCheckpoint("weights.h5", save_best_only=True)]
 
+    def save_npy(self, data, flag="Train", name="Probabilities"):
+        # saving labels or predicted probablities as a npy file
+        np.save(os.path.join(self.data.output_path,
+                             flag + "_" + name + "_" + str(self.obj.epochs) + "_Epochs.npy"), data)
+
+    # saving labels or predicted probablities as a csv file
+    def save_csv(self, data, flag="Train", name="Probabilities"):
+        df = pd.DataFrame(data)
+        df.to_csv(os.path.join(self.data.output_path, flag + "_" + name + "_" + str(self.obj.epochs) + "_Epochs.csv"))
+
     def save_layer_output(self, x, name="Train"):
         intermediate_layer_model = Model(inputs=self.net.input, outputs=self.net.get_layer(self.layer_name).output)
         intermediate_output = intermediate_layer_model.predict(x)
@@ -416,7 +363,7 @@ class CNNModels:
         setting_info = setting_info + "\nProcess Time in seconds = " + str(self.process_time)
         return setting_info
 
-    def tversky_loss(self, y_true, y_pred):
+    def tversky_loss(y_true, y_pred):
         alpha = 0.5
         beta = 0.5
 
