@@ -348,3 +348,14 @@ def save_volume(input_array, filename):
         plt.imshow(input_img, cmap='gray', vmin=mu-5*sig, vmax=mu+5*sig)
     # plt.show()
     fig.savefig(filename)
+
+
+# saving labels or predicted probablities as a npy file
+def save_npy(data, output_path, flag="Train", name="Probabilities"):
+    np.save(os.path.join(output_path, flag + "_" + name + ".npy"), data)
+
+
+# saving labels or predicted probablities as a csv file
+def save_csv(data, output_path, flag="Train", name="Probabilities"):
+    df = pd.DataFrame(data)
+    df.to_csv(os.path.join(output_path, flag + "_" + name + ".csv"))

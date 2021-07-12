@@ -8,8 +8,7 @@
 # Team Leader: Daniel Baum
 # License: GPL v3.0. See <https://www.gnu.org/licenses/>
 # ============================================================================================
-
-
+import re
 import time
 import math
 import shutil
@@ -17,16 +16,16 @@ import random
 import string
 from utils.plots import *
 from utils.utility_tools import *
-from utils.CyclicLR.clr_callback import CyclicLR
 from sklearn.metrics import confusion_matrix
-
+from utils.CyclicLR.clr_callback import CyclicLR
+from sklearn.model_selection import StratifiedKFold
 
 from tensorflow import keras
 from tensorflow.keras.optimizers import *
 from tensorflow.keras import Model, callbacks  # backend, ,
 from tensorflow.keras import layers
 from tensorflow.keras import backend as bk
-# from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.callbacks import LearningRateScheduler, ModelCheckpoint, ReduceLROnPlateau
 
 
@@ -72,8 +71,8 @@ class DataPreparation(keras.utils.Sequence):
                     ". \n There is a missing pair of tomogram and target.")
             sys.exit()
 
-        self.list_tomos.sort(key=lambda f: int(filter(str.isdigit, f)))
-        self.list_masks.sort(key=lambda r: int(filter(str.isdigit, r)))
+        self.list_tomos.sort(key=lambda f: int(re.sub('\D', '', f)))
+        self.list_masks.sort(key=lambda r: int(re.sub('\D', '', r)))
 
 
 class CNNModels:
@@ -88,17 +87,21 @@ class CNNModels:
         self.layer_name = None
         self.process_time = None
         self.callbacks = None
+        self.model_weight = None
+
+        self.patch_overlap = False
         self.batch_idx = 0
 
         # values to collect outputs
-        self.history_train_loss = []
-        self.history_train_acc = []
-        self.history_vald_loss = []
+        self.model_history = []
+        self.history_lr = []
+        self.history_recall = []
         self.history_vald_acc = []
         self.history_f1_score = []
-        self.history_recall = []
+        self.history_train_acc = []
+        self.history_vald_loss = []
         self.history_precision = []
-
+        self.history_train_loss = []
 
         # initialize values
         self.obj = obj
@@ -108,11 +111,26 @@ class CNNModels:
         if self.obj.dim_num > 2:
             self.depth = self.obj.img_dim[2]
 
+        self.nump_xaxis = int(np.floor(self.width / self.obj.patch_size))
+        self.nump_yaxis = int(np.floor(self.height / self.obj.patch_size))
+        self.nump_zaxis = int(np.floor(self.depth / 25))
+
+        self.nump_total = self.nump_xaxis * self.nump_yaxis * self.nump_zaxis
+
+        self.batch_tomo = []
+        self.batch_mask = []
+
+        # self.batch_tomo = np.zeros((self.nump_total, 25,
+        #                             self.obj.patch_size, self.obj.patch_size, 1))
+        # self.batch_mask = np.zeros((self.nump_total, 25,
+        #                             self.obj.patch_size, self.obj.patch_size, self.obj.classNum))
+
         # check values
         is_positive(self.obj.epochs, 'epochs')
         is_positive(self.obj.classNum, 'num_class')
 
         # initialize model
+        self.kfold = StratifiedKFold(n_splits=10, shuffle=True, random_state=2)
         self.train_model()
 
     def train_model(self):
@@ -139,14 +157,107 @@ class CNNModels:
 
     def fit_model(self):
         start = time.clock()
-
+        batch_itr = len(self.data.list_tomos) // self.obj.batch_size
         for e in range(self.obj.epochs):
-            for b in range(self.obj.batch_size):
-                train_loss = []
-                train_acc = []
+            for b in range(batch_itr):
+                # fetch all patches of the current batch
+                self.fetch_batch()
+
+                # to collect the results of current batch iteration
+
+                for train, vald in self.kfold.split(self.batch_tomo, self.batch_mask):
+
+                    # train on the fetched batch
+                    # train_loss = self.net.train_on_batch(self.batch_tomo, self.batch_mask,
+                    # class_weight=self.model_weight)
+                    history = self.net.fit(self.batch_tomo[train], self.batch_mask[train],
+                                           epochs=self.obj.epochs, batch_size=self.obj.batch_size, shuffle=True,
+                                           validation_data=(self.batch_tomo[vald], self.batch_mask[vald]),
+                                           callbacks=self.callbacks)
+
+                    self.model_history.append(history)
+                    self.history_train_acc.append(history.history['acc'])
+                    self.history_vald_acc.append(history.history['val_acc'])
+                    self.history_train_loss.append(history.history['loss'])
+                    self.history_vald_loss.append(history.history['val_loss'])
+                    self.history_lr.append(history.history['lr'])
+
+                    self.obj.ui.textEdit.setText()
+
+        # # averaging the accuracy and loss over all folds
+        # train_acc = [np.mean([x[i] for x in self.history_train_acc]) for i in range(self.obj.epochs)]
+        # vald_acc = [np.mean([x[i] for x in self.history_vald_acc]) for i in range(self.obj.epochs)]
+        # train_loss = [np.mean([x[i] for x in self.history_train_loss]) for i in range(self.obj.epochs)]
+        # vald_loss = [np.mean([x[i] for x in self.history_vald_loss]) for i in range(self.obj.epochs)]
+        # train_lr = [np.mean([x[i] for x in self.history_lr]) for i in range(self.obj.epochs)]
+        #
+        # # saving the average results from folds
+        # save_csv(train_acc, flag="Train", name="Averaged_Accuracy")
+        # save_csv(vald_acc, flag="Validation", name="Averaged_Accuracy")
+        # save_csv(train_loss, flag="Train", name="Averaged_Loss")
+        # save_csv(vald_loss, flag="Validation", name="Averaged_Loss")
+        # save_csv(train_lr, flag="Train", name="Averaged_LearningRate")
+        #
+        # # saving the average smoothed results from folds
+        # save_csv(smooth_curve(train_acc), self.data.output_path, flag="Train", name="Accuracy_Smoothed_Points")
+        # save_csv(smooth_curve(vald_acc), self.data.output_path, flag="Validation", name="Accuracy_Smoothed_Points")
+        # save_csv(smooth_curve(train_loss), self.data.output_path, flag="Train", name="Loss_Smoothed_Points")
+        # save_csv(smooth_curve(vald_loss), self.data.output_path, flag="Validation", name="Loss_Smoothed_Points")
 
         end = time.clock()
         self.process_time = (end - start)
+
+    def fetch_batch(self):
+        """
+        this function reads only the current set of tomograms that the training should be trained on it
+        """
+        batch_strt_idx = self.batch_idx * self.obj.batch_size
+        batch_stop_idx = batch_strt_idx + self.obj.batch_size
+
+        # for each tomo of the current batch
+        for bidx in range(batch_strt_idx, batch_stop_idx):
+            tomo = read_mrc(self.data.list_tomos[bidx])
+            mask = read_mrc(self.data.list_masks[bidx])
+
+            if tomo.shape != mask.shape:
+                display("the tomogram and the target must be of the same size. " +
+                        self.tomo.shape + " is not equal to " + self.mask.shape + ".")
+                sys.exit()
+
+            # loop counter to control location of patch number in the batch data
+            pidx = 0
+            for d in range(self.nump_zaxis):
+                dstrt = d * 25
+                dstop = dstrt + 25
+                for h in range(self.nump_yaxis):
+                    hstrt = h * self.obj.patch_size
+                    hstop = hstrt + self.obj.patch_size
+                    for w in range(self.nump_xaxis):
+                        wstrt = w * self.obj.patch_size
+                        wstop = wstrt + self.obj.patch_size
+                        if not self.patch_overlap:
+                            patch_data = tomo[dstrt:dstop, hstrt:hstop, wstrt:wstop]
+                            patch_target = mask[dstrt:dstop, hstrt:hstop, wstrt:wstop]
+                        else:
+                            patch_data = tomo[dstrt:dstop, hstrt:hstop, wstrt:wstop]
+                            patch_target = mask[dstrt:dstop, hstrt:hstop, wstrt:wstop]
+
+                        # Patch base normalization
+                        patch_data = (patch_data - np.mean(patch_data)) / np.std(patch_data)
+                        patch_target_onehot = to_categorical(patch_target, self.obj.classNum)
+
+                        # Store into batch array:
+                        self.batch_tomo.append(patch_data)
+                        self.batch_mask.append(patch_target_onehot)
+                        pidx += 1
+
+        # to start from a better weight distribution
+        # from sklearn.utils import class_weight
+        # self.model_weight = dict(zip(np.unique(self.batch_mask),
+        #                              class_weight.compute_class_weight('balanced',
+        #                                                                np.unique(self.batch_mask), self.batch_mask)))
+        # to fetch the next batch correctly
+        self.batch_idx += 1
 
     def plots(self):
         start_point = 10  # dropping the first few point in plots due to unstable behavior of model
@@ -291,16 +402,6 @@ class CNNModels:
         # callbacks_list = [self.checkpoint, self.lr]
         # self.callbacks = "[checkpoint, reduce_lr]"
         self.callbacks = [callbacks.ModelCheckpoint("weights.h5", save_best_only=True)]
-
-    # saving labels or predicted probablities as a npy file
-    def save_npy(self, data, flag="Train", name="Probabilities"):
-        np.save(os.path.join(self.data.output_path,
-                             flag + "_" + name + "_" + str(self.obj.epochs) + "_Epochs.npy"), data)
-
-    # saving labels or predicted probablities as a csv file
-    def save_csv(self, data, flag="Train", name="Probabilities"):
-        df = pd.DataFrame(data)
-        df.to_csv(os.path.join(self.data.output_path, flag + "_" + name + "_" + str(self.obj.epochs) + "_Epochs.csv"))
 
     def save_layer_output(self, x, name="Train"):
         intermediate_layer_model = Model(inputs=self.net.input, outputs=self.net.get_layer(self.layer_name).output)
