@@ -159,30 +159,31 @@ class CNNModels:
         start = time.clock()
         batch_itr = len(self.data.list_tomos) // self.obj.batch_size
         for e in range(self.obj.epochs):
+            self.fetch_batch()
+
             for b in range(batch_itr):
                 # fetch all patches of the current batch
-                self.fetch_batch()
+
 
                 # to collect the results of current batch iteration
 
-                for train, vald in self.kfold.split(self.batch_tomo, self.batch_mask):
+                # for train, vald in self.kfold.split(self.batch_tomo, self.batch_mask):
+                # train on the fetched batch
+                # train_loss = self.net.train_on_batch(self.batch_tomo, self.batch_mask,
+                # class_weight=self.model_weight)
+                history = self.net.fit(self.batch_tomo[train], self.batch_mask[train],
+                                       epochs=self.obj.epochs, batch_size=self.obj.batch_size, shuffle=True,
+                                       validation_data=(self.batch_tomo[vald], self.batch_mask[vald]),
+                                       callbacks=self.callbacks)
 
-                    # train on the fetched batch
-                    # train_loss = self.net.train_on_batch(self.batch_tomo, self.batch_mask,
-                    # class_weight=self.model_weight)
-                    history = self.net.fit(self.batch_tomo[train], self.batch_mask[train],
-                                           epochs=self.obj.epochs, batch_size=self.obj.batch_size, shuffle=True,
-                                           validation_data=(self.batch_tomo[vald], self.batch_mask[vald]),
-                                           callbacks=self.callbacks)
+                self.model_history.append(history)
+                self.history_train_acc.append(history.history['acc'])
+                self.history_vald_acc.append(history.history['val_acc'])
+                self.history_train_loss.append(history.history['loss'])
+                self.history_vald_loss.append(history.history['val_loss'])
+                self.history_lr.append(history.history['lr'])
 
-                    self.model_history.append(history)
-                    self.history_train_acc.append(history.history['acc'])
-                    self.history_vald_acc.append(history.history['val_acc'])
-                    self.history_train_loss.append(history.history['loss'])
-                    self.history_vald_loss.append(history.history['val_loss'])
-                    self.history_lr.append(history.history['lr'])
-
-                    self.obj.ui.textEdit.setText()
+                self.obj.ui.textEdit.setText()
 
         # # averaging the accuracy and loss over all folds
         # train_acc = [np.mean([x[i] for x in self.history_train_acc]) for i in range(self.obj.epochs)]
@@ -211,11 +212,9 @@ class CNNModels:
         """
         this function reads only the current set of tomograms that the training should be trained on it
         """
-        batch_strt_idx = self.batch_idx * self.obj.batch_size
-        batch_stop_idx = batch_strt_idx + self.obj.batch_size
-
+        pidx = 0
         # for each tomo of the current batch
-        for bidx in range(batch_strt_idx, batch_stop_idx):
+        for bidx in range(len(self.data.list_tomos)):
             tomo = read_mrc(self.data.list_tomos[bidx])
             mask = read_mrc(self.data.list_masks[bidx])
 
@@ -225,7 +224,6 @@ class CNNModels:
                 sys.exit()
 
             # loop counter to control location of patch number in the batch data
-            pidx = 0
             for d in range(self.nump_zaxis):
                 dstrt = d * 25
                 dstop = dstrt + 25
@@ -247,8 +245,8 @@ class CNNModels:
                         patch_target_onehot = to_categorical(patch_target, self.obj.classNum)
 
                         # Store into batch array:
-                        self.batch_tomo.append(patch_data)
-                        self.batch_mask.append(patch_target_onehot)
+                        self.batch_tomo[pidx, :, :, :, 0] = patch_data
+                        self.batch_mask[pidx] = patch_target_onehot
                         pidx += 1
 
         # to start from a better weight distribution
