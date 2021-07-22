@@ -22,7 +22,7 @@ from sklearn.model_selection import StratifiedKFold
 
 from tensorflow import keras
 from tensorflow.keras.optimizers import *
-from tensorflow.keras import Model, callbacks  # backend, ,
+from tensorflow.keras import Model  # backend, ,
 from tensorflow.keras import layers
 from tensorflow.keras import backend as bk
 from tensorflow.keras.utils import to_categorical
@@ -92,9 +92,12 @@ class CNNModels:
 
         self.patch_overlap = False
         self.batch_idx = 0
+        self.tomo_index = 0
+        self.printstr = ""
 
         # values to collect outputs
         self.model_history = []
+        self.batch_mask_onehot = []
         self.history_lr = []
         # self.history_recall = []
         self.history_vald_acc = []
@@ -114,7 +117,7 @@ class CNNModels:
 
         self.nump_xaxis = int(np.floor(self.width / self.obj.patch_size))
         self.nump_yaxis = int(np.floor(self.height / self.obj.patch_size))
-        self.nump_zaxis = int(np.floor(self.depth / 25))
+        self.nump_zaxis = int(np.floor(self.depth / 32))
 
         self.nump_total = self.nump_xaxis * self.nump_yaxis * self.nump_zaxis
 
@@ -134,9 +137,8 @@ class CNNModels:
         self.train_model()
 
     def train_model(self):
-        """
-        This function starts the training procedure by calling
-        different built-in functions of the class CNNModel
+        """This function starts the training procedure by calling
+           different built-in functions of the class CNNModel
         """
         self.get_model()
         self.fit_model()
@@ -157,13 +159,15 @@ class CNNModels:
 
     def fit_model(self):
         start = time.clock()
-        self.tomo_index = 0
         batch_itr = int(np.floor(self.nump_total) / self.obj.batch_size)
         for e in range(self.obj.epochs):
+            self.realtime_output("########## Start Epoch {epochnum} ########## \n\n".format(epochnum=e))
             # fetch all patches of the current batch
             for t in range(len(self.data.list_tomos_IDs)):
+                self.realtime_output("********** Start Tomo {tnum} ********** \n\n".format(tnum=t))
                 self.fetch_tomo()
                 for b in range(batch_itr):
+                    self.realtime_output("---------- Start Batch {bnum} ---------- \n\n".format(bnum=b))
                     if b == batch_itr:
                         self.batch_idx = 0
                     else:
@@ -171,14 +175,19 @@ class CNNModels:
 
                     # fetch the current batch of patches
                     self.fetch_batch()
+
                     # Split the data
                     x_train, x_vald, y_train, y_vald = train_test_split(self.batch_tomo, self.batch_mask_onehot,
                                                                         test_size=0.2, shuffle=True)
-
+                    x_train = np.expand_dims(x_train, axis=4)
+                    x_vald = np.expand_dims(x_vald, axis=4)
+                    y_train = np.array(y_train)
+                    y_vald = np.array(y_vald)
                     # train_loss = self.net.train_on_batch(self.batch_tomo, self.batch_mask_onehot,
                     #                                      class_weight=self.model_weight)
-                    history = self.net.fit(x_train, y_train, epochs=self.obj.epochs,
-                                           batch_size=self.obj.batch_size, shuffle=False,
+                    self.set_callback()
+                    history = self.net.fit(x_train, y_train, epochs=1,
+                                           batch_size=1, shuffle=False,
                                            validation_data=(x_vald, y_vald),
                                            callbacks=self.callbacks)
 
@@ -189,25 +198,13 @@ class CNNModels:
                     self.history_vald_loss.append(history.history['val_loss'])
                     self.history_lr.append(history.history['lr'])
 
-                    self.obj.ui.textEdit.setText()
+                    txtOut = self.print_history(history)
+                    self.realtime_output(txtOut)
 
-            train_loss = []
-            train_acc = []
-            vald_loss = []
-            vald_acc = []
-
-            for b in range(self.obj.batch_size):
-                data = self.batch_tomo[b]
-                mask = self.batch_mask[b]
-                    # dsfsdfsdf
-                # fetch patches
-                # Get patch:
-                # patch_data = sample_data[z - p_in:z + p_in, y - p_in:y + p_in, x - p_in:x + p_in]
-                # patch_target = sample_target[z - p_in:z + p_in, y - p_in:y + p_in, x - p_in:x + p_in]
-                # self.history = self.net.fit(self.train_data[train], self.train_labels_one_hot_coded,
-                #                     epochs=self.epoch, batch_size=self.data.batch_size, shuffle=True,
-                #                     validation_data=(self.train_data[vald], self.vald_labels_one_hot_coded),
-                #                     callbacks=self.callbacks_list)
+                    self.realtime_output("\n\n---------- END Batch {bnum} ---------- \n\n".format(bnum=b))
+                self.realtime_output("********** END Tomo {tnum} ********** \n\n".format(tnum=t))
+            self.realtime_output("########## END Epoch {epochnum} ########## \n".format(epochnum=e))
+        self.save_history()
 
         end = time.clock()
         self.process_time = (end - start)
@@ -233,17 +230,17 @@ class CNNModels:
         self.mask = np.expand_dims(self.mask, axis=4)
 
         self.patches_tomo = tf.extract_volume_patches(self.tomo,
-                                                      [1, self.obj.patch_size, self.obj.patch_size, 25, 1],
-                                                      [1, self.obj.patch_size, self.obj.patch_size, 25, 1],
+                                                      [1, self.obj.patch_size, self.obj.patch_size, 32, 1],
+                                                      [1, self.obj.patch_size, self.obj.patch_size, 32, 1],
                                                       padding='VALID')
-        self.patches_tomo = tf.reshape(self.patches_tomo, [-1, self.obj.patch_size, self.obj.patch_size, 25])
+        self.patches_tomo = tf.reshape(self.patches_tomo, [-1, self.obj.patch_size, self.obj.patch_size, 32])
         self.patches_tomo = tf.squeeze(self.patches_tomo)
 
-        self.patches_mask = tf.image.extract_patches(self.mask,
-                                                     [1, self.obj.patch_size, self.obj.patch_size, 25, 1],
-                                                     [1, self.obj.patch_size, self.obj.patch_size, 25, 1],
-                                                     padding='VALID')
-        self.patches_mask = tf.reshape(self.patches_mask, [-1, self.obj.patch_size, self.obj.patch_size, 25])
+        self.patches_mask = tf.extract_volume_patches(self.mask,
+                                                            [1, self.obj.patch_size, self.obj.patch_size, 32, 1],
+                                                            [1, self.obj.patch_size, self.obj.patch_size, 32, 1],
+                                                            padding='VALID')
+        self.patches_mask = tf.reshape(self.patches_mask, [-1, self.obj.patch_size, self.obj.patch_size, 32])
         self.patches_mask = tf.squeeze(self.patches_mask)
 
         self.patches_tomo = self.patches_tomo.eval(session=tf.compat.v1.Session())
@@ -259,21 +256,60 @@ class CNNModels:
         bstart = self.batch_idx * self.obj.batch_size
         bend = (self.batch_idx * self.obj.batch_size) + self.obj.batch_size
 
-        batch_tomo = self.patches_tomo[bstart:bend]
-        batch_mask = self.patches_mask[bstart:bend]
+        self.batch_tomo = self.patches_tomo[bstart:bend]
+        self.batch_mask = self.patches_mask[bstart:bend]
 
         # Patch base normalization
-        self.batch_tomo = (batch_tomo - np.mean(batch_tomo)) / np.std(batch_tomo)
-        self.batch_mask_onehot = to_categorical(batch_mask, self.obj.classNum)
+        self.batch_tomo = (self.batch_tomo - np.mean(self.batch_tomo)) / np.std(self.batch_tomo)
+        self.batch_mask_onehot = []
+        for m in range(len(self.batch_mask)):
+            self.batch_mask_onehot.append(to_categorical(self.batch_mask[m], self.obj.classNum))
+        # self.batch_mask_onehot = to_categorical(self.batch_mask, self.obj.classNum)
+
+    def realtime_output(self, newstr):
+        self.printstr = self.printstr + newstr
+        self.obj.ui.textEdit.setText(self.printstr)
+
+    def print_history(self, history):
+        printstr = ""
+        indxcol = 1
+        for key, value in history.history.items():
+            printstr = printstr + str(key) + " : " + str(value) + " | "
+            if indxcol % 5 == 0:
+                printstr = printstr + "\n"
+            indxcol = indxcol + 1
+
+        return printstr
+
+    def save_history(self):
+        # serialize model to JSON
+        model_json = self.net.to_json()
+        with open(os.path.join(self.data.output_path, "model.json"), "w") as json_file:
+            json_file.write(model_json)
+
+        save_csv(self.history_train_acc, self.data.output_path, "Train", "Accuracy_Details")
+        save_csv(self.history_vald_acc, self.data.output_path, "Validation", "Accuracy_Details")
+        save_csv(self.history_train_loss, self.data.output_path, "Train", "Loss_Details")
+        save_csv(self.history_vald_loss, self.data.output_path, "Validation", "Loss_Details")
+        save_csv(self.history_lr, self.data.output_path, "Train", "LearningRate_Details")
+
+        # averaging the accuracy and loss over all folds
+        self.train_acc = [np.mean([x[i] for x in self.history_train_acc]) for i in range(self.obj.epochs)]
+        self.vald_acc = [np.mean([x[i] for x in self.history_vald_acc]) for i in range(self.obj.epochs)]
+        self.train_loss = [np.mean([x[i] for x in self.history_train_loss]) for i in range(self.obj.epochs)]
+        self.vald_loss = [np.mean([x[i] for x in self.history_vald_loss]) for i in range(self.obj.epochs)]
+        self.train_lr = [np.mean([x[i] for x in self.history_lr]) for i in range(self.obj.epochs)]
+
+        # saving the average results from folds
+        save_csv(self.train_acc, self.data.output_path, flag="Train", name="Averaged_Accuracy")
+        save_csv(self.vald_acc, self.data.output_path, flag="Validation", name="Averaged_Accuracy")
+        save_csv(self.train_loss, self.data.output_path, flag="Train", name="Averaged_Loss")
+        save_csv(self.vald_loss, self.data.output_path, flag="Validation", name="Averaged_Loss")
+        save_csv(self.train_lr, self.data.output_path, flag="Train", name="Averaged_LearningRate")
 
     def plots(self):
         start_point = 10  # dropping the first few point in plots due to unstable behavior of model
         # cnf_matrix = np.zeros(shape=[self.obj.classNum, self.obj.classNum])
-        # figure(num=1, figsize=(8, 6), dpi=80)
-        # plot_folds_accuracy(model_history)
-
-        # plt.figure(num=2, figsize=(8, 6), dpi=80)
-        # plot_folds_loss(model_history)
 
         plt.figure(num=1, figsize=(8, 6), dpi=100)
         plot_train_vs_vald(self.history_train_loss[start_point:], self.history_vald_loss[start_point:],
@@ -310,11 +346,6 @@ class CNNModels:
         # print(np.average(cnf_matrix2.diagonal()))
 
     def save(self):
-
-        # serialize model to JSON
-        model_json = self.net.to_json()
-        with open(os.path.join(self.data.output_path, "model.json"), "w") as json_file:
-            json_file.write(model_json)
 
         # evaluation on train
         # train_loss, train_acc, train_lr = self.net.evaluate(train_data, train_labels_one_hot_coded, batch_size=1)
@@ -384,31 +415,35 @@ class CNNModels:
 
     def set_compile(self):
         # self.get_lr_metric()
+
         # self.obj.metrics = ['accuracy', self.lr]
-        self.obj.metrics = ['accuracy']
-        # self.obj.metrics = [keras.metrics.TruePositives(name='tp'),
-        #                     keras.metrics.FalsePositives(name='fp'),
-        #                     keras.metrics.TrueNegatives(name='tn'),
-        #                     keras.metrics.FalseNegatives(name='fn'),
-        #                     keras.metrics.BinaryAccuracy(name='accuracy'),
-        #                     keras.metrics.Precision(name='precision'),
-        #                     keras.metrics.Recall(name='recall'),
-        #                     keras.metrics.AUC(name='auc'),
-        #                     self.get_lr_metric()
-        #                     ]
+        self.obj.metrics = [keras.metrics.TruePositives(name='tp'),
+                            keras.metrics.FalsePositives(name='fp'),
+                            keras.metrics.TrueNegatives(name='tn'),
+                            keras.metrics.FalseNegatives(name='fn'),
+                            keras.metrics.BinaryAccuracy(name='acc'),
+                            keras.metrics.Precision(name='precision'),
+                            keras.metrics.Recall(name='recall'),
+                            keras.metrics.AUC(name='auc')
+                            ]
         if self.obj.loss != "tversky":
             self.net.compile(optimizer=self.optimizer, loss=self.obj.loss, metrics=[self.obj.metrics])
         else:
             self.net.compile(optimizer=self.optimizer, loss=self.tversky_loss, metrics=[self.obj.metrics])
 
     def set_checkpoint(self):
-        self.checkpoint = ModelCheckpoint(self.data.output_path, monitor='val_acc',
-                                          verbose=1, save_best_only=True, mode='max')
+        checkpoint_dir = os.path.join(self.data.output_path,
+                                      'weights-improvement-{epoch:03d}-{acc:.2f}-{loss:.2f}-{val_acc:.2f}-{val_loss:.2f}.hdf5')
+        self.checkpoint = ModelCheckpoint(checkpoint_dir, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
 
     def set_callback(self):
-        # callbacks_list = [self.checkpoint, self.lr]
-        # self.callbacks = "[checkpoint, reduce_lr]"
-        self.callbacks = [callbacks.ModelCheckpoint("weights.h5", save_best_only=True)]
+        # checkpoint results
+        self.set_checkpoint()
+
+        # set learning schedule
+        self.set_lr(lr_type="reduce_lr")
+
+        self.callbacks = [self.checkpoint, self.lr]
 
     def save_layer_output(self, x, name="Train"):
         intermediate_layer_model = Model(inputs=self.net.input, outputs=self.net.get_layer(self.layer_name).output)
@@ -506,7 +541,7 @@ class CNNModels:
 
     def unet3d(self):
         # The UNET model from DeepFinder
-        input_img = layers.Input(shape=(self.width, self.height, self.depth, 1))
+        input_img = layers.Input(shape=(32, self.obj.patch_size, self.obj.patch_size, 1))
 
         x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(input_img)
         high = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(x)

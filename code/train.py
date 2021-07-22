@@ -113,7 +113,7 @@ class TrainingWindow(QMainWindow):
         self.ui.gridLayout_2.addLayout(horizontalLayoutOpt, 5, 1, 1, 1)
 
     def set_params(self):
-        (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
+        # (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
         self.epochs = int(self.ui.epochs.text())
         self.batch_size = int(self.ui.batchsize.text())
         self.patch_size = int(self.ui.patchsize.text())
@@ -152,6 +152,7 @@ class TrainingWindow(QMainWindow):
             self.loss = "tversky"
 
     def start_train(self):
+        self.set_params()
         model_obj = CNNModels(self)
 
 if __name__ == "__main__":
