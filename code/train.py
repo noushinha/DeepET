@@ -10,7 +10,7 @@
 # ============================================================================================
 
 from PyQt5.QtWidgets import QFileDialog, QTableWidgetItem, QApplication, QMainWindow
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QPalette, QColor
 from gui.train import train
 from gui.theme_style import *
 from utils.params import *
@@ -27,6 +27,13 @@ class TrainingWindow(QMainWindow):
         self.ui.setupUi(self)
         self.setWindowTitle("Training Models")
         self.setWindowIcon(QIcon('../../icon.jpg'))
+
+        p = self.ui.textEdit.palette()
+        p.setColor(QPalette.Active, QPalette.Base, Qt.black)
+        self.ui.textEdit.setPalette(p)
+        white_color = QColor(255, 255, 255)
+        self.ui.textEdit.setTextColor(white_color)
+
 
         self.model_names = ["3D UNet", "YOLOv3", "R-CNN", "Mask R-CNN"]
         self.loss_names = ["Binary", "Categorical", "Sparse", "tversky"]
