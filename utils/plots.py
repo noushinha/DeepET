@@ -65,10 +65,10 @@ def plot_confusion_matrix(cm, classes,
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
     if normalize:
-        cf_nonnormalized_filename = os.path.join(eps_dir, "NonNormalized_" + str(epoch) + "_Epochs.eps")
+        cf_nonnormalized_filename = os.path.join(eps_dir, "/NonNormalized_" + str(epoch) + "_Epochs.eps")
         plt.savefig(cf_nonnormalized_filename, format='eps', dpi=500, bbox_inches="tight")
     else:
-        cf_normalized_filename = os.path.join(eps_dir, "Normalized_" + str(epoch) + "_Epochs.eps")
+        cf_normalized_filename = os.path.join(eps_dir, "/Normalized_" + str(epoch) + "_Epochs.eps")
         plt.savefig(cf_normalized_filename, format='eps', dpi=500, bbox_inches="tight")
 
 
@@ -234,16 +234,16 @@ def plot_roc(y_test, y_score, classes_num, eps_dir, epoch):
     roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
 
     # smoothing the micro roc curve
-    # micro_poly = np.polyfit(fpr["micro"], tpr["micro"], 5)
-    # micro_poly_y = np.poly1d(micro_poly)(fpr["micro"])
-    # plt.plot(fpr["micro"], tpr["micro"],
-    #          label='micro-average ROC curve (area = {0:0.2f})'
-    #                ''.format(roc_auc["micro"]),
-    #          color='magenta', linestyle=':', linewidth=1)
+    micro_poly = np.polyfit(fpr["micro"], tpr["micro"], 5)
+    micro_poly_y = np.poly1d(micro_poly)(fpr["micro"])
+    plt.plot(fpr["micro"], tpr["micro"],
+             label='micro-average ROC curve (area = {0:0.2f})'
+                   ''.format(roc_auc["micro"]),
+             color='magenta', linestyle=':', linewidth=1)
 
     # smoothing the macro roc curve
-    # macro_poly = np.polyfit(fpr["macro"], tpr["macro"], 5)
-    # macro_poly_y = np.poly1d(macro_poly)(fpr["macro"])
+    macro_poly = np.polyfit(fpr["macro"], tpr["macro"], 5)
+    macro_poly_y = np.poly1d(macro_poly)(fpr["macro"])
     plt.plot(fpr["macro"], tpr["macro"],
              label='macro-average ROC curve (area = {0:0.2f})'
                    ''.format(roc_auc["macro"]),
@@ -275,3 +275,16 @@ def plot_lr(lr_points, eps_dir, epoch):
     plt.legend()
     filename = os.path.join(eps_dir, "Learning_Rate_" + str(epoch) + "_Epochs.eps")
     plt.savefig(filename, format='eps', dpi=1000, bbox_inches="tight")
+
+
+def general_plot(data_points, axis_labels, num_classes, plot_num):
+    legend_names = []
+    for lbl in range(0, num_classes):
+        legend_names.append('class ' + str(lbl))
+
+    plt.figure(num=plot_num, figsize=(8, 6), dpi=100)
+    plt.plot(data_points)
+    plt.ylabel(axis_labels[0])
+    plt.xlabel(axis_labels[1])
+    plt.legend(legend_names)
+    plt.grid()

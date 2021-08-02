@@ -124,7 +124,7 @@ class Ui_MainWindow(object):
         self.epochL.setText(_translate("MainWindow", "epochs:"))
         self.epochs.setText(_translate("MainWindow", "10"))
         self.batchL.setText(_translate("MainWindow", "batch size:"))
-        self.batchsize.setText(_translate("MainWindow", "32"))
+        self.batchsize.setText(_translate("MainWindow", "16"))
         self.patchL.setText(_translate("MainWindow", "patch size:"))
         self.patchsize.setText(_translate("MainWindow", "64"))
         self.trainBtn.setText(_translate("MainWindow", "train"))
