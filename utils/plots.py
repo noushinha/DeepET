@@ -274,10 +274,10 @@ def plot_lr(lr_points, eps_dir, epoch):
     plt.ylabel('Learning Rate')
     plt.legend()
     filename = os.path.join(eps_dir, "Learning_Rate_" + str(epoch) + "_Epochs.eps")
-    plt.savefig(filename, format='eps', dpi=1000, bbox_inches="tight")
+    plt.savefig(filename, format='eps', dpi=500, bbox_inches="tight")
 
 
-def general_plot(data_points, axis_labels, num_classes, plot_num):
+def general_plot(data_points, eps_dir, axis_labels, num_classes, epoch, plot_num):
     legend_names = []
     for lbl in range(0, num_classes):
         legend_names.append('class ' + str(lbl))
@@ -288,3 +288,8 @@ def general_plot(data_points, axis_labels, num_classes, plot_num):
     plt.xlabel(axis_labels[1])
     plt.legend(legend_names)
     plt.grid()
+
+    filename = os.path.join(eps_dir, axis_labels[0] + "_" + str(epoch) + "_Epochs.eps")
+    plt.savefig(filename, format='eps', dpi=500, bbox_inches="tight")
+
+    plt.show()

@@ -9,15 +9,13 @@
 # License: GPL v3.0. See <https://www.gnu.org/licenses/>
 # ============================================================================================
 
-from PyQt5.QtWidgets import QFileDialog, QTableWidgetItem, QApplication, QMainWindow
-from PyQt5.QtGui import QIcon, QPalette, QColor
+from PyQt5.QtWidgets import QApplication, QMainWindow
+from PyQt5.QtGui import QIcon, QColor
 from gui.train import train
 from gui.theme_style import *
-from utils.params import *
 from models import *
 from PyQt5.QtWidgets import QRadioButton, QHBoxLayout, QGridLayout, QButtonGroup
-from PyQt5.QtCore import pyqtSignal, QObject
-
+# from PyQt5.QtCore import pyqtSignal, QObject
 
 class TrainingWindow(QMainWindow):
     def __init__(self):
@@ -59,7 +57,7 @@ class TrainingWindow(QMainWindow):
         self.img_dim = None
         self.class_names = None
         self.metrics = ["accuracy"]
-        self.set_params()
+        self.set_params(True)
         # self.get_model()
 
     def generate_model_radio_btns(self, number):
@@ -119,7 +117,7 @@ class TrainingWindow(QMainWindow):
 
         self.ui.gridLayout_2.addLayout(horizontalLayoutOpt, 5, 1, 1, 1)
 
-    def set_params(self):
+    def set_params(self, flag=True):
         # (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
         self.epochs = int(self.ui.epochs.text())
         self.batch_size = int(self.ui.batchsize.text())
@@ -138,9 +136,10 @@ class TrainingWindow(QMainWindow):
             self.img_dim = (int(self.ui.width.text()), int(self.ui.height.text()), int(self.ui.depth.text()))
 
         # ToDo: if you want to have particular learning rates
-        self.set_model(self.model_names[0])
-        self.set_loss(self.loss_names[0])
-        self.set_opt(self.opt_names[0])
+        if flag:
+            self.set_model(self.model_names[0])
+            self.set_loss(self.loss_names[0])
+            self.set_opt(self.opt_names[0])
 
     def set_model(self, radio_text):
         self.model_type = radio_text
@@ -159,7 +158,7 @@ class TrainingWindow(QMainWindow):
             self.loss = "tversky"
 
     def start_train(self):
-        self.set_params()
+        self.set_params(False)
         model_obj = CNNModels(self)
 
 if __name__ == "__main__":

@@ -274,11 +274,12 @@ class CNNModels:
                 y_train = to_categorical(y_train, self.obj.classNum)
                 y_vald = to_categorical(y_vald, self.obj.classNum)
 
-                if counter == vald_batch_num:
-                    self.batch_mask_vald = y_vald.reshape(y_vald.shape[0],
-                                                          y_vald.shape[1] * y_vald.shape[2] *
-                                                          y_vald.shape[3] * y_vald.shape[4])
-                    print(self.batch_mask_vald.shape)
+                # # self.batch_mask_vald
+                # if counter == vald_batch_num:
+                #     self.batch_mask_vald = y_vald.reshape(y_vald.shape[0],
+                #                                           y_vald.shape[1] * y_vald.shape[2] *
+                #                                           y_vald.shape[3] * y_vald.shape[4])
+                #     print(self.batch_mask_vald.shape)
 
                 # expanding dimensions to become suitable for the model input
                 x_train = np.expand_dims(x_train, axis=4)
@@ -299,15 +300,16 @@ class CNNModels:
                 list_train_acc.append(loss_train[1])
 
                 # evaluate trained model on the validation set
+                # self.vald_predicted_probs
                 loss_val = self.net.evaluate(x_vald, y_vald, verbose=0)
                 batch_pred = self.net.predict(x_vald)
 
-                if counter == vald_batch_num:
-                    self.vald_predicted_probs = batch_pred.reshape(batch_pred.shape[0],
-                                                                   batch_pred.shape[1] * batch_pred.shape[2] *
-                                                                   batch_pred.shape[3] * batch_pred.shape[4])
-                    print(self.vald_predicted_probs.shape)
-                    self.vald_predicted_labels = np.argmax(batch_pred, axis=1)
+                # if counter == vald_batch_num:
+                #     self.vald_predicted_probs = batch_pred.reshape(batch_pred.shape[0],
+                #                                                    batch_pred.shape[1] * batch_pred.shape[2] *
+                #                                                    batch_pred.shape[3] * batch_pred.shape[4])
+                #     print(self.vald_predicted_probs.shape)
+                #     self.vald_predicted_labels = np.argmax(batch_pred, axis=1)
 
                 scores = precision_recall_fscore_support(x_vald.argmax(axis=-1).flatten(),
                                                          batch_pred.argmax(axis=-1).flatten(), average=None,
@@ -419,14 +421,17 @@ class CNNModels:
         plt.figure(num=3, figsize=(8, 6), dpi=100)
         plot_lr(self.history_lr[start_point:], self.data.output_path, self.obj.epochs)
 
-        general_plot(self.f1_score, ('F1-score', 'epochs'), self.obj.classNum, 4)
-        general_plot(self.precision, ('Precision', 'epochs'), self.obj.classNum, 5)
-        general_plot(self.recall, ('Recall', 'epochs'), self.obj.classNum, 6)
+        general_plot(self.f1_score, self.data.output_path, ('F1 Score', 'epochs'), self.obj.classNum, self.obj.epochs, 4)
+        general_plot(self.precision, self.data.output_path, ('Precision', 'epochs'), self.obj.classNum, self.obj.epochs, 5)
+        general_plot(self.recall, self.data.output_path, ('Recall', 'epochs'), self.obj.classNum, self.obj.epochs, 6)
 
         # Plot all ROC curves
-        plt.figure(num=7, figsize=(8, 6), dpi=100)
-        plot_roc(self.batch_mask_vald, self.vald_predicted_probs,
-                 self.obj.classNum, self.obj.output_path, self.obj.epochs)
+        # plt.figure(num=7, figsize=(8, 6), dpi=100)
+        # ground_truth_labels = em_thresh_vol.ravel() # we want to make them into vectors
+        # score_value = 1-em_image_vol.ravel()/255.0 # we want to make them into vectors
+        # fpr, tpr, _ = roc_curve(ground_truth_labels,score_value)
+        # plot_roc(self.batch_mask_vald, self.vald_predicted_probs,
+        #          self.obj.classNum, self.obj.output_path, self.obj.epochs)
 
         # Compute confusion matrix
         # cnf_matrix = confusion_matrix(self.batch_mask_vald, self.vald_predicted_labels)
@@ -447,7 +452,6 @@ class CNNModels:
         # print(np.average(cnf_matrix2.diagonal()))
 
     def save(self):
-
         # evaluation on train
         # train_loss, train_acc, train_lr = self.net.evaluate(train_data, train_labels_one_hot_coded, batch_size=1)
         # print(train_loss, train_acc, train_lr)
