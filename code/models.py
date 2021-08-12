@@ -28,7 +28,7 @@ from tensorflow.keras.optimizers import *
 from tensorflow.keras import Model
 from tensorflow.keras import layers
 from tensorflow.keras import backend as bk
-from tensorflow.keras.utils import to_categorical
+from keras.utils import to_categorical
 from tensorflow.keras.callbacks import LearningRateScheduler, ModelCheckpoint, ReduceLROnPlateau
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
@@ -42,7 +42,8 @@ class DataPreparation(keras.utils.Sequence):
     def __init__(self, obj):
         self.list_tomos_IDs = None
         self.list_masks_IDs = None
-        # self.patches_tomos = []
+        self.list_annotations = None
+        self.patches_tomos = []
         self.patches_masks = []
         self.batch_size = obj.batch_size
         self.patch_size = obj.patch_size
@@ -103,61 +104,65 @@ class DataPreparation(keras.utils.Sequence):
         start = time.clock()
         for t in range(len(self.list_tomos_IDs)):
             display("********** Fetch Tomo {tnum} **********".format(tnum=self.list_tomos_IDs[t]))
-            self.tomo = read_mrc(self.list_tomos_IDs[t])
-            self.mask = read_mrc(self.list_masks_IDs[t])
+            tomo = read_mrc(self.list_tomos_IDs[t])
+            mask = read_mrc(self.list_masks_IDs[t])
 
             # check if the tomogram and its mask are of the same size
-            if self.tomo.shape != self.mask.shape:
+            if tomo.shape != mask.shape:
                 display("the tomogram and the target must be of the same size. " +
-                        str(self.tomo.shape) + " is not equal to " + str(self.mask.shape) + ".")
+                        str(tomo.shape) + " is not equal to " + str(mask.shape) + ".")
                 sys.exit()
 
-            # preparation of tomogram as a tensor that can be used with tensorflow API
-            self.tomo = np.swapaxes(self.tomo, 0, 2)  # changing dimension order from (z, y, x) to (x, y, z)
-            self.tomo = np.expand_dims(self.tomo, axis=0)  # expanding dimensions for tensorflow input
-            self.tomo = np.expand_dims(self.tomo, axis=4)  # expanding dimensions for tensorflow input
+            self.patches_tomos.append(tomo)
+            self.patches_masks.append(mask)
 
-            # preparation of mask as a tensor that can be used with tensorflow API
-            self.mask = np.swapaxes(self.mask, 0, 2)  # changing dimension order from (z, y, x) to (x, y, z)
-            self.mask = np.expand_dims(self.mask, axis=0)  # expanding dimensions for tensorflow input
-            self.mask = np.expand_dims(self.mask, axis=4)  # expanding dimensions for tensorflow input
-
-            # extracting patches of size patch_size * patch_size * patch_size
-            patch_tomo = tf.extract_volume_patches(self.tomo,
-                                                   [1, self.patch_size, self.patch_size, self.patch_size, 1],
-                                                   [1, self.patch_size, self.patch_size, self.patch_size, 1],
-                                                   padding='VALID')
-            patch_tomo = tf.reshape(patch_tomo, [-1, self.patch_size, self.patch_size, self.patch_size])
-            patch_tomo = tf.squeeze(patch_tomo)
-
-            # extracting patches of size patch_size * patch_size * patch_size
-            patch_mask = tf.extract_volume_patches(self.mask,
-                                                   [1, self.patch_size, self.patch_size, self.patch_size, 1],
-                                                   [1, self.patch_size, self.patch_size, self.patch_size, 1],
-                                                   padding='VALID')
-            patch_mask = tf.reshape(patch_mask, [-1, self.patch_size, self.patch_size, self.patch_size])
-            patch_mask = tf.squeeze(patch_mask)
-
-            # converting back from tensor to numpy
-            patch_tomo = patch_tomo.eval(session=tf.compat.v1.Session())
-            patch_mask = patch_mask.eval(session=tf.compat.v1.Session())
-
-            # the images are
-            patch_tomo = np.swapaxes(patch_tomo, 1, 3)  # changing back dimension order from (x, y, z) to (z, y, x)
-            patch_mask = np.swapaxes(patch_mask, 1, 3)  # changing back dimension order from (x, y, z) to (z, y, x)
-
-            # concatenating all patches into a signle array (in order)
-            if t == 0:
-                self.patches_tomos = patch_tomo
-                self.patches_masks = patch_mask
-            else:
-                self.patches_tomos = np.concatenate((self.patches_tomos, patch_tomo))
-                self.patches_masks = np.concatenate((self.patches_masks, patch_mask))
-            display("********** END Fetch Tomo {tnum} **********".format(tnum=self.list_tomos_IDs[t]))
+        self.list_annotations = read_xml2(os.path.join(self.train_img_path, "object_list_train.xml"))
+        # # preparation of tomogram as a tensor that can be used with tensorflow API
+        # self.tomo = np.swapaxes(self.tomo, 0, 2)  # changing dimension order from (z, y, x) to (x, y, z)
+        # self.tomo = np.expand_dims(self.tomo, axis=0)  # expanding dimensions for tensorflow input
+        # self.tomo = np.expand_dims(self.tomo, axis=4)  # expanding dimensions for tensorflow input
+        #
+        # # preparation of mask as a tensor that can be used with tensorflow API
+        # self.mask = np.swapaxes(self.mask, 0, 2)  # changing dimension order from (z, y, x) to (x, y, z)
+        # self.mask = np.expand_dims(self.mask, axis=0)  # expanding dimensions for tensorflow input
+        # self.mask = np.expand_dims(self.mask, axis=4)  # expanding dimensions for tensorflow input
+        #
+        # # extracting patches of size patch_size * patch_size * patch_size
+        # patch_tomo = tf.extract_volume_patches(self.tomo,
+        #                                        [1, self.patch_size, self.patch_size, self.patch_size, 1],
+        #                                        [1, self.patch_size, self.patch_size, self.patch_size, 1],
+        #                                        padding='VALID')
+        # patch_tomo = tf.reshape(patch_tomo, [-1, self.patch_size, self.patch_size, self.patch_size])
+        # patch_tomo = tf.squeeze(patch_tomo)
+        #
+        # # extracting patches of size patch_size * patch_size * patch_size
+        # patch_mask = tf.extract_volume_patches(self.mask,
+        #                                        [1, self.patch_size, self.patch_size, self.patch_size, 1],
+        #                                        [1, self.patch_size, self.patch_size, self.patch_size, 1],
+        #                                        padding='VALID')
+        # patch_mask = tf.reshape(patch_mask, [-1, self.patch_size, self.patch_size, self.patch_size])
+        # patch_mask = tf.squeeze(patch_mask)
+        #
+        # # converting back from tensor to numpy
+        # patch_tomo = patch_tomo.eval(session=tf.compat.v1.Session())
+        # patch_mask = patch_mask.eval(session=tf.compat.v1.Session())
+        #
+        # # the images are
+        # patch_tomo = np.swapaxes(patch_tomo, 1, 3)  # changing back dimension order from (x, y, z) to (z, y, x)
+        # patch_mask = np.swapaxes(patch_mask, 1, 3)  # changing back dimension order from (x, y, z) to (z, y, x)
+        #
+        # # concatenating all patches into a signle array (in order)
+        # if t == 0:
+        #     self.patches_tomos = patch_tomo
+        #     self.patches_masks = patch_mask
+        # else:
+        #     self.patches_tomos = np.concatenate((self.patches_tomos, patch_tomo))
+        #     self.patches_masks = np.concatenate((self.patches_masks, patch_mask))
+        # display("********** END Fetch Tomo {tnum} **********".format(tnum=self.list_tomos_IDs[t]))
 
         end = time.clock()
         process_time = (end - start)
-        display("All tomograms fetched in {:.2f} seconds.".format(round(process_time, 2)))
+        display("tomograms and annotations fetched in {:.2f} seconds.".format(round(process_time, 2)))
 
 class CNNModels:
 
@@ -181,8 +186,7 @@ class CNNModels:
         # values to collect outputs
         self.model_history = []
         self.history_lr = []
-        self.batch_tomo = []
-        self.batch_mask = []
+
         self.history_recall = []
         self.history_vald_acc = []
         self.history_f1_score = []
@@ -235,7 +239,7 @@ class CNNModels:
         # set the properties of the mdoel
         self.set_optimizer()
         self.set_compile()
-        print(self.net.summary())
+        # print(self.net.summary())
 
     def fit_model(self):
         label_list = []
@@ -244,98 +248,81 @@ class CNNModels:
         start = time.clock()
 
         # if you use size of generated tensor it would be more accurate and it will never throw error
-        steps_per_epoch = int(self.data.patches_tomos.shape[0] / self.obj.batch_size)
+        steps_per_epoch = 20  # int(self.data.patches_tomos.shape[0] / self.obj.batch_size)
+        steps_per_vald = 10
         counter = 0
-        vald_batch_num = 0 # randrange(self.obj.epochs * steps_per_epoch)
         for e in range(self.obj.epochs):
+            print("################################################################################\n")
             self.lr = self.initial_lr
             list_train_loss = []
             list_train_acc = []
-            list_vald_acc = []
-            list_vald_loss = []
-            list_f1_score = []
-            list_recall = []
-            list_precision = []
-            # self.realtime_output("########## Start Epoch {epochnum} ########## \n\n".format(epochnum=e))
-            print("########## Start Epoch {epochnum} ##########".format(epochnum=e))
+
             # steps per epoch
             for b in range(steps_per_epoch):
-                self.batch_idx = b
-                # self.realtime_output("---------- Start Batch {bnum} ---------- \n\n".format(bnum=b))
-                print("---------- Start Batch {bnum} ----------".format(bnum=b))
-
                 # fetch the current batch of patches
-                self.fetch_batch()
+                batch_tomo, batch_mask = self.fetch_batch()
 
                 # Split the data to train and validation (it shuffles the data so the order of patches is not the same )
-                x_train, x_vald, y_train, y_vald = train_test_split(self.batch_tomo, self.batch_mask,
-                                                                    test_size=0.2, shuffle=True)
-
-                y_train = to_categorical(y_train, self.obj.classNum)
-                y_vald = to_categorical(y_vald, self.obj.classNum)
-
-                # # self.batch_mask_vald
-                # if counter == vald_batch_num:
-                #     self.batch_mask_vald = y_vald.reshape(y_vald.shape[0],
-                #                                           y_vald.shape[1] * y_vald.shape[2] *
-                #                                           y_vald.shape[3] * y_vald.shape[4])
-                #     print(self.batch_mask_vald.shape)
+                # x_train, x_vald, y_train, y_vald = train_test_split(batch_tomo, batch_mask,
+                #                                                     test_size=0.2, shuffle=False)
+                # display("train size: {x_trainsize}".format(x_trainsize=x_train.shape))
+                # y_train = to_categorical(y_train, self.obj.classNum)
+                # y_vald = to_categorical(y_vald, self.obj.classNum)
 
                 # expanding dimensions to become suitable for the model input
-                x_train = np.expand_dims(x_train, axis=4)
-                x_vald = np.expand_dims(x_vald, axis=4)
-                y_train = np.array(y_train)
-                y_vald = np.array(y_vald)
+                # x_train = np.expand_dims(x_train, axis=4)
+                # x_vald = np.expand_dims(x_vald, axis=4)
+                # y_train = np.array(y_train)
+                # y_vald = np.array(y_vald)
 
                 # train model on each batch
                 # set learning schedule
                 self.set_lr("exp_decay", counter)
                 self.history_lr.append(self.lr)
                 bk.set_value(self.net.optimizer.learning_rate, self.lr)  # set new learning_rate
-                loss_train = self.net.train_on_batch(x_train, y_train, class_weight=self.model_weight)
+                loss_train = self.net.train_on_batch(batch_tomo, batch_mask, class_weight=self.model_weight)
 
                 # ['loss', 'acc', 'precision', 'recall', 'auc']
-                print("train loss: {tl}, train acc: {ta}".format(tl=loss_train[0], ta=loss_train[1]))
+                display('epoch %d/%d - b %d/%d - loss: %0.3f - acc: %0.3f' % (e + 1, self.obj.epochs, b + 1,
+                                                                              steps_per_epoch, loss_train[0], loss_train[1]))
                 list_train_loss.append(loss_train[0])
                 list_train_acc.append(loss_train[1])
+                counter = counter + 1
 
+            self.history_train_loss.append(list_train_loss)
+            self.history_train_acc.append(list_train_acc)
+
+            list_vald_acc = []
+            list_vald_loss = []
+            list_f1_score = []
+            list_recall = []
+            list_precision = []
+            for b in range(steps_per_vald):
+                batch_tomo, batch_mask = self.fetch_batch()
                 # evaluate trained model on the validation set
-                # self.vald_predicted_probs
-                loss_val = self.net.evaluate(x_vald, y_vald, verbose=0)
-                batch_pred = self.net.predict(x_vald)
+                loss_val = self.net.evaluate(batch_tomo, batch_mask, verbose=0)
+                batch_pred = self.net.predict(batch_tomo)
 
-                # if counter == vald_batch_num:
-                #     self.vald_predicted_probs = batch_pred.reshape(batch_pred.shape[0],
-                #                                                    batch_pred.shape[1] * batch_pred.shape[2] *
-                #                                                    batch_pred.shape[3] * batch_pred.shape[4])
-                #     print(self.vald_predicted_probs.shape)
-                #     self.vald_predicted_labels = np.argmax(batch_pred, axis=1)
-
-                scores = precision_recall_fscore_support(x_vald.argmax(axis=-1).flatten(),
+                scores = precision_recall_fscore_support(batch_mask.argmax(axis=-1).flatten(),
                                                          batch_pred.argmax(axis=-1).flatten(), average=None,
                                                          labels=label_list, zero_division=0)
-                print("val. loss: {vl}, val acc: {va}, f1 score: {f1s}".format(vl=loss_train[0],
-                                                                               va=loss_train[1],
-                                                                               f1s=loss_train[2]))
+
+                print("val. loss: {vl}, val acc: {va}, f1 score: {f1s}".format(vl=loss_val[0],
+                                                                               va=loss_val[1],
+                                                                               f1s=scores[2]))
                 list_vald_loss.append(loss_val[0])
                 list_vald_acc.append(loss_val[1])
                 list_f1_score.append(scores[2])
                 list_recall.append(scores[1])
                 list_precision.append(scores[0])
-                # self.realtime_output("\n\n---------- END Batch {bnum} ---------- \n\n".format(bnum=b))
-                print("---------- END Batch {bnum} ----------".format(bnum=b))
-                counter = counter + 1
 
-            self.history_train_loss.append(list_train_loss)
-            self.history_train_acc.append(list_train_acc)
             self.history_vald_loss.append(list_vald_loss)
             self.history_vald_acc.append(list_vald_acc)
             self.history_f1_score.append(list_f1_score)
             self.history_recall.append(list_recall)
             self.history_precision.append(list_precision)
 
-            # self.realtime_output("########## END Epoch {epochnum} ########## \n".format(epochnum=e))
-            print("########## END Epoch {epochnum} ##########\n".format(epochnum=e))
+            print("################################################################################\n")
         self.save_history()
 
         end = time.clock()
@@ -346,17 +333,41 @@ class CNNModels:
         """
         this function fetches the patches from the current tomo based on the batch index
         """
-        bstart = self.batch_idx * self.obj.batch_size
-        bend = (self.batch_idx * self.obj.batch_size) + self.obj.batch_size
+        # bstart = self.batch_idx * self.obj.batch_size
+        # bend = (self.batch_idx * self.obj.batch_size) + self.obj.batch_size
+        mid_dim = np.int(np.floor(self.obj.patch_size / 2))
 
-        self.batch_tomo = self.data.patches_tomos[bstart:bend]
-        self.batch_mask = self.data.patches_masks[bstart:bend]
+        batch_tomo = np.zeros((self.obj.batch_size,
+                                    self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, 1))
+        batch_mask = np.zeros((self.obj.batch_size,
+                                    self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, self.obj.classNum))
 
-        # Patch base normalization
-        self.batch_tomo = (self.batch_tomo - np.mean(self.batch_tomo)) / np.std(self.batch_tomo)
-        # self.batch_mask_onehot = []
-        # for m in range(len(self.batch_mask)):
-        #     self.batch_mask_onehot.append(to_categorical(self.batch_mask[m], self.obj.classNum))
+        obj_list = range(0, len(self.data.list_annotations))
+
+        for i in range(self.obj.batch_size):
+            # choose random sample in training set:
+            idx = np.random.choice(obj_list)
+
+            tomo_idx = int(self.data.list_annotations[idx]['tomo_idx'])
+
+            sample_tomo = self.data.patches_tomos[tomo_idx]
+            sample_mask = self.data.patches_masks[tomo_idx]
+
+            # Get patch position:
+            x, y, z = get_patch_position(self.data.patches_tomos[tomo_idx].shape, mid_dim,
+                                         self.data.list_annotations[idx], 13)
+
+            # extract the patch:
+            patch_tomo = sample_tomo[z - mid_dim:z + mid_dim, y - mid_dim:y + mid_dim, x - mid_dim:x + mid_dim]
+            patch_tomo = (patch_tomo - np.mean(patch_tomo)) / np.std(patch_tomo)
+
+            patch_mask = sample_mask[z - mid_dim:z + mid_dim, y - mid_dim:y + mid_dim, x - mid_dim:x + mid_dim]
+            # convert to categorical labels
+            patch_mask_onehot = to_categorical(patch_mask, self.obj.classNum)
+
+            batch_tomo[i, :, :, :, 0] = patch_tomo
+            batch_mask[i] = patch_mask_onehot
+        return batch_tomo, batch_mask
 
     def realtime_output(self, newstr):
         self.printstr = self.printstr + newstr

@@ -93,7 +93,7 @@ class TrainingWindow(QMainWindow):
             modelgroup_btns.addButton(model_rbtn)
             horizontalBox.addWidget(model_rbtn, 1, btn_num, 1, 1)
             model_rbtn.setText(self.loss_names[btn_num])
-            if btn_num == 0:
+            if btn_num == 1:
                 model_rbtn.setChecked(True)
 
         self.ui.gridLayout_2.addLayout(horizontalLayoutLoss, 7, 1, 1, 1)
@@ -126,7 +126,7 @@ class TrainingWindow(QMainWindow):
         self.output_path = ROOT_DIR.__str__() + str(self.ui.basePath.text()) + "results/"
         self.lr = float(self.ui.LR.text())
         self.class_names = self.ui.classnames.text()
-        self.classNum = len(self.class_names.split(","))
+        self.classNum = len(self.class_names.split(","))+1
 
         if self.ui.depth == 0:
             self.dim_num = 2
@@ -138,7 +138,7 @@ class TrainingWindow(QMainWindow):
         # ToDo: if you want to have particular learning rates
         if flag:
             self.set_model(self.model_names[0])
-            self.set_loss(self.loss_names[0])
+            self.set_loss(self.loss_names[1])
             self.set_opt(self.opt_names[0])
 
     def set_model(self, radio_text):
@@ -160,6 +160,7 @@ class TrainingWindow(QMainWindow):
     def start_train(self):
         self.set_params(False)
         model_obj = CNNModels(self)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

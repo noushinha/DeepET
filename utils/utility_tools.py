@@ -15,7 +15,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 from gui import theme_style
-
+from lxml import etree
 
 def display(message):
     print(message)
@@ -132,6 +132,64 @@ def read_xml(filename):
 
     return df
 
+
+def read_xml2(filename):
+    tree = etree.parse(filename)
+    objl_xml = tree.getroot()
+
+    obj_list = []
+    for p in range(len(objl_xml)):
+        objid = p
+        tidx = int(objl_xml[p].get('tomo_idx'))
+        lbl = objl_xml[p].get('class_label')
+        x = objl_xml[p].get('x')
+        y = objl_xml[p].get('y')
+        z = objl_xml[p].get('z')
+
+        add_obj(obj_list, tomo_idx=tidx, obj_id=objid, label=int(lbl), coord=(float(z), float(y), float(x)))
+    return obj_list
+
+
+def get_patch_position(tomodim, p_in, obj, shiftr):
+    x = int(obj['x'])
+    y = int(obj['y'])
+    z = int(obj['z'])
+
+    # Add random shift to coordinates:
+    x = x + np.random.choice(range(-shiftr, shiftr + 1))
+    y = y + np.random.choice(range(-shiftr, shiftr + 1))
+    z = z + np.random.choice(range(-shiftr, shiftr + 1))
+
+    # Shift position if passes the borders:
+    if x < p_in:
+        x = p_in
+    if y < p_in:
+        y = p_in
+    if z < p_in:
+        z = p_in
+
+    if (x > tomodim[2] - p_in):
+        x = tomodim[2] - p_in
+    if (y > tomodim[1] - p_in):
+        y = tomodim[1] - p_in
+    if (z > tomodim[0] - p_in):
+        z = tomodim[0] - p_in
+
+    return x, y, z
+
+
+def add_obj(obj_list, label, coord, obj_id=None, tomo_idx=None):
+    obj = {
+        'tomo_idx': tomo_idx,
+        'obj_id': obj_id ,
+        'label': label,
+        'x': coord[2],
+        'y': coord[1],
+        'z': coord[0]
+    }
+
+    obj_list.append(obj)
+    return obj_list
 
 def read_starfile(filename):
     """ This function receives a QtFile object that is selected through browse button and
