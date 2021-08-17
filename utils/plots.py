@@ -13,7 +13,7 @@ import numpy as np
 import itertools
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, auc
-
+from matplotlib.ticker import MaxNLocator
 
 # Smoothing the plots
 def smooth_curve(points, factor=0.8):
@@ -277,17 +277,23 @@ def plot_lr(lr_points, eps_dir, epoch):
     plt.savefig(filename, format='eps', dpi=500, bbox_inches="tight")
 
 
-def general_plot(data_points, eps_dir, axis_labels, num_classes, epoch, plot_num):
+def general_plot(data_points, eps_dir, axis_labels, class_names, epoch, plot_num):
     legend_names = []
-    for lbl in range(0, num_classes):
-        legend_names.append('class ' + str(lbl))
+    class_names = class_names.split(",")
+    for lbl in range(len(class_names)):
+        legend_names.append(str(class_names[lbl]))
+    ax = plt.figure(num=plot_num, figsize=(8, 6), dpi=100).gca()
+    for j in range(len(data_points[0][0])):
+        data_point_list = []
+        for i in range(3):
+            data_point_list.append(data_points[i][0][j])
+        plt.plot(data_point_list)
 
-    plt.figure(num=plot_num, figsize=(8, 6), dpi=100)
-    plt.plot(data_points)
     plt.ylabel(axis_labels[0])
     plt.xlabel(axis_labels[1])
     plt.legend(legend_names)
     plt.grid()
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
 
     filename = os.path.join(eps_dir, axis_labels[0] + "_" + str(epoch) + "_Epochs.eps")
     plt.savefig(filename, format='eps', dpi=500, bbox_inches="tight")

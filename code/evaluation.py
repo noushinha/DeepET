@@ -16,6 +16,7 @@ from gui.theme_style import *
 from utils.params import *
 from models import *
 from PyQt5.QtCore import pyqtSignal, QObject
+from keras.models import load_model
 
 
 class EvaluationWindow(QMainWindow):
@@ -36,10 +37,8 @@ class EvaluationWindow(QMainWindow):
 
     def start_evaluation(self):
         # laod the model
-        model_obj = CNNModels(self)
-        model = model_obj.unet3d()
         self.model_path = ROOT_DIR.__str__() + str(self.ui.model_path.text())
-        model.load_weights(self.model_path)
+        model = load_model(self.model_path)
 
 
 if __name__ == "__main__":

@@ -16,27 +16,31 @@ import shutil
 import random
 import string
 from random import randrange
+
+import numpy as np
+
 from utils.params import *
 from utils.plots import *
 from utils.utility_tools import *
-from sklearn.metrics import confusion_matrix
 from utils.CyclicLR.clr_callback import CyclicLR
 from sklearn.metrics import precision_recall_fscore_support
 
-from tensorflow import keras
-from tensorflow.keras.optimizers import *
-from tensorflow.keras import Model
-from tensorflow.keras import layers
-from tensorflow.keras import backend as bk
-from keras.utils import to_categorical
-from tensorflow.keras.callbacks import LearningRateScheduler, ModelCheckpoint, ReduceLROnPlateau
-import tensorflow as tf
-from sklearn.model_selection import train_test_split
+# from tensorflow import keras
+from keras.optimizers import *
+from keras import Model, layers, metrics
+from keras import backend as bk
+from keras.utils import to_categorical, Sequence
+from keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
+# import tensorflow as tf
+# from sklearn.model_selection import train_test_split
 
+# from tensorflow.python.client import device_lib
+# print(device_lib.list_local_devices())
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+
 # loading batches of data
-class DataPreparation(keras.utils.Sequence):
+class DataPreparation(Sequence):
     """we iterate over the data as numpy arrays"""
 
     def __init__(self, obj):
@@ -45,9 +49,9 @@ class DataPreparation(keras.utils.Sequence):
         self.list_annotations = None
         self.patches_tomos = []
         self.patches_masks = []
-        self.batch_size = obj.batch_size
-        self.patch_size = obj.patch_size
-        self.img_size = obj.img_dim
+        # self.batch_size = obj.batch_size
+        # self.patch_size = obj.patch_size
+        # self.img_size = obj.img_dim
         self.train_img_path = os.path.join(obj.base_path, "images/")
         self.train_target_path = os.path.join(obj.base_path, "targets/")
 
@@ -61,8 +65,8 @@ class DataPreparation(keras.utils.Sequence):
         display(self.output_path)
 
         # check values
-        is_positive(self.batch_size, 'batch_size')
-        is_positive(self.patch_size, 'patch_size')
+        is_positive(obj.batch_size, 'batch_size')
+        is_positive(obj.patch_size, 'patch_size')
         is_dir(self.train_img_path)
         is_dir(self.train_target_path)
         is_dir(self.output_path)
@@ -172,21 +176,12 @@ class CNNModels:
         # define values
         self.net = None
         self.optimizer = None
-        self.checkpoint = None
-        self.layer_name = None
         self.process_time = None
-        self.callbacks = None
         self.model_weight = None
-
-        self.patch_overlap = False
-        self.batch_idx = 0
-        self.tomo_index = 0
-        self.printstr = ""
 
         # values to collect outputs
         self.model_history = []
         self.history_lr = []
-
         self.history_recall = []
         self.history_vald_acc = []
         self.history_f1_score = []
@@ -204,13 +199,19 @@ class CNNModels:
         if self.obj.dim_num > 2:
             self.depth = self.obj.img_dim[2]
 
+        # self.checkpoint = None
+        # self.layer_name = None
+        # self.patch_overlap = False
+        # self.batch_idx = 0
+        # self.tomo_index = 0
+        # self.printstr = ""
         # calculating total number of patches of size patch_size * patch_size * patch_size
         # that can be extracted from one tomo
-        self.nump_xaxis = int(np.floor(self.width / self.obj.patch_size))
-        self.nump_yaxis = int(np.floor(self.height / self.obj.patch_size))
-        self.nump_zaxis = int(np.floor(self.depth / self.obj.patch_size))
-
-        self.nump_total = self.nump_xaxis * self.nump_yaxis * self.nump_zaxis
+        # self.nump_xaxis = int(np.floor(self.width / self.obj.patch_size))
+        # self.nump_yaxis = int(np.floor(self.height / self.obj.patch_size))
+        # self.nump_zaxis = int(np.floor(self.depth / self.obj.patch_size))
+        #
+        # self.nump_total = self.nump_xaxis * self.nump_yaxis * self.nump_zaxis
 
         # check values
         # TODO: please check other values as well. some has been already checked at the data preparation class
@@ -227,7 +228,7 @@ class CNNModels:
         self.get_model()  # build the CNN model
         self.fit_model()  # fit the data to the model and train the model
         self.plots()  # plot the results
-        self.save()  # save the results
+        self.save()  # save the results as txt
         plt.show(block=True)
 
     def get_model(self):
@@ -248,19 +249,23 @@ class CNNModels:
         start = time.clock()
 
         # if you use size of generated tensor it would be more accurate and it will never throw error
-        steps_per_epoch = 20  # int(self.data.patches_tomos.shape[0] / self.obj.batch_size)
-        steps_per_vald = 10
+        steps_per_epoch = 10  # int(self.data.patches_tomos.shape[0] / self.obj.batch_size)
         counter = 0
         for e in range(self.obj.epochs):
             print("################################################################################\n")
             self.lr = self.initial_lr
             list_train_loss = []
             list_train_acc = []
+            list_vald_acc = []
+            list_vald_loss = []
+            list_f1_score = []
+            list_recall = []
+            list_precision = []
 
             # steps per epoch
             for b in range(steps_per_epoch):
                 # fetch the current batch of patches
-                batch_tomo, batch_mask = self.fetch_batch()
+                batch_tomo, batch_mask = self.fetch_batch(bsize=self.obj.batch_size)
 
                 # Split the data to train and validation (it shuffles the data so the order of patches is not the same )
                 # x_train, x_vald, y_train, y_vald = train_test_split(batch_tomo, batch_mask,
@@ -277,9 +282,9 @@ class CNNModels:
 
                 # train model on each batch
                 # set learning schedule
-                self.set_lr("exp_decay", counter)
+                # self.set_lr("exp_decay", counter)
                 self.history_lr.append(self.lr)
-                bk.set_value(self.net.optimizer.learning_rate, self.lr)  # set new learning_rate
+                # bk.set_value(self.net.optimizer.learning_rate, self.lr)  # set new learning_rate
                 loss_train = self.net.train_on_batch(batch_tomo, batch_mask, class_weight=self.model_weight)
 
                 # ['loss', 'acc', 'precision', 'recall', 'auc']
@@ -288,34 +293,30 @@ class CNNModels:
                 list_train_loss.append(loss_train[0])
                 list_train_acc.append(loss_train[1])
                 counter = counter + 1
+            for d in range(5):
+                batch_tomo_vald, batch_mask_vald = self.fetch_batch(bsize=int(self.obj.batch_size))
 
-            self.history_train_loss.append(list_train_loss)
-            self.history_train_acc.append(list_train_acc)
-
-            list_vald_acc = []
-            list_vald_loss = []
-            list_f1_score = []
-            list_recall = []
-            list_precision = []
-            for b in range(steps_per_vald):
-                batch_tomo, batch_mask = self.fetch_batch()
                 # evaluate trained model on the validation set
-                loss_val = self.net.evaluate(batch_tomo, batch_mask, verbose=0)
-                batch_pred = self.net.predict(batch_tomo)
+                loss_val = self.net.evaluate(batch_tomo_vald, batch_mask_vald, verbose=0)
+                batch_pred = self.net.predict(batch_tomo_vald)
 
-                scores = precision_recall_fscore_support(batch_mask.argmax(axis=-1).flatten(),
+                scores = precision_recall_fscore_support(batch_mask_vald.argmax(axis=-1).flatten(),
                                                          batch_pred.argmax(axis=-1).flatten(), average=None,
                                                          labels=label_list, zero_division=0)
 
-                print("val. loss: {vl}, val acc: {va}, f1 score: {f1s}".format(vl=loss_val[0],
-                                                                               va=loss_val[1],
-                                                                               f1s=scores[2]))
+                print("val. loss: {vl}, val acc: {va}".format(vl=loss_val[0],
+                                                              va=loss_val[1]))
+                print("F1 Score : {f1s}, \n Recall: {res}, \n Precision: {prs}".format(f1s=scores[2],
+                                                                                       res=scores[1],
+                                                                                       prs=scores[0]))
                 list_vald_loss.append(loss_val[0])
                 list_vald_acc.append(loss_val[1])
                 list_f1_score.append(scores[2])
                 list_recall.append(scores[1])
                 list_precision.append(scores[0])
 
+            self.history_train_loss.append(list_train_loss)
+            self.history_train_acc.append(list_train_acc)
             self.history_vald_loss.append(list_vald_loss)
             self.history_vald_acc.append(list_vald_acc)
             self.history_f1_score.append(list_f1_score)
@@ -323,13 +324,34 @@ class CNNModels:
             self.history_precision.append(list_precision)
 
             print("################################################################################\n")
+            if (e + 1) % 10 == 0:
+                self.set_weight_callback(e + 1)
         self.save_history()
 
         end = time.clock()
         self.process_time = (end - start)
         display(self.process_time)
 
-    def fetch_batch(self):
+    def get_balance_data(self, annotated_list, bsize):
+        # list of all particles and class labels that we collected when we fetched the dataset
+        num_objs = len(annotated_list)
+        list_class_labels = []
+        for i in range(0, num_objs):
+            list_class_labels.append(annotated_list[i]['label'])
+
+        # a unique list of all possible labels
+        unique_labels = np.unique(list_class_labels)
+
+        # imbalanced data affects the performance, we sample equally through all classes
+        class_idx = []
+        num_sample_class = int(np.floor((bsize / len(unique_labels))))
+        for lbl in unique_labels:
+                class_idx.append(np.random.choice(np.array(np.nonzero(np.array(list_class_labels) == lbl))[0], num_sample_class))
+
+        class_idx = np.concatenate(class_idx)
+        return class_idx
+
+    def fetch_batch(self, bsize):
         """
         this function fetches the patches from the current tomo based on the batch index
         """
@@ -337,14 +359,14 @@ class CNNModels:
         # bend = (self.batch_idx * self.obj.batch_size) + self.obj.batch_size
         mid_dim = np.int(np.floor(self.obj.patch_size / 2))
 
-        batch_tomo = np.zeros((self.obj.batch_size,
-                                    self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, 1))
-        batch_mask = np.zeros((self.obj.batch_size,
-                                    self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, self.obj.classNum))
+        batch_tomo = np.zeros((bsize, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, 1))
+        batch_mask = np.zeros((bsize, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, self.obj.classNum))
+
+        # obj_list = self.get_balance_data(self.data.list_annotations, bsize)
 
         obj_list = range(0, len(self.data.list_annotations))
 
-        for i in range(self.obj.batch_size):
+        for i in range(bsize):
             # choose random sample in training set:
             idx = np.random.choice(obj_list)
 
@@ -400,13 +422,13 @@ class CNNModels:
         save_csv(self.history_recall, self.data.output_path, "Validation", "Recall_Details")
 
         # averaging the accuracy and loss over all folds
-        self.train_acc = [np.mean([x[i] for x in self.history_train_acc]) for i in range(self.obj.epochs)]
-        self.vald_acc = [np.mean([x[i] for x in self.history_vald_acc]) for i in range(self.obj.epochs)]
-        self.train_loss = [np.mean([x[i] for x in self.history_train_loss]) for i in range(self.obj.epochs)]
-        self.vald_loss = [np.mean([x[i] for x in self.history_vald_loss]) for i in range(self.obj.epochs)]
-        self.f1_score = [np.mean([x[i] for x in self.history_f1_score]) for i in range(self.obj.epochs)]
-        self.precision = [np.mean([x[i] for x in self.history_precision]) for i in range(self.obj.epochs)]
-        self.recall = [np.mean([x[i] for x in self.history_recall]) for i in range(self.obj.epochs)]
+        self.train_acc = np.mean(self.history_train_acc, axis=1)
+        self.vald_acc = np.mean(self.history_vald_acc, axis=1)
+        self.train_loss = np.mean(self.history_train_loss, axis=1)
+        self.vald_loss = np.mean(self.history_vald_loss, axis=1)
+        self.f1_score = np.mean(self.history_f1_score, axis=0)
+        self.precision = np.mean(self.history_precision, axis=0)
+        self.recall = np.mean(self.history_recall, axis=0)
 
         # saving the average results from folds
         save_csv(self.train_acc, self.data.output_path, flag="Train", name="Averaged_Accuracy")
@@ -432,9 +454,9 @@ class CNNModels:
         plt.figure(num=3, figsize=(8, 6), dpi=100)
         plot_lr(self.history_lr[start_point:], self.data.output_path, self.obj.epochs)
 
-        general_plot(self.f1_score, self.data.output_path, ('F1 Score', 'epochs'), self.obj.classNum, self.obj.epochs, 4)
-        general_plot(self.precision, self.data.output_path, ('Precision', 'epochs'), self.obj.classNum, self.obj.epochs, 5)
-        general_plot(self.recall, self.data.output_path, ('Recall', 'epochs'), self.obj.classNum, self.obj.epochs, 6)
+        general_plot(self.history_f1_score, self.data.output_path, ('F1 Score', 'epochs'), self.obj.class_names, self.obj.epochs, 4)
+        general_plot(self.history_precision, self.data.output_path, ('Precision', 'epochs'), self.obj.class_names, self.obj.epochs, 5)
+        general_plot(self.history_recall, self.data.output_path, ('Recall', 'epochs'), self.obj.class_names, self.obj.epochs, 6)
 
         # Plot all ROC curves
         # plt.figure(num=7, figsize=(8, 6), dpi=100)
@@ -463,24 +485,7 @@ class CNNModels:
         # print(np.average(cnf_matrix2.diagonal()))
 
     def save(self):
-        # evaluation on train
-        # train_loss, train_acc, train_lr = self.net.evaluate(train_data, train_labels_one_hot_coded, batch_size=1)
-        # print(train_loss, train_acc, train_lr)
-        #
-        # train_predicted_probs = self.net.predict(train_data, batch_size=1)
-        # train_predicted_labels = train_predicted_probs.argmax(axis=-1)
-        #
-        # # Saving Train results
-        # self.save_npy(train_predicted_probs, flag="Train", name="Probabilities")
-        # self.save_npy(train_predicted_labels, flag="Train", name="ClassLabels")
-        # self.save_csv(train_predicted_probs, flag="Train", name="Probabilities")
-        # self.save_csv(train_predicted_labels, flag="Train", name="ClassLabels")
-        #
-        # # evaluation on Test
-        # test_loss, test_acc, test_lr = self.net.evaluate(test_data, test_labels_one_hot_coded, batch_size=1)
-        # print(test_loss, test_acc, test_lr)
-
-        hyperparameter_setting = ""  # self.collect_results()
+        hyperparameter_setting = self.collect_results()
         with open(os.path.join(self.data.output_path, "HyperParameters.txt"), "w") as text_file:
             text_file.write(hyperparameter_setting)
         print(hyperparameter_setting)
@@ -539,25 +544,22 @@ class CNNModels:
         # keras.metrics.FalsePositives(name='fp'),
         # keras.metrics.TrueNegatives(name='tn'),
         # keras.metrics.FalseNegatives(name='fn'),
-        self.obj.metrics = [keras.metrics.BinaryAccuracy(name='acc'),
-                            keras.metrics.Precision(name='precision'),
-                            keras.metrics.Recall(name='recall'),
-                            keras.metrics.AUC(name='auc')]
-        if self.obj.loss != "tversky":
-            self.net.compile(optimizer=self.optimizer, loss=self.obj.loss, metrics=[self.obj.metrics])
-        else:
-            self.net.compile(optimizer=self.optimizer, loss=self.tversky_loss, metrics=[self.obj.metrics])
+        self.obj.metrics = [metrics.BinaryAccuracy(name='acc'),
+                            metrics.Precision(name='precision'),
+                            metrics.Recall(name='recall'),
+                            metrics.AUC(name='auc')]
+        self.net.compile(optimizer=self.optimizer, loss="categorical_crossentropy", metrics=['accuracy'])
+        # if self.obj.loss != "tversky":
+        #     self.net.compile(optimizer=self.optimizer, loss=self.obj.loss, metrics=[self.obj.metrics])
+        # else:
+        #     self.net.compile(optimizer=self.optimizer, loss=self.tversky_loss, metrics=[self.obj.metrics])
 
-    def set_checkpoint(self):
-        checkpoint_dir = os.path.join(self.data.output_path,
-                                      'weights-improvement-{epoch:03d}-{acc:.2f}-{loss:.2f}-{val_acc:.2f}-{val_loss:.2f}.hdf5')
-        self.checkpoint = ModelCheckpoint(checkpoint_dir, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
 
-    def set_callback(self):
-        # checkpoint results
-        self.set_checkpoint()
+    def set_weight_callback(self, e):
+        # checkpoint directory
+        checkpoint_dir = os.path.join(self.data.output_path, 'weights-improvement-' + str(e) + '.h5')
 
-        self.callbacks = [self.checkpoint]
+        self.net.save(checkpoint_dir)
 
     def save_layer_output(self, x, name="Train"):
         intermediate_layer_model = Model(inputs=self.net.input, outputs=self.net.get_layer(self.layer_name).output)
@@ -570,16 +572,13 @@ class CNNModels:
         setting_info = "Saving folder Path =" + str(self.data.output_path)
         setting_info = setting_info + "\nData Path = " + str(self.data.train_img_path)
         setting_info = setting_info + "\nNumber of Epochs In Training = " + str(self.obj.epochs)
-        setting_info = setting_info + "\nBatchsize = " + str(self.data.batch_size)
+        setting_info = setting_info + "\nBatch Size = " + str(self.obj.batch_size)
+        setting_info = setting_info + "\nPatch Size = " + str(self.obj.patch_size)
         setting_info = setting_info + "\nLearning Rate = " + str(self.lr)
-        setting_info = setting_info + "\nFeatures Saved For Layer = " + str(self.layer_name)
-        setting_info = setting_info + "\nCallbacks = " + self.callbacks
-        setting_info = setting_info + "\nTrain accuracy = " + str(self.train_acc)
-        setting_info = setting_info + "\nTrain loss = " + str(self.train_loss)
+        setting_info = setting_info + "\nTrain accuracy = " + str(np.mean(self.train_acc))
+        setting_info = setting_info + "\nTrain loss = " + str(np.mean(self.train_loss))
         setting_info = setting_info + "\nValidation accuracy = " + str(np.mean(self.vald_acc))
         setting_info = setting_info + "\nValidation loss = " + str(np.mean(self.vald_loss))
-        setting_info = setting_info + "\nTest accuracy = " + str(self.test_acc)
-        setting_info = setting_info + "\nTest loss = " + str(self.test_loss)
         setting_info = setting_info + "\nProcess Time in seconds = " + str(self.process_time)
         return setting_info
 
