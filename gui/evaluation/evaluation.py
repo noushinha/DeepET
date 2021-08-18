@@ -77,9 +77,9 @@ class Ui_MainWindow(object):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.input_pathL.setText(_translate("MainWindow", "Input  Path"))
-        self.input_path.setText(_translate("MainWindow", "/data2/grandmodel_0.mrc"))
+        self.input_path.setText(_translate("MainWindow", "/data2/"))
         self.model_pathL.setText(_translate("MainWindow", "Model Path"))
-        self.model_path.setText(_translate("MainWindow", "/data2/results/weights-improvement.hdf5"))
+        self.model_path.setText(_translate("MainWindow", "/data2/results/weights-improvement-10.h5"))
         self.evalBtn.setText(_translate("MainWindow", "evaluate"))
         self.modelL.setText(_translate("MainWindow", "Model :"))
         self.UnetrBtn.setText(_translate("MainWindow", "3D Unet"))

@@ -285,7 +285,7 @@ def general_plot(data_points, eps_dir, axis_labels, class_names, epoch, plot_num
     ax = plt.figure(num=plot_num, figsize=(8, 6), dpi=100).gca()
     for j in range(len(data_points[0][0])):
         data_point_list = []
-        for i in range(3):
+        for i in range(epoch):
             data_point_list.append(data_points[i][0][j])
         plt.plot(data_point_list)
 

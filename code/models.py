@@ -29,7 +29,7 @@ from sklearn.metrics import precision_recall_fscore_support
 from keras.optimizers import *
 from keras import Model, layers, metrics
 from keras import backend as bk
-from keras.utils import to_categorical, Sequence
+from keras.utils import to_categorical
 from keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
 # import tensorflow as tf
 # from sklearn.model_selection import train_test_split
@@ -39,22 +39,43 @@ from keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
-# loading batches of data
-class DataPreparation(Sequence):
-    """we iterate over the data as numpy arrays"""
+class CNNModels:
 
     def __init__(self, obj):
+        # define values
+        self.net = None
+        self.optimizer = None
+        self.process_time = None
+        self.model_weight = None
         self.list_tomos_IDs = None
         self.list_masks_IDs = None
         self.list_annotations = None
+
+        # values to collect outputs
+        self.model_history = []
+        self.history_lr = []
+        self.history_recall = []
+        self.history_vald_acc = []
+        self.history_f1_score = []
+        self.history_train_acc = []
+        self.history_vald_loss = []
+        self.history_precision = []
+        self.history_train_loss = []
         self.patches_tomos = []
         self.patches_masks = []
-        # self.batch_size = obj.batch_size
-        # self.patch_size = obj.patch_size
-        # self.img_size = obj.img_dim
+
+        # initialize values
         self.train_img_path = os.path.join(obj.base_path, "images/")
         self.train_target_path = os.path.join(obj.base_path, "targets/")
+        self.obj = obj  # the object we receive from the form
+        self.lr = self.obj.lr
+        self.initial_lr = self.obj.lr
+        self.width = self.obj.img_dim[0]
+        self.height = self.obj.img_dim[1]
+        if self.obj.dim_num > 2:
+            self.depth = self.obj.img_dim[2]
 
+        # create output directory
         seednum = 2
         np.random.seed(seednum)
         random_str = ''.join([random.choice(string.ascii_uppercase + string.digits) for n in range(16)])
@@ -65,14 +86,17 @@ class DataPreparation(Sequence):
         display(self.output_path)
 
         # check values
-        is_positive(obj.batch_size, 'batch_size')
-        is_positive(obj.patch_size, 'patch_size')
+        is_positive(self.obj.epochs, 'epochs')
+        is_positive(self.obj.classNum, 'num_class')
         is_dir(self.train_img_path)
         is_dir(self.train_target_path)
         is_dir(self.output_path)
 
-        # load the train and validation data
+        # load the whole dataset
         self.fetch_dataset()
+
+        # initialize model
+        self.train_model()
 
     def fetch_dataset(self):
         """ this functions generates a list of file names from
@@ -168,59 +192,6 @@ class DataPreparation(Sequence):
         process_time = (end - start)
         display("tomograms and annotations fetched in {:.2f} seconds.".format(round(process_time, 2)))
 
-class CNNModels:
-
-    def __init__(self, obj):
-        self.data = DataPreparation(obj)
-
-        # define values
-        self.net = None
-        self.optimizer = None
-        self.process_time = None
-        self.model_weight = None
-
-        # values to collect outputs
-        self.model_history = []
-        self.history_lr = []
-        self.history_recall = []
-        self.history_vald_acc = []
-        self.history_f1_score = []
-        self.history_train_acc = []
-        self.history_vald_loss = []
-        self.history_precision = []
-        self.history_train_loss = []
-
-        # initialize values
-        self.obj = obj  # the object we receive from the form
-        self.lr = self.obj.lr
-        self.initial_lr = self.obj.lr
-        self.width = self.obj.img_dim[0]
-        self.height = self.obj.img_dim[1]
-        if self.obj.dim_num > 2:
-            self.depth = self.obj.img_dim[2]
-
-        # self.checkpoint = None
-        # self.layer_name = None
-        # self.patch_overlap = False
-        # self.batch_idx = 0
-        # self.tomo_index = 0
-        # self.printstr = ""
-        # calculating total number of patches of size patch_size * patch_size * patch_size
-        # that can be extracted from one tomo
-        # self.nump_xaxis = int(np.floor(self.width / self.obj.patch_size))
-        # self.nump_yaxis = int(np.floor(self.height / self.obj.patch_size))
-        # self.nump_zaxis = int(np.floor(self.depth / self.obj.patch_size))
-        #
-        # self.nump_total = self.nump_xaxis * self.nump_yaxis * self.nump_zaxis
-
-        # check values
-        # TODO: please check other values as well. some has been already checked at the data preparation class
-        is_positive(self.obj.epochs, 'epochs')
-        is_positive(self.obj.classNum, 'num_class')
-
-        # initialize model
-        self.train_model()
-
     def train_model(self):
         """This function starts the training procedure by calling
            different built-in functions of the class CNNModel
@@ -249,7 +220,7 @@ class CNNModels:
         start = time.clock()
 
         # if you use size of generated tensor it would be more accurate and it will never throw error
-        steps_per_epoch = 10  # int(self.data.patches_tomos.shape[0] / self.obj.batch_size)
+        steps_per_epoch = 5  # int(self.patches_tomos.shape[0] / self.obj.batch_size)
         counter = 0
         for e in range(self.obj.epochs):
             print("################################################################################\n")
@@ -362,22 +333,22 @@ class CNNModels:
         batch_tomo = np.zeros((bsize, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, 1))
         batch_mask = np.zeros((bsize, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, self.obj.classNum))
 
-        # obj_list = self.get_balance_data(self.data.list_annotations, bsize)
+        # obj_list = self.get_balance_data(self.list_annotations, bsize)
 
-        obj_list = range(0, len(self.data.list_annotations))
+        obj_list = range(0, len(self.list_annotations))
 
         for i in range(bsize):
             # choose random sample in training set:
             idx = np.random.choice(obj_list)
 
-            tomo_idx = int(self.data.list_annotations[idx]['tomo_idx'])
+            tomo_idx = int(self.list_annotations[idx]['tomo_idx'])
 
-            sample_tomo = self.data.patches_tomos[tomo_idx]
-            sample_mask = self.data.patches_masks[tomo_idx]
+            sample_tomo = self.patches_tomos[tomo_idx]
+            sample_mask = self.patches_masks[tomo_idx]
 
             # Get patch position:
-            x, y, z = get_patch_position(self.data.patches_tomos[tomo_idx].shape, mid_dim,
-                                         self.data.list_annotations[idx], 13)
+            x, y, z = get_patch_position(self.patches_tomos[tomo_idx].shape, mid_dim,
+                                         self.list_annotations[idx], 13)
 
             # extract the patch:
             patch_tomo = sample_tomo[z - mid_dim:z + mid_dim, y - mid_dim:y + mid_dim, x - mid_dim:x + mid_dim]
@@ -409,17 +380,17 @@ class CNNModels:
     def save_history(self):
         # serialize model to JSON
         model_json = self.net.to_json()
-        with open(os.path.join(self.data.output_path, "model.json"), "w") as json_file:
+        with open(os.path.join(self.output_path, "model.json"), "w") as json_file:
             json_file.write(model_json)
 
-        save_csv(self.history_train_acc, self.data.output_path, "Train", "Accuracy_Details")
-        save_csv(self.history_vald_acc, self.data.output_path, "Validation", "Accuracy_Details")
-        save_csv(self.history_train_loss, self.data.output_path, "Train", "Loss_Details")
-        save_csv(self.history_vald_loss, self.data.output_path, "Validation", "Loss_Details")
-        save_csv(self.history_lr, self.data.output_path, "Train", "LearningRate_Details")
-        save_csv(self.history_f1_score, self.data.output_path, "Validation", "F1Score_Details")
-        save_csv(self.history_precision, self.data.output_path, "Validation", "Precision_Details")
-        save_csv(self.history_recall, self.data.output_path, "Validation", "Recall_Details")
+        save_csv(self.history_train_acc, self.output_path, "Train", "Accuracy_Details")
+        save_csv(self.history_vald_acc, self.output_path, "Validation", "Accuracy_Details")
+        save_csv(self.history_train_loss, self.output_path, "Train", "Loss_Details")
+        save_csv(self.history_vald_loss, self.output_path, "Validation", "Loss_Details")
+        save_csv(self.history_lr, self.output_path, "Train", "LearningRate_Details")
+        save_csv(self.history_f1_score, self.output_path, "Validation", "F1Score_Details")
+        save_csv(self.history_precision, self.output_path, "Validation", "Precision_Details")
+        save_csv(self.history_recall, self.output_path, "Validation", "Recall_Details")
 
         # averaging the accuracy and loss over all folds
         self.train_acc = np.mean(self.history_train_acc, axis=1)
@@ -431,13 +402,13 @@ class CNNModels:
         self.recall = np.mean(self.history_recall, axis=0)
 
         # saving the average results from folds
-        save_csv(self.train_acc, self.data.output_path, flag="Train", name="Averaged_Accuracy")
-        save_csv(self.vald_acc, self.data.output_path, flag="Validation", name="Averaged_Accuracy")
-        save_csv(self.train_loss, self.data.output_path, flag="Train", name="Averaged_Loss")
-        save_csv(self.vald_loss, self.data.output_path, flag="Validation", name="Averaged_Loss")
-        save_csv(self.f1_score, self.data.output_path, flag="Validation", name="Averaged_F1")
-        save_csv(self.precision, self.data.output_path, flag="Validation", name="Averaged_Precision")
-        save_csv(self.recall, self.data.output_path, flag="Validation", name="Averaged_Recall")
+        save_csv(self.train_acc, self.output_path, flag="Train", name="Averaged_Accuracy")
+        save_csv(self.vald_acc, self.output_path, flag="Validation", name="Averaged_Accuracy")
+        save_csv(self.train_loss, self.output_path, flag="Train", name="Averaged_Loss")
+        save_csv(self.vald_loss, self.output_path, flag="Validation", name="Averaged_Loss")
+        save_csv(self.f1_score, self.output_path, flag="Validation", name="Averaged_F1")
+        save_csv(self.precision, self.output_path, flag="Validation", name="Averaged_Precision")
+        save_csv(self.recall, self.output_path, flag="Validation", name="Averaged_Recall")
 
     def plots(self):
         start_point = 0  # dropping the first few point in plots due to unstable behavior of model
@@ -445,18 +416,18 @@ class CNNModels:
 
         plt.figure(num=1, figsize=(8, 6), dpi=100)
         plot_train_vs_vald(self.train_loss[start_point:], self.vald_loss[start_point:],
-                           self.data.output_path, self.obj.epochs, is_loss=True)
+                           self.output_path, self.obj.epochs, is_loss=True)
 
         plt.figure(num=2, figsize=(8, 6), dpi=100)
         plot_train_vs_vald(self.train_acc[start_point:], self.vald_acc[start_point:],
-                           self.data.output_path, self.obj.epochs)
+                           self.output_path, self.obj.epochs)
 
         plt.figure(num=3, figsize=(8, 6), dpi=100)
-        plot_lr(self.history_lr[start_point:], self.data.output_path, self.obj.epochs)
+        plot_lr(self.history_lr[start_point:], self.output_path, self.obj.epochs)
 
-        general_plot(self.history_f1_score, self.data.output_path, ('F1 Score', 'epochs'), self.obj.class_names, self.obj.epochs, 4)
-        general_plot(self.history_precision, self.data.output_path, ('Precision', 'epochs'), self.obj.class_names, self.obj.epochs, 5)
-        general_plot(self.history_recall, self.data.output_path, ('Recall', 'epochs'), self.obj.class_names, self.obj.epochs, 6)
+        general_plot(self.history_f1_score, self.output_path, ('F1 Score', 'epochs'), self.obj.class_names, self.obj.epochs, 4)
+        general_plot(self.history_precision, self.output_path, ('Precision', 'epochs'), self.obj.class_names, self.obj.epochs, 5)
+        general_plot(self.history_recall, self.output_path, ('Recall', 'epochs'), self.obj.class_names, self.obj.epochs, 6)
 
         # Plot all ROC curves
         # plt.figure(num=7, figsize=(8, 6), dpi=100)
@@ -486,12 +457,12 @@ class CNNModels:
 
     def save(self):
         hyperparameter_setting = self.collect_results()
-        with open(os.path.join(self.data.output_path, "HyperParameters.txt"), "w") as text_file:
+        with open(os.path.join(self.output_path, "HyperParameters.txt"), "w") as text_file:
             text_file.write(hyperparameter_setting)
         print(hyperparameter_setting)
 
         shutil.copyfile(os.path.join(ROOT_DIR, "code/models.py"),
-                        os.path.join(self.data.output_path, "models.txt"))
+                        os.path.join(self.output_path, "models.txt"))
 
     def set_optimizer(self):
         self.optimizer = Adam(lr=self.lr, beta_1=.9, beta_2=.999, epsilon=1e-08, decay=0.0)
@@ -557,20 +528,20 @@ class CNNModels:
 
     def set_weight_callback(self, e):
         # checkpoint directory
-        checkpoint_dir = os.path.join(self.data.output_path, 'weights-improvement-' + str(e) + '.h5')
+        checkpoint_dir = os.path.join(self.output_path, 'weights-improvement-' + str(e) + '.h5')
 
         self.net.save(checkpoint_dir)
 
-    def save_layer_output(self, x, name="Train"):
-        intermediate_layer_model = Model(inputs=self.net.input, outputs=self.net.get_layer(self.layer_name).output)
-        intermediate_output = intermediate_layer_model.predict(x)
-        filename = name + "_fc6_Layer_Features"
-        np.save(os.path.join(self.data.output_path, filename), intermediate_output)
+    # def save_layer_output(self, x, name="Train"):
+    #     intermediate_layer_model = Model(inputs=self.net.input, outputs=self.net.get_layer(self.layer_name).output)
+    #     intermediate_output = intermediate_layer_model.predict(x)
+    #     filename = name + "_fc6_Layer_Features"
+    #     np.save(os.path.join(self.output_path, filename), intermediate_output)
 
     def collect_results(self):
         # TODO: add calculation of union of interest in plots file.
-        setting_info = "Saving folder Path =" + str(self.data.output_path)
-        setting_info = setting_info + "\nData Path = " + str(self.data.train_img_path)
+        setting_info = "Saving folder Path =" + str(self.output_path)
+        setting_info = setting_info + "\nData Path = " + str(self.train_img_path)
         setting_info = setting_info + "\nNumber of Epochs In Training = " + str(self.obj.epochs)
         setting_info = setting_info + "\nBatch Size = " + str(self.obj.batch_size)
         setting_info = setting_info + "\nPatch Size = " + str(self.obj.patch_size)
