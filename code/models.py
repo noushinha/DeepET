@@ -220,7 +220,8 @@ class CNNModels:
         start = time.clock()
 
         # if you use size of generated tensor it would be more accurate and it will never throw error
-        steps_per_epoch = 5  # int(self.patches_tomos.shape[0] / self.obj.batch_size)
+        steps_per_epoch = 2  # int(self.patches_tomos.shape[0] / self.obj.batch_size)
+        vald_steps_per_epoch = 2
         counter = 0
         for e in range(self.obj.epochs):
             print("################################################################################\n")
@@ -236,7 +237,7 @@ class CNNModels:
             # steps per epoch
             for b in range(steps_per_epoch):
                 # fetch the current batch of patches
-                batch_tomo, batch_mask = self.fetch_batch(bsize=self.obj.batch_size)
+                batch_tomo, batch_mask = self.fetch_batch(e, bsize=self.obj.batch_size)
 
                 # Split the data to train and validation (it shuffles the data so the order of patches is not the same )
                 # x_train, x_vald, y_train, y_vald = train_test_split(batch_tomo, batch_mask,
@@ -253,9 +254,9 @@ class CNNModels:
 
                 # train model on each batch
                 # set learning schedule
-                # self.set_lr("exp_decay", counter)
+                self.set_lr("exp_decay", counter)
                 self.history_lr.append(self.lr)
-                # bk.set_value(self.net.optimizer.learning_rate, self.lr)  # set new learning_rate
+                bk.set_value(self.net.optimizer.learning_rate, self.lr)  # set new learning_rate
                 loss_train = self.net.train_on_batch(batch_tomo, batch_mask, class_weight=self.model_weight)
 
                 # ['loss', 'acc', 'precision', 'recall', 'auc']
@@ -264,8 +265,8 @@ class CNNModels:
                 list_train_loss.append(loss_train[0])
                 list_train_acc.append(loss_train[1])
                 counter = counter + 1
-            for d in range(5):
-                batch_tomo_vald, batch_mask_vald = self.fetch_batch(bsize=int(self.obj.batch_size))
+            for d in range(vald_steps_per_epoch):
+                batch_tomo_vald, batch_mask_vald = self.fetch_batch(e, bsize=self.obj.batch_size)
 
                 # evaluate trained model on the validation set
                 loss_val = self.net.evaluate(batch_tomo_vald, batch_mask_vald, verbose=0)
@@ -274,7 +275,6 @@ class CNNModels:
                 scores = precision_recall_fscore_support(batch_mask_vald.argmax(axis=-1).flatten(),
                                                          batch_pred.argmax(axis=-1).flatten(), average=None,
                                                          labels=label_list, zero_division=0)
-
                 print("val. loss: {vl}, val acc: {va}".format(vl=loss_val[0],
                                                               va=loss_val[1]))
                 print("F1 Score : {f1s}, \n Recall: {res}, \n Precision: {prs}".format(f1s=scores[2],
@@ -322,7 +322,7 @@ class CNNModels:
         class_idx = np.concatenate(class_idx)
         return class_idx
 
-    def fetch_batch(self, bsize):
+    def fetch_batch(self, e, bsize):
         """
         this function fetches the patches from the current tomo based on the batch index
         """
@@ -333,13 +333,20 @@ class CNNModels:
         batch_tomo = np.zeros((bsize, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, 1))
         batch_mask = np.zeros((bsize, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, self.obj.classNum))
 
-        # obj_list = self.get_balance_data(self.list_annotations, bsize)
+        balanced_data_flag = False
+        flag_save = False
 
-        obj_list = range(0, len(self.list_annotations))
+        if balanced_data_flag:
+            obj_list = self.get_balance_data(self.list_annotations, bsize)
+        else:
+            obj_list = range(0, len(self.list_annotations))
 
         for i in range(bsize):
-            # choose random sample in training set:
-            idx = np.random.choice(obj_list)
+            if balanced_data_flag:
+                idx = i
+            else:
+                # choose random sample in training set:
+                idx = np.random.choice(obj_list)
 
             tomo_idx = int(self.list_annotations[idx]['tomo_idx'])
 
@@ -352,14 +359,21 @@ class CNNModels:
 
             # extract the patch:
             patch_tomo = sample_tomo[z - mid_dim:z + mid_dim, y - mid_dim:y + mid_dim, x - mid_dim:x + mid_dim]
+            # if 2 <= e <= 20 and flag_save:
+            #     write_mrc(patch_tomo, os.path.join(self.output_path, "tomo_" + str(i) + ".mrc"))
             patch_tomo = (patch_tomo - np.mean(patch_tomo)) / np.std(patch_tomo)
 
             patch_mask = sample_mask[z - mid_dim:z + mid_dim, y - mid_dim:y + mid_dim, x - mid_dim:x + mid_dim]
+            print(np.unique(patch_mask))
+            # if 2 <= e <= 20 and flag_save:
+            #     write_mrc(patch_mask, os.path.join(self.output_path, "mask_" + str(i) + ".mrc"))
+
             # convert to categorical labels
             patch_mask_onehot = to_categorical(patch_mask, self.obj.classNum)
 
             batch_tomo[i, :, :, :, 0] = patch_tomo
             batch_mask[i] = patch_mask_onehot
+
         return batch_tomo, batch_mask
 
     def realtime_output(self, newstr):
@@ -397,9 +411,9 @@ class CNNModels:
         self.vald_acc = np.mean(self.history_vald_acc, axis=1)
         self.train_loss = np.mean(self.history_train_loss, axis=1)
         self.vald_loss = np.mean(self.history_vald_loss, axis=1)
-        self.f1_score = np.mean(self.history_f1_score, axis=0)
-        self.precision = np.mean(self.history_precision, axis=0)
-        self.recall = np.mean(self.history_recall, axis=0)
+        self.f1_score = np.mean(self.history_f1_score, axis=1)
+        self.precision = np.mean(self.history_precision, axis=1)
+        self.recall = np.mean(self.history_recall, axis=1)
 
         # saving the average results from folds
         save_csv(self.train_acc, self.output_path, flag="Train", name="Averaged_Accuracy")
@@ -425,9 +439,9 @@ class CNNModels:
         plt.figure(num=3, figsize=(8, 6), dpi=100)
         plot_lr(self.history_lr[start_point:], self.output_path, self.obj.epochs)
 
-        general_plot(self.history_f1_score, self.output_path, ('F1 Score', 'epochs'), self.obj.class_names, self.obj.epochs, 4)
-        general_plot(self.history_precision, self.output_path, ('Precision', 'epochs'), self.obj.class_names, self.obj.epochs, 5)
-        general_plot(self.history_recall, self.output_path, ('Recall', 'epochs'), self.obj.class_names, self.obj.epochs, 6)
+        general_plot(self.f1_score, self.output_path, ('F1 Score', 'epochs'), self.obj.class_names, self.obj.epochs, 4)
+        general_plot(self.precision, self.output_path, ('Precision', 'epochs'), self.obj.class_names, self.obj.epochs, 5)
+        general_plot(self.recall, self.output_path, ('Recall', 'epochs'), self.obj.class_names, self.obj.epochs, 6)
 
         # Plot all ROC curves
         # plt.figure(num=7, figsize=(8, 6), dpi=100)

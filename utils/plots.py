@@ -283,11 +283,8 @@ def general_plot(data_points, eps_dir, axis_labels, class_names, epoch, plot_num
     for lbl in range(len(class_names)):
         legend_names.append(str(class_names[lbl]))
     ax = plt.figure(num=plot_num, figsize=(8, 6), dpi=100).gca()
-    for j in range(len(data_points[0][0])):
-        data_point_list = []
-        for i in range(epoch):
-            data_point_list.append(data_points[i][0][j])
-        plt.plot(data_point_list)
+    for j in range(len(class_names)):
+        plt.plot(smooth_curve(data_points[:, j]))
 
     plt.ylabel(axis_labels[0])
     plt.xlabel(axis_labels[1])

@@ -33,6 +33,7 @@ class EvaluationWindow(QMainWindow):
         self.ui.evalBtn.clicked.connect(self.start_evaluation)
 
         self.patch_size = 64
+        self.tomo_shape = None
         self.model_type = None
         self.model = None
 
@@ -43,54 +44,51 @@ class EvaluationWindow(QMainWindow):
         # laod the model
         tomo_path = ROOT_DIR.__str__() + str(self.ui.input_path.text())
         model_path = ROOT_DIR.__str__() + str(self.ui.model_path.text())
-        c = np.int(np.floor(self.patch_size / 2))
 
+        tomo = read_mrc(os.path.join(tomo_path, "grandmodel_9.mrc"))
+        # mask = read_mrc(os.path.join(tomo_path, "target_grandmodel_9.mrc"))
+
+        # c = np.int(np.floor(self.patch_size / 2))
+        self.tomo_shape = tomo.shape
         self.model = load_model(model_path)
 
-        tomo = read_mrc(os.path.join(tomo_path, "images/tomo.mrc"))
-        mask = read_mrc(os.path.join(tomo_path, "targets/target.mrc"))
-
-        list_annotations = self.get_coordinates()
-        self.extract_patches(tomo, mask, list_annotations)
+        # list_annotations = self.get_coordinates()
+        patches_tomo = self.extract_patches(tomo)
+        self.predictions(patches_tomo)
 
 
-        # accuracy, loss, F1-Score
+    def extract_patches(self, tomo):
+        display("fetching patches...")
+        tomo = (tomo - np.mean(tomo)) / np.std(tomo)
 
+        # preparation of tomogram as a tensor that can be used with tensorflow API
+        tomo = np.swapaxes(tomo, 0, 2)  # changing dimension order from (z, y, x) to (x, y, z)
+        tomo = np.expand_dims(tomo, axis=0)  # expanding dimensions for tensorflow input
+        tomo = np.expand_dims(tomo, axis=4)  # expanding dimensions for tensorflow input
 
-    def extract_patches(self, tomo, mask, list_annotations):
-        display("fetching the tomogram...")
+        # extracting patches of size patch_size * patch_size * patch_size
+        patches_tomo = tf.extract_volume_patches(tomo, [1, self.patch_size, self.patch_size, self.patch_size, 1],
+                                                 [1, self.patch_size, self.patch_size, self.patch_size, 1],
+                                                 padding='VALID')
+        patches_tomo = tf.reshape(patches_tomo, [-1, self.patch_size, self.patch_size, self.patch_size])
+        patches_tomo = tf.squeeze(patches_tomo)
 
-        start = time.clock()
-        c = np.int(np.floor(self.patch_size / 2))
-        num_annotations = len(list_annotations)
-        tomo_target = np.zeros(tomo.shape)
+        # converting back from tensor to numpy
+        patches_tomo = patches_tomo.eval(session=tf.compat.v1.Session())
 
-        for i in range(num_annotations):
-            tomo_idx = int(list_annotations[i]['tomo_idx'])
+        # the images are
+        patches_tomo = np.swapaxes(patches_tomo, 1, 3)  # changing back dimension order from (x, y, z) to (z, y, x)
+        print(patches_tomo.shape)
+        print("Finished")
+        return patches_tomo
 
-            # Get patch position:
-            x, y, z = get_patch_position(tomo.shape, c, list_annotations[i], 13)
-            # extract the patch:
-            patch_tomo = tomo[z - c:z + c, y - c:y + c, x - c:x + c]
-            patch_tomo = (patch_tomo - np.mean(patch_tomo)) / np.std(patch_tomo)
-
-            patch_mask = mask[z - c:z + c, y - c:y + c, x - c:x + c]
-            patch_mask_onehot = to_categorical(patch_mask, 13)
-            loss_val = self.model.evaluate(patch_tomo, patch_mask_onehot, verbose=0)
-
-            predicted_vals = self.model.predict(patch_tomo)
-            predicted_vals = np.argmax(predicted_vals[i], axis=-1)
-            # mask = np.expand_dims(mask, axis=-1)
-            x, y, z = get_patch_position(tomo.shape, self.patch_size, list_annotations[i], 13)
-            tomo_target[z - c:z + c, y - c:y + c, x - c:x + c] = predicted_vals
-
-        tomo_path = ROOT_DIR.__str__() + str(self.ui.input_path.text())
-        self.display_mask(tomo_target)
-        write_mrc(tomo_target, os.path.join(tomo_path, "tomo_target.mrc"))
-
-        end = time.clock()
-        process_time = (end - start)
-        display("patches fetched in {:.2f} seconds.".format(round(process_time, 2)))
+    def predictions(self, patches_tomo):
+        tomo_seg = np.zeros(self.tomo_shape)
+        for i in range(patches_tomo.shape[0]):
+            tomo = patches_tomo[i]
+            tomo = np.reshape(tomo, (1, self.patch_size, self.patch_size, self.patch_size, 1))
+            predicted_vals = self.model.predict(tomo)
+            predicted_vals = np.argmax(predicted_vals, axis=-1)
 
 
     def get_coordinates(self):
