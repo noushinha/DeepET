@@ -47,7 +47,6 @@ class TrainingWindow(QMainWindow):
         self.base_path = None
         self.output_path = None
         self.epochs = None
-        self.classNum = None
         self.batch_size = None
         self.patch_size = None
         self.lr = None

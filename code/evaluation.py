@@ -90,7 +90,6 @@ class EvaluationWindow(QMainWindow):
             predicted_vals = self.model.predict(tomo)
             predicted_vals = np.argmax(predicted_vals, axis=-1)
 
-
     def get_coordinates(self):
         # TODO: it is better to get the filename from user!
         xml_path = ROOT_DIR.__str__() + str(self.ui.input_path.text())

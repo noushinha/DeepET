@@ -280,12 +280,9 @@ def plot_lr(lr_points, eps_dir, epoch):
 def general_plot(data_points, eps_dir, axis_labels, class_names, epoch, plot_num):
     legend_names = []
     class_names = class_names.split(",")
-
     for lbl in range(len(class_names)):
         legend_names.append(str(class_names[lbl]))
-
     ax = plt.figure(num=plot_num, figsize=(8, 6), dpi=100).gca()
-
     for j in range(len(class_names)):
         plt.plot(smooth_curve(data_points[:, j]))
 
