@@ -280,6 +280,7 @@ class CNNModels:
                 print("F1 Score : {f1s}, \n Recall: {res}, \n Precision: {prs}".format(f1s=scores[2],
                                                                                        res=scores[1],
                                                                                        prs=scores[0]))
+                print(scores[2])
                 list_vald_loss.append(loss_val[0])
                 list_vald_acc.append(loss_val[1])
                 list_f1_score.append(scores[2])

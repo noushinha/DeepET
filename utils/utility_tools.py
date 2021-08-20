@@ -234,6 +234,7 @@ def get_coords(dim):
     x = np.int(np.round(dim[1] / 2))
     y = np.int(np.round(dim[2] / 2))
     z = np.int(np.round(dim[0] / 2))
+
     return x, y, z
 
 
