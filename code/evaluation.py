@@ -45,6 +45,11 @@ class EvaluationWindow(QMainWindow):
         self.model_type = radio_text
 
     def start_evaluation(self):
+        """
+        We segment the tomogram to non-overlapped patches
+        Args: None (requires just the path to tomogram and the network weights)
+        :return: numpy array of scoremap predicted by the trained model
+        """
         # laod the model
         self.tomo_path = ROOT_DIR.__str__() + str(self.ui.input_path.text())
         model_path = ROOT_DIR.__str__() + str(self.ui.model_path.text())
