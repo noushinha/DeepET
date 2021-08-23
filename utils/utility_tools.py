@@ -177,6 +177,16 @@ def get_patch_position(tomodim, p_in, obj, shiftr):
 
     return x, y, z
 
+def correct_center_positions(xc, yc, zc, dim, offset):
+    # If there are still few pixels at the end:
+    if xc[-1] < dim[2] - offset:
+        xc = xc + [dim[2] - offset, ]
+    if yc[-1] < dim[1] - offset:
+        yc = yc + [dim[1] - offset, ]
+    if zc[-1] < dim[0] - offset:
+        zc = zc + [dim[0] - offset, ]
+
+    return xc, yc, zc
 
 def add_obj(obj_list, label, coord, obj_id=None, tomo_idx=None):
     obj = {
