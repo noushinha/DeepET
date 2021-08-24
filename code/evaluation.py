@@ -19,7 +19,7 @@ from utils.params import *
 from models import *
 from keras.models import load_model
 from sklearn.cluster import MeanShift
-
+from PyQt5.QtWidgets import QRadioButton, QHBoxLayout, QGridLayout, QButtonGroup
 
 class EvaluationWindow(QMainWindow):
     def __init__(self):
@@ -31,6 +31,8 @@ class EvaluationWindow(QMainWindow):
         self.setWindowIcon(QIcon('../../icon.jpg'))
 
         self.ui.evalBtn.clicked.connect(self.start_evaluation)
+        self.model_names = ["3D UNet", "YOLOv3", "R-CNN", "Mask R-CNN"]
+        self.generate_model_radio_btns(4)
 
         self.patch_size = 64
         self.num_class = 13
@@ -39,10 +41,33 @@ class EvaluationWindow(QMainWindow):
         self.model_type = None
         self.model = None
         self.tomo_path = None
+        self.set_params(True)
+
+    def generate_model_radio_btns(self, number):
+        horizontalLayoutModel = QHBoxLayout()
+        horizontalBox = QGridLayout()
+
+        horizontalLayoutModel.addLayout(horizontalBox)
+
+        modelgroup_btns = QButtonGroup(self)
+        modelgroup_btns.buttonClicked.connect(lambda btn: self.set_model(btn.text()))
+
+        for btn_num in range(number):
+            model_rbtn = QRadioButton()
+            modelgroup_btns.addButton(model_rbtn)
+            horizontalBox.addWidget(model_rbtn, 1, btn_num, 1, 1)
+            model_rbtn.setText(self.model_names[btn_num])
+            if btn_num == 0:
+                model_rbtn.setChecked(True)
+
+        self.ui.horizontalLayout_3.addLayout(horizontalLayoutModel, 3)
 
     def set_model(self, radio_text):
         self.model_type = radio_text
 
+    def set_params(self, flag=True):
+        if flag:
+            self.set_model(self.model_names[0])
     def start_evaluation(self):
         """
         We segment the tomogram to non-overlapped patches
@@ -50,16 +75,21 @@ class EvaluationWindow(QMainWindow):
         :return: numpy array of scoremap predicted by the trained model
         """
         # laod the model
+        self.set_params(False)
         self.tomo_path = ROOT_DIR.__str__() + str(self.ui.input_path.text())
         model_path = ROOT_DIR.__str__() + str(self.ui.model_path.text())
 
         tomo = read_mrc(os.path.join(self.tomo_path, "grandmodel_9.mrc"))
 
         self.tomo_shape = tomo.shape
-        self.model = load_model(model_path)
+        # self.model = load_model(model_path)
 
+        cnnobj = CNNModels()
+        if self.model_type == "3D UNet":
+            self.model = cnnobj.unet3d((self.patch_size, self.patch_size, self.patch_size), self.num_class)
+            self.model.load_weights(model_path)
         # scores_tomo = self.extract_patches(tomo)
-        # labels_tomo = np.int8(np.argmax(scores_tomo, axis=-1)) #convert scoremaps to class label
+        # labels_tomo = np.int8(np.argmax(scores_tomo, axis=-1))  # convert scoremaps to class label
         #
         # # save labelmaps
         # binned_labelmap = self.save_result(scores_tomo, labels_tomo)
@@ -68,7 +98,7 @@ class EvaluationWindow(QMainWindow):
         # plot_vol(labels_tomo, self.tomo_path)
         radi = 5
         thr = 1
-        binned_labelmap = read_mrc("/mnt/Data/Cryo-ET/DeepET/data2/tomo_binned_labelmap.mrc")
+        binned_labelmap = read_mrc("C:\\Users\Asus\Desktop\DeepET\data2\\tomo_binned_labelmap.mrc")
         self.save_coordinates(binned_labelmap, radi, thr)
 
 
@@ -101,11 +131,11 @@ class EvaluationWindow(QMainWindow):
                 for x in x_centers:
                     display('patch number ' + str(patch_num) + ' out of ' + str(total_pnum))
                     patch = tomo[z-hdim:z+hdim, y-hdim:y+hdim, x-hdim:x+hdim]
-                    patch = np.reshape(patch, (1, self.patch_size, self.patch_size, self.patch_size, 1))
-                    # patch = np.expand_dims(patch, axis=0)  # expanding dimensions for predict function
-                    # patch = np.expand_dims(patch, axis=4)  # expanding dimensions for predict function
+                    # patch = np.reshape(patch, (1, self.patch_size, self.patch_size, self.patch_size, 1))
+                    patch = np.expand_dims(patch, axis=0)  # expanding dimensions for predict function
+                    patch = np.expand_dims(patch, axis=4)  # expanding dimensions for predict function
                     pred_vals = self.model.predict(patch, batch_size=1)
-
+                    # print(np.unique(np.argmax(pred_vals, 4)))
                     current_patch = pred_tclass[z-hdim:z+hdim, y-hdim:y+hdim, x-hdim:x+hdim, :]
                     casted_pred_vals = np.float16(pred_vals[0, 0:2*hdim, 0:2*hdim, 0:2*hdim, :])
                     pred_tclass[z-hdim:z+hdim, y-hdim:y+hdim, x-hdim:x+hdim] = current_patch + casted_pred_vals
@@ -118,11 +148,11 @@ class EvaluationWindow(QMainWindow):
 
         # print(patches_tomo.shape)
         print("Fetching Finished")
-
+        print(np.unique(np.argmax(pred_tclass, 3)))
         # required only if there are overlapping regions (normalization)
         for n in range(self.num_class):
             pred_tclass[:, :, :, n] = pred_tclass[:, :, :, n] / pred_tvals
-
+        print(np.unique(np.argmax(pred_tclass, 3)))
         return pred_tclass
 
     def save_result(self, scoremap_tomo, labelmap_tomo):
@@ -137,9 +167,9 @@ class EvaluationWindow(QMainWindow):
     def bin_tomo(self, scoremap_tomo):
         from skimage.measure import block_reduce
 
-        bd0 = np.int(np.ceil(scoremap_tomo.shape[0] / 2))
-        bd1 = np.int(np.ceil(scoremap_tomo.shape[1] / 2))
-        bd2 = np.int(np.ceil(scoremap_tomo.shape[2] / 2))
+        bd0 = int(np.ceil(scoremap_tomo.shape[0] / 2))
+        bd1 = int(np.ceil(scoremap_tomo.shape[1] / 2))
+        bd2 = int(np.ceil(scoremap_tomo.shape[2] / 2))
         new_dim = (bd0, bd1, bd2, self.num_class)
         binned_scoremap = np.zeros(new_dim)
 
@@ -164,7 +194,7 @@ class EvaluationWindow(QMainWindow):
         num_clusters = clusters.cluster_centers_.shape[0]
 
         object_list = []
-        labels = np.zeros((self.num_class,))
+        labels = np.zeros((12,))
         for n in range(num_clusters):
             cluster_data_point_indx = np.nonzero(clusters.labels_ == n)
 
@@ -178,7 +208,7 @@ class EvaluationWindow(QMainWindow):
                 element_coord = obj_vals[cluster_data_point_indx[0][c], :]
                 cluster_elements.append(binned_labelmap[element_coord[0], element_coord[1], element_coord[2]])
 
-            for num in range(self.num_class):  # get most present label in cluster
+            for num in range(12):  # get most present label in cluster
                 labels[num] = np.size(np.nonzero(np.array(cluster_elements) == num + 1))
             assigned_label = np.argmax(labels) + 1
 
@@ -200,8 +230,8 @@ class EvaluationWindow(QMainWindow):
         for l in lbls:
             class_id = []
             for i in range(len(alist)):
-                if str(alist[idx]['label']) == str(l):
-                    class_id.append(idx)
+                if str(alist[i]['label']) == str(l):
+                    class_id.append(i)
 
             obj_class_list = []
             for id in range(len(class_id)):

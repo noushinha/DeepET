@@ -39,7 +39,7 @@ from keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
-class CNNModels:
+class train:
 
     def __init__(self, obj):
         # define values
@@ -203,10 +203,11 @@ class CNNModels:
         plt.show(block=True)
 
     def get_model(self):
+        cnnobj = CNNModels()
         if self.obj.model_type == "2D UNet":
-            self.unet2d()
+            self.net = cnnobj.unet2d((self.obj.patch_size, self.obj.patch_size), self.obj.classNum)
         elif self.obj.model_type == "3D UNet":
-            self.unet3d()
+            self.net = cnnobj.unet3d((self.obj.patch_size, self.obj.patch_size, self.obj.patch_size), self.obj.classNum)
 
         # set the properties of the mdoel
         self.set_optimizer()
@@ -585,9 +586,10 @@ class CNNModels:
         num_classes = bk.cast(bk.shape(y_true)[-1], 'float32')
         return num_classes - t_sum
 
-    def unet2d(self):
+class CNNModels:
+    def unet2d(self, input_shape, class_num):
         # The original 2D UNET mdoel
-        input_img = layers.Input(shape=(self.width, self.height, 1))
+        input_img = layers.Input(shape=(input_shape[0], input_shape[1], 1))
 
         # down-sampling part of the network
         x = layers.Conv2D(32, 3, strides=2, padding="same")(input_img)
@@ -632,14 +634,14 @@ class CNNModels:
             previous_block_activation = x  # Set aside next residual
 
         # Add a per-pixel classification layer
-        outputs = layers.Conv2D(self.obj.classNum, 3, activation="softmax", padding="same")(x)
+        outputs = layers.Conv2D(class_num, 3, activation="softmax", padding="same")(x)
 
         # Define the model
         self.net = Model(input_img, outputs)
 
-    def unet3d(self):
+    def unet3d(self, input_shape, class_num):
         # The UNET model from DeepFinder
-        input_img = layers.Input(shape=(self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, 1))
+        input_img = layers.Input(shape=(input_shape[0], input_shape[1], input_shape[2], 1))
 
         x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(input_img)
         high = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(x)
@@ -670,6 +672,7 @@ class CNNModels:
         x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(x)
         x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(x)
 
-        output = layers.Conv3D(self.obj.classNum, (1, 1, 1), padding='same', activation='softmax')(x)
+        output = layers.Conv3D(class_num, (1, 1, 1), padding='same', activation='softmax')(x)
 
-        self.net = Model(input_img, output)
+        model = Model(input_img, output)
+        return model

@@ -363,7 +363,7 @@ def generate_masks(content, target_mask, radi_ref, class_radilist):
             zVox = z_coord[idx]
             # check that after offset transfer the coords are in the boudnary of tomo
             if xVox >= 0 and xVox < dim[2] and yVox >= 0 and yVox < dim[1] and zVox >= 0 and zVox < dim[0]:
-                target_mask[zVox, yVox, xVox] = cls_ann  # boxcolor[cls_ann]
+                target_mask[zVox, yVox, xVox] = cls_ann+1  # boxcolor[cls_ann]
     return target_mask
 
 

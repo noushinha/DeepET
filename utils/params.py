@@ -24,7 +24,7 @@ if platform == "linux" or platform == "linux2":
     OS_path_separator = "/"
 elif platform == "win32":
     OS = "Windows"
-    OS_path_separator = "\\"
+    OS_path_separator = "/"
 else:
     print('This software is not supported for ' + platform + ' systems.')
     sys.exit()

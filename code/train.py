@@ -159,7 +159,7 @@ class TrainingWindow(QMainWindow):
 
     def start_train(self):
         self.set_params(False)
-        model_obj = CNNModels(self)
+        model_obj = train(self)
 
 
 if __name__ == "__main__":
