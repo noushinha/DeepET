@@ -296,3 +296,47 @@ def general_plot(data_points, eps_dir, axis_labels, class_names, epoch, plot_num
     plt.savefig(filename, format='eps', dpi=500, bbox_inches="tight")
 
     plt.show()
+
+
+def plot_vol(vol_array, output_path):
+    """
+        save a file from slices of a volume array.
+        If volume is int8, the function plots labelmap in color scale.
+        otherwise the function consider the volume as a tomogram and plots in gray scale.
+
+        inputs: vol_array: a 3D numpy array
+                filename: '/path/to/output png file'
+    """
+
+    # Get central slices along each dimension:
+    zindx = np.int(np.round(vol_array.shape[0]/2))
+    yindx = np.int(np.round(vol_array.shape[1]/2))
+    xindx = np.int(np.round(vol_array.shape[2]/2))
+
+    xy_slice = vol_array[zindx, :, :]  # the xy plane
+    zx_slice = vol_array[:, yindx, :]  # the zx plane
+    zy_slice = vol_array[:, :, xindx]  # the zy plane
+
+
+    if vol_array.dtype == np.int8:
+        fig1 = plt.figure(num=1, figsize=(10, 10))
+        plt.imshow(xy_slice, cmap='jet', vmin=np.min(vol_array), vmax=np.max(vol_array))
+        fig2 = plt.figure(num=2, figsize=(10, 5))
+        plt.imshow(zx_slice, cmap='jet', vmin=np.min(vol_array), vmax=np.max(vol_array))
+        fig3 = plt.figure(num=3, figsize=(5, 10))
+        plt.imshow(np.flipud(np.rot90(zy_slice)), cmap='jet', vmin=np.min(vol_array), vmax=np.max(vol_array))
+    else:
+        mu = np.mean(vol_array)  # mean of the volume/tomogram
+        std = np.std(vol_array)  # standard deviation of the volume/tomogram
+        fig1 = plt.figure(num=1, figsize=(10, 10))
+        plt.imshow(xy_slice, cmap='gray', vmin=mu - 5 * std, vmax=mu + 5 * std)
+        fig2 = plt.figure(num=2, figsize=(10, 5))
+        plt.imshow(zy_slice, cmap='gray', vmin=mu - 5 * std, vmax=mu + 5 * std)
+        fig3 = plt.figure(num=3, figsize=(5, 10))
+        plt.imshow(zx_slice, cmap='gray', vmin=mu - 5 * std, vmax=mu + 5 * std)
+
+    fig1.savefig(os.path.join(output_path, "labelmap_xy_plane.png"))
+    fig2.savefig(os.path.join(output_path, "labelmap_zx_plane.png"))
+    fig3.savefig(os.path.join(output_path, "labelmap_zy_plane.png"))
+    plt.show()
+

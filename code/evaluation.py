@@ -10,16 +10,15 @@
 # ============================================================================================
 import os.path
 
-import numpy as np
-from PyQt5.QtWidgets import QFileDialog, QApplication, QMainWindow
+
+from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtGui import QIcon
 from gui.evaluation import evaluation
 from gui.theme_style import *
 from utils.params import *
 from models import *
 from keras.models import load_model
-from PIL import Image as pilimg
-from keras.preprocessing import image
+from sklearn.cluster import MeanShift
 
 
 class EvaluationWindow(QMainWindow):
@@ -59,10 +58,19 @@ class EvaluationWindow(QMainWindow):
         self.tomo_shape = tomo.shape
         self.model = load_model(model_path)
 
-        scores_tomo = self.extract_patches(tomo)
-        labels_tomo = np.int8(np.argmax(scores_tomo, 3)) #convert scoremaps to class label
+        # scores_tomo = self.extract_patches(tomo)
+        # labels_tomo = np.int8(np.argmax(scores_tomo, axis=-1)) #convert scoremaps to class label
+        #
+        # # save labelmaps
+        # binned_labelmap = self.save_result(scores_tomo, labels_tomo)
+        # print(np.unique(binned_labelmap))
+        # # plot labelmaps
+        # plot_vol(labels_tomo, self.tomo_path)
+        radi = 5
+        thr = 1
+        binned_labelmap = read_mrc("/mnt/Data/Cryo-ET/DeepET/data2/tomo_binned_labelmap.mrc")
+        self.save_coordinates(binned_labelmap, radi, thr)
 
-        self.save_result(scores_tomo, labels_tomo)
 
     def extract_patches(self, tomo):
         display("fetching patches...")
@@ -93,11 +101,11 @@ class EvaluationWindow(QMainWindow):
                 for x in x_centers:
                     display('patch number ' + str(patch_num) + ' out of ' + str(total_pnum))
                     patch = tomo[z-hdim:z+hdim, y-hdim:y+hdim, x-hdim:x+hdim]
-                    patch = np.expand_dims(patch, axis=0)  # expanding dimensions for predict function
-                    patch = np.expand_dims(patch, axis=4)  # expanding dimensions for predict function
+                    patch = np.reshape(patch, (1, self.patch_size, self.patch_size, self.patch_size, 1))
+                    # patch = np.expand_dims(patch, axis=0)  # expanding dimensions for predict function
+                    # patch = np.expand_dims(patch, axis=4)  # expanding dimensions for predict function
                     pred_vals = self.model.predict(patch, batch_size=1)
 
-                    # predicted_classes = np.argmax(predicted_vals, axis=-1)
                     current_patch = pred_tclass[z-hdim:z+hdim, y-hdim:y+hdim, x-hdim:x+hdim, :]
                     casted_pred_vals = np.float16(pred_vals[0, 0:2*hdim, 0:2*hdim, 0:2*hdim, :])
                     pred_tclass[z-hdim:z+hdim, y-hdim:y+hdim, x-hdim:x+hdim] = current_patch + casted_pred_vals
@@ -117,15 +125,14 @@ class EvaluationWindow(QMainWindow):
 
         return pred_tclass
 
-
-
     def save_result(self, scoremap_tomo, labelmap_tomo):
         binned_scoremap = self.bin_tomo(scoremap_tomo)
-        binned_labelmap = np.int8(np.argmax(binned_scoremap, 3))
+        binned_labelmap = np.int8(np.argmax(binned_scoremap, axis=-1))
 
         # Save labelmaps:
         write_mrc(labelmap_tomo, os.path.join(self.tomo_path, 'tomo_labelmap.mrc'))
         write_mrc(binned_labelmap, os.path.join(self.tomo_path, 'tomo_binned_labelmap.mrc'))
+        return binned_labelmap
 
     def bin_tomo(self, scoremap_tomo):
         from skimage.measure import block_reduce
@@ -141,6 +148,66 @@ class EvaluationWindow(QMainWindow):
 
         return binned_scoremap
 
+    def save_coordinates(self, binned_labelmap, radi, thr):
+        """
+        This function returns coordinates of individual particles. Meanshift clustering is used.
+        :param binned_labelmap_tomo: the labelmap to be segmented and analysed
+        :param radi: cluster radius
+        :param thr: threshold for discarding based on radius
+        :return: list of coordinates and corresponding classes of the clustered particles
+        """
+        # testvals = binned_labelmap[binned_labelmap > 0]
+        obj_vals = np.nonzero(binned_labelmap > 0)
+        print(np.unique(binned_labelmap))
+        obj_vals = np.array(obj_vals).T
+        clusters = MeanShift(bandwidth=radi, bin_seeding=True).fit(obj_vals)
+        num_clusters = clusters.cluster_centers_.shape[0]
+
+        object_list = []
+        labels = np.zeros((self.num_class,))
+        for n in range(num_clusters):
+            cluster_data_point_indx = np.nonzero(clusters.labels_ == n)
+
+            # Get cluster size and position:
+            cluster_size = np.size(cluster_data_point_indx)
+            centroids = clusters.cluster_centers_[n]
+
+            # Attribute a macromolecule class to cluster:
+            cluster_elements = []
+            for c in range(cluster_size):  # get labels of cluster members
+                element_coord = obj_vals[cluster_data_point_indx[0][c], :]
+                cluster_elements.append(binned_labelmap[element_coord[0], element_coord[1], element_coord[2]])
+
+            for num in range(self.num_class):  # get most present label in cluster
+                labels[num] = np.size(np.nonzero(np.array(cluster_elements) == num + 1))
+            assigned_label = np.argmax(labels) + 1
+
+            object_list = add_obj(object_list, label=assigned_label, coord=centroids, c_size=cluster_size)
+
+        self.print_stats(object_list)
+        return object_list
+
+    def print_stats(self, alist):
+        display('----------------------------------------')
+        display('A total of ' + str(len(alist)) + ' objects has been found.')
+
+        classes = []
+        for idx in range(len(alist)):
+            classes.append(alist[idx]['label'])
+        lbl_set = set(classes)
+        lbls = (list(lbl_set))
+
+        for l in lbls:
+            class_id = []
+            for i in range(len(alist)):
+                if str(alist[idx]['label']) == str(l):
+                    class_id.append(idx)
+
+            obj_class_list = []
+            for id in range(len(class_id)):
+                obj_class_list.append(alist[class_id[id]])
+
+            display('Class ' + str(l) + ': ' + str(len(obj_class_list)) + ' objects')
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

@@ -188,14 +188,15 @@ def correct_center_positions(xc, yc, zc, dim, offset):
 
     return xc, yc, zc
 
-def add_obj(obj_list, label, coord, obj_id=None, tomo_idx=None):
+def add_obj(obj_list, label, coord, obj_id=None, tomo_idx=None, c_size=None):
     obj = {
         'tomo_idx': tomo_idx,
         'obj_id': obj_id ,
         'label': label,
         'x': coord[2],
         'y': coord[1],
-        'z': coord[0]
+        'z': coord[0],
+        'c_size': c_size
     }
 
     obj_list.append(obj)
