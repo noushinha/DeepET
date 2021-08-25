@@ -159,7 +159,7 @@ class TrainingWindow(QMainWindow):
 
     def start_train(self):
         self.set_params(False)
-        model_obj = train(self)
+        model_obj = TrainModel(self)
 
 
 if __name__ == "__main__":

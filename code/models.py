@@ -39,7 +39,7 @@ from keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
-class train:
+class TrainModel:
 
     def __init__(self, obj):
         # define values
@@ -365,7 +365,7 @@ class train:
             patch_tomo = (patch_tomo - np.mean(patch_tomo)) / np.std(patch_tomo)
 
             patch_mask = sample_mask[z - mid_dim:z + mid_dim, y - mid_dim:y + mid_dim, x - mid_dim:x + mid_dim]
-            print(np.unique(patch_mask))
+            # print(np.unique(patch_mask))
             # if 2 <= e <= 20 and flag_save:
             #     write_mrc(patch_mask, os.path.join(self.output_path, "mask_" + str(i) + ".mrc"))
 
