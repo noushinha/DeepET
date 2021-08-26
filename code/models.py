@@ -44,12 +44,13 @@ class TrainModel:
     def __init__(self, obj):
         # define values
         self.net = None
-        self.optimizer = None
+        self.optimizer = None  # "Adam"
         self.process_time = None
         self.model_weight = None
         self.list_tomos_IDs = None
         self.list_masks_IDs = None
         self.list_annotations = None
+        self.lr_type = None  # "exp_decay"
 
         # values to collect outputs
         self.model_history = []
@@ -255,7 +256,8 @@ class TrainModel:
 
                 # train model on each batch
                 # set learning schedule
-                self.set_lr("exp_decay", counter)
+                self.lr_type = "exp_decay"
+                self.set_lr(counter)
                 self.history_lr.append(self.lr)
                 bk.set_value(self.net.optimizer.learning_rate, self.lr)  # set new learning_rate
                 loss_train = self.net.train_on_batch(batch_tomo, batch_mask, class_weight=self.model_weight)
@@ -318,7 +320,8 @@ class TrainModel:
         class_idx = []
         num_sample_class = int(np.floor((bsize / len(unique_labels))))
         for lbl in unique_labels:
-                class_idx.append(np.random.choice(np.array(np.nonzero(np.array(list_class_labels) == lbl))[0], num_sample_class))
+            class_idx.append(np.random.choice(np.array(np.nonzero(np.array(list_class_labels) == lbl))[0],
+                                              num_sample_class))
 
         class_idx = np.concatenate(class_idx)
         return class_idx
@@ -427,7 +430,6 @@ class TrainModel:
 
     def plots(self):
         start_point = 0  # dropping the first few point in plots due to unstable behavior of model
-        # cnf_matrix = np.zeros(shape=[self.obj.classNum, self.obj.classNum])
 
         plt.figure(num=1, figsize=(8, 6), dpi=100)
         plot_train_vs_vald(self.train_loss[start_point:], self.vald_loss[start_point:],
@@ -443,32 +445,6 @@ class TrainModel:
         general_plot(self.f1_score, self.output_path, ('F1 Score', 'epochs'), self.obj.class_names, self.obj.epochs, 4)
         general_plot(self.precision, self.output_path, ('Precision', 'epochs'), self.obj.class_names, self.obj.epochs, 5)
         general_plot(self.recall, self.output_path, ('Recall', 'epochs'), self.obj.class_names, self.obj.epochs, 6)
-
-        # Plot all ROC curves
-        # plt.figure(num=7, figsize=(8, 6), dpi=100)
-        # ground_truth_labels = em_thresh_vol.ravel() # we want to make them into vectors
-        # score_value = 1-em_image_vol.ravel()/255.0 # we want to make them into vectors
-        # fpr, tpr, _ = roc_curve(ground_truth_labels,score_value)
-        # plot_roc(self.batch_mask_vald, self.vald_predicted_probs,
-        #          self.obj.classNum, self.obj.output_path, self.obj.epochs)
-
-        # Compute confusion matrix
-        # cnf_matrix = confusion_matrix(self.batch_mask_vald, self.vald_predicted_labels)
-        # np.set_printoptions(precision=2)
-
-        # cnf_matrix2 = cnf_matrix.astype('float') / cnf_matrix.sum(axis=1)[:, np.newaxis]
-        # print(np.average(cnf_matrix2.diagonal()))
-
-        # # Plot and save non-normalized confusion matrix
-        # plt.figure(num=5, figsize=(5, 5), dpi=100)
-        # plot_confusion_matrix(cnf_matrix, self.obj.classNum, self.obj.output_path, self.obj.epochs)
-        #
-        # # Plot normalized confusion matrix
-        # plt.figure(num=6, figsize=(5, 5), dpi=100)
-        # plot_confusion_matrix(cnf_matrix, self.obj.classNum, self.obj.output_path, self.obj.epochs, normalize=True)
-        #
-        # cnf_matrix2 = cnf_matrix.astype('float') / cnf_matrix.sum(axis=1)[:, np.newaxis]
-        # print(np.average(cnf_matrix2.diagonal()))
 
     def save(self):
         hyperparameter_setting = self.collect_results()
@@ -508,20 +484,21 @@ class TrainModel:
         decay = (1 - (counter / float(100))) ** 1.0
         self.lr = self.initial_lr * decay
 
-    def set_lr(self, lr_type, counter):
+    def set_lr(self, counter):
         """schedule learning rate decay using different methods
         step Decay: drops learning rate by a factor as a step function
         exp decay: drops learning rate exponentially
         poly decay: drops learning rate by a polynomial function
         cyclic: drops learning rate by a cyclic method"""
+
         ReduceLROnPlateau(monitor='val_loss', factor=0.25, patience=10, min_lr=1e-06, mode='min', verbose=1)
-        if lr_type == "step_decay":
+        if self.lr_type == "step_decay":
             LearningRateScheduler(self.lr_decay_step(counter))
-        elif lr_type == "exp_decay":
+        elif self.lr_type == "exp_decay":
             LearningRateScheduler(self.lr_decay_exp(counter))
-        elif lr_type == "poly_decay":
+        elif self.lr_type == "poly_decay":
             LearningRateScheduler(self.lr_decay_poly(counter))
-        elif lr_type == "cyclic":
+        elif self.lr_type == "cyclic":
             CyclicLR(base_lr=self.initial_lr, max_lr=6e-04, step_size=500., mode='exp_range', gamma=0.99994)
 
     def set_compile(self):
@@ -560,11 +537,15 @@ class TrainModel:
         setting_info = setting_info + "\nNumber of Epochs In Training = " + str(self.obj.epochs)
         setting_info = setting_info + "\nBatch Size = " + str(self.obj.batch_size)
         setting_info = setting_info + "\nPatch Size = " + str(self.obj.patch_size)
-        setting_info = setting_info + "\nLearning Rate = " + str(self.lr)
+        setting_info = setting_info + "\nInitial Learning Rate = " + str(self.initial_lr)
+        setting_info = setting_info + "\nDecayed Learning Rate = " + str(self.lr)
         setting_info = setting_info + "\nTrain accuracy = " + str(np.mean(self.train_acc))
         setting_info = setting_info + "\nTrain loss = " + str(np.mean(self.train_loss))
         setting_info = setting_info + "\nValidation accuracy = " + str(np.mean(self.vald_acc))
         setting_info = setting_info + "\nValidation loss = " + str(np.mean(self.vald_loss))
+        setting_info = setting_info + "\nLoss Function = " + str(self.obj.loss)
+        setting_info = setting_info + "\nOptimizer = " + str(self.obj.opt)
+        setting_info = setting_info + "\nDecay Function = " + str(self.obj.opt)
         setting_info = setting_info + "\nProcess Time in seconds = " + str(self.process_time)
         return setting_info
 

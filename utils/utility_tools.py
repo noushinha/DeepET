@@ -139,7 +139,7 @@ def read_xml2(filename):
 
     obj_list = []
     for p in range(len(objl_xml)):
-        objid = p
+        objid = int(objl_xml[p].get('obj_id'))
         tidx = int(objl_xml[p].get('tomo_idx'))
         lbl = objl_xml[p].get('class_label')
         x = objl_xml[p].get('x')
@@ -221,7 +221,8 @@ def read_mrc(filename):
     """
     if is_file(filename):
         import mrcfile as mrc
-        with mrc.open(filename, permissive=True) as mc:
+        with mrc.open(filename, mode='r+', permissive=True) as mc:
+            mc.update_header_from_data()
             mrc_tomo = mc.data
         is_empty(mrc_tomo, 'mrc_tomo')
     return mrc_tomo
@@ -235,6 +236,35 @@ def write_mrc(array, filename):
     import mrcfile as mrc
     with mrc.new(filename, overwrite=True) as mc:
         mc.set_data(array)
+
+
+def write_xml(objlist, output_path):
+    objl_xml = etree.Element('objlist')
+    for i in range(len(objlist)):
+        tidx = objlist[i]['tomo_idx']
+        objid = objlist[i]['obj_id']
+        lbl = objlist[i]['label']
+        x = objlist[i]['x']
+        y = objlist[i]['y']
+        z = objlist[i]['z']
+        csize = objlist[i]['c_size']
+
+        obj = etree.SubElement(objl_xml, 'object')
+
+        if tidx is not None:
+            obj.set('tomo_idx', str(tidx))
+        if objid is not None:
+            obj.set('obj_id', str(objid))
+
+        obj.set('class_label', str(lbl))
+        obj.set('x', '%.3f' % x)
+        obj.set('y', '%.3f' % y)
+        obj.set('z', '%.3f' % z)
+        if csize is not None:
+            obj.set('cluster_size', str(csize))
+
+    tree = etree.ElementTree(objl_xml)
+    tree.write(output_path, pretty_print=True)
 
 
 def get_coords(dim):
