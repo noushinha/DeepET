@@ -31,7 +31,7 @@ def smooth_curve(points, factor=0.8):
 
 
 def plot_confusion_matrix(cm, classes,
-                          eps_dir, epoch,
+                          eps_dir,
                           normalize=False,
                           title='Confusion matrix',
                           cmap=plt.cm.Blues):
@@ -39,13 +39,13 @@ def plot_confusion_matrix(cm, classes,
     This function prints and plots the confusion matrix.
     Normalization can be applied by setting `normalize=True`.
     """
-    if normalize:
-        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-        print("Normalized confusion matrix")
-    else:
-        print('Confusion matrix, without normalization')
+    # if normalize:
+    #     cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+    #     print("Normalized confusion matrix")
+    # else:
+    #     print('Confusion matrix, without normalization')
 
-    print(cm)
+    # print(cm)
 
     plt.imshow(cm, interpolation='nearest', cmap=cmap)
     plt.title(title)
@@ -64,11 +64,11 @@ def plot_confusion_matrix(cm, classes,
     plt.tight_layout()
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
-    if normalize:
-        cf_nonnormalized_filename = os.path.join(eps_dir, "/NonNormalized_" + str(epoch) + "_Epochs.eps")
+    if not normalize:
+        cf_nonnormalized_filename = os.path.join(eps_dir, "NonNormalized_ConfMtrx" + ".eps")
         plt.savefig(cf_nonnormalized_filename, format='eps', dpi=500, bbox_inches="tight")
     else:
-        cf_normalized_filename = os.path.join(eps_dir, "/Normalized_" + str(epoch) + "_Epochs.eps")
+        cf_normalized_filename = os.path.join(eps_dir, "Normalized_ConfMtrx" + ".eps")
         plt.savefig(cf_normalized_filename, format='eps', dpi=500, bbox_inches="tight")
 
 
@@ -95,95 +95,6 @@ def plot_train_vs_vald(train_points, vald_points, eps_dir, epoch, is_loss=False)
     plt.savefig(filename, format='eps', dpi=1000, bbox_inches="tight")
 
 
-def plot_folds_accuracy(model_history, start_point, eps_dir, epoch):
-    """
-    if cross-fold validation is used, this function plot accuracy in training
-    process versus validation process per fold.
-    """
-    color_map = ['red', 'black', 'green', 'blue', 'magenta', 'cyan', 'yellow', 'orange', 'violet', 'pink']
-
-    plt.title('Train Accuracy (T) vs Validation Accuracy (V)')
-
-    pointslen = model_history[0].history['acc']
-    pointslen = pointslen[start_point:]
-    epochs = range(1, len(pointslen) + 1)
-
-    for i in range(10):
-        points1 = model_history[i].history['acc']
-        points1 = points1[start_point:]
-        lines1_1 = plt.plot(epochs, smooth_curve(points1), label='T Fold ' + str(i+1))
-        plt.setp(lines1_1, color=color_map[i], linewidth=1.0)
-
-        points2 = model_history[i].history['val_acc']
-        points2 = points2[start_point:]
-        lines1_2 = plt.plot(epochs, smooth_curve(points2), label='V Fold ' + str(i+1))
-        plt.setp(lines1_2, color=color_map[i], linewidth=1.0, linestyle="dashdot")
-
-    plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), shadow=False, ncol=5)
-    filename = os.path.join(eps_dir, "Folds_Training_Validation_Accuracy_" + str(
-        epoch) + "_Epochs.eps")
-    plt.savefig(filename, format='eps', dpi=1000, bbox_inches="tight")
-
-
-def plot_folds_loss(model_history, start_point, eps_dir, epoch):
-    """
-    if cross-fold validation is used, this function plot loss in training
-    process versus validation process per fold.
-    """
-    color_map = ['red', 'black', 'green', 'blue', 'magenta', 'cyan', 'yellow', 'orange', 'violet', 'pink']
-    plt.title('Train Loss (T) vs Validation Loss (V)')
-
-    pointslen = model_history[0].history['loss']
-    pointslen = pointslen[start_point:]
-    epochs = range(1, len(pointslen) + 1)
-
-    for i in range(10):
-        points1 = model_history[i].history['loss']
-        points1 = points1[start_point:]
-        lines1_1 = plt.plot(epochs, smooth_curve(points1), label='T Fold ' + str(i+1))
-        plt.setp(lines1_1, color=color_map[i], linewidth=1.0)
-
-        points2 = model_history[i].history['val_loss']
-        points2 = points2[start_point:]
-        lines1_2 = plt.plot(epochs, smooth_curve(points2), label='V Fold ' + str(i+1))
-        plt.setp(lines1_2, color=color_map[i], linewidth=1.0, linestyle="dashdot")
-
-    plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), shadow=False, ncol=5)
-    filename = os.path.join(eps_dir, "Folds_Training_Validation_Loss_" + str(
-        epoch) + "_Epochs.eps")
-    plt.savefig(filename, format='eps', dpi=1000, bbox_inches="tight")
-
-
-def plot_folds_barchart(t_data, v_data, fold_number, fold_dir, epoch):
-    """
-    This function plots number of samples selected for each fold as a bar chart.
-    """
-    y_pos = np.arange(6)
-    width = 0.32
-
-    barfig = plt.figure(num=fold_number, figsize=(6, 4), dpi=80)
-    ax = plt.subplot(111)
-
-    t_values, t_counts = np.unique(t_data, return_counts=True)
-    v_values, v_counts = np.unique(v_data, return_counts=True)
-    rects1 = ax.bar(y_pos, t_counts, width, color='SkyBlue', alpha=0.5,)
-    rects2 = ax.bar(y_pos+width, v_counts, width, color='IndianRed',  alpha=0.5)
-
-    ax.set_ylabel('# Labels')
-    ax.set_xlabel('Categories')
-    ax.set_xticks(y_pos + width)
-    ax.set_xticklabels(('Angry', 'Disgust', 'Fear', 'Happiness', 'Sadness', 'Surprise'))
-    ax.legend((rects1[0], rects2[0]), ('train', 'validation'))
-    # ax.set_title('Distribution of labels in each category')
-
-    autolabel(ax, rects1)
-    autolabel(ax, rects2)
-    filename = os.path.join(fold_dir, "Training_Validation_Fold_" + str(fold_number) + "_Distribution_" +
-                            str(epoch) + "_Epochs.eps")
-    plt.savefig(filename, format='eps', dpi=1000, bbox_inches="tight")
-    plt.close(barfig)
-
-
 def autolabel(ax, rects):
     """
     An auxilary function to generate the axis labels of the
@@ -196,7 +107,7 @@ def autolabel(ax, rects):
 
 
 # Compute and plot ROC curve and ROC area for each class
-def plot_roc(y_test, y_score, classes_num, eps_dir, epoch):
+def plot_roc(y_test, y_score, classes_num, eps_dir):
     """
     This function plots ROC for multi-class classification.
     One ROC plot for each class, also it plots micro and macro ROCs.
@@ -256,7 +167,7 @@ def plot_roc(y_test, y_score, classes_num, eps_dir, epoch):
     plt.ylabel('True Positive Rate')
     plt.title('Receiver operating characteristic for each class')
     plt.legend(loc="lower right")
-    filename = os.path.join(eps_dir, "Micro_Macro_Avg_ROC_Curve_" + str(epoch) + "_Epochs.eps")
+    filename = os.path.join(eps_dir, "Micro_Macro_Avg_ROC_Curve_.eps")
     plt.savefig(filename, format='eps', dpi=1000, bbox_inches="tight")
 
 

@@ -12,6 +12,8 @@ import os.path
 import sys
 import numpy as np
 from copy import deepcopy
+from scipy.spatial import distance
+from contextlib import redirect_stdout
 
 from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtGui import QIcon
@@ -19,8 +21,8 @@ from gui.evaluation import evaluation
 from gui.theme_style import *
 from utils.params import *
 from models import *
-from keras.models import load_model
-from sklearn.cluster import MeanShift
+from sklearn.cluster import MeanShift, KMeans
+from sklearn.metrics import confusion_matrix
 from PyQt5.QtWidgets import QRadioButton, QHBoxLayout, QGridLayout, QButtonGroup
 
 
@@ -39,9 +41,11 @@ class EvaluationWindow(QMainWindow):
         self.model_names = ["3D UNet", "YOLOv3", "R-CNN", "Mask R-CNN"]
         self.generate_model_radio_btns(4)
 
-        self.patch_size = 64
         self.num_class = 13
-        self.slide = self.patch_size
+        self.patch_size = 160
+        self.patch_crop = 25
+        self.patch_overlap = 55
+        self.slide = None
         self.tomo = None
         self.model_type = "3D UNet"
         self.model_path = None
@@ -117,61 +121,85 @@ class EvaluationWindow(QMainWindow):
 
         # plot the label map
         plot_vol(labels_tomo, self.output_path)
+        sys.exit()
 
     def extract_patches(self):
         display("fetching patches...")
-        hdim = int(self.patch_size / 2)
-        slide = self.patch_size + 1
+        # self.patch_size = 160
+        # self.patch_crop = 25
+        # self.patch_overlap = 55
+        bwidth = int(self.patch_size / 2)
+        bcrop = int(bwidth - self.patch_crop)
+        slide = int(2 * bwidth + 1 - self.patch_overlap)  # self.patch_size + 1
+        # normalize and zero pad the tomogram values
+        tomo = (self.tomo - np.mean(self.tomo)) / np.std(self.tomo)
+        tomo = np.pad(tomo, self.patch_crop, mode='constant', constant_values=0)
+        # self.tomo = tomo
+
         # z_half_dim, y_half_dim, x_half_dim = (self.patch_size / 2, self.patch_size / 2, self.patch_size / 2)
-        x_centers = list(range(hdim, self.tomo.shape[2] - hdim, slide))
-        y_centers = list(range(hdim, self.tomo.shape[1] - hdim, slide))
-        z_centers = list(range(hdim, self.tomo.shape[0] - hdim, slide))
+        x_centers = list(range(bwidth, tomo.shape[2] - bwidth, slide))
+        y_centers = list(range(bwidth, tomo.shape[1] - bwidth, slide))
+        z_centers = list(range(bwidth, tomo.shape[0] - bwidth, slide))
 
         # if dimensions are not exactly divisible,
         # we should collect the remained voxels around borders
-        x_centers, y_centers, z_centers = correct_center_positions(x_centers, y_centers, z_centers, self.tomo.shape, hdim)
+        x_centers, y_centers, z_centers = correct_center_positions(x_centers, y_centers, z_centers, tomo.shape, bwidth)
         # total number of patches that we should extract
         total_pnum = len(x_centers) * len(y_centers) * len(z_centers)
 
-        # normalize and zero pad the tomogram values
-        tomo = (self.tomo - np.mean(self.tomo)) / np.std(self.tomo)
-        tomo = np.pad(tomo, 0, mode='constant', constant_values=0)
+
         # two arrays to collect ther esults of rpediction
         # one for predicted intensity values, second hodls the predicted class labels
-        pred_tvals = np.zeros(self.tomo.shape).astype(np.int8)
-        pred_tclass = np.zeros(self.tomo.shape + (self.num_class,)).astype(np.float16)  # tomo.shape * # classes
-
+        pred_tvals = np.zeros(tomo.shape).astype(np.int8)
+        pred_tclass = np.zeros(tomo.shape + (self.num_class,)).astype(np.float16)  # tomo.shape * # classes
+        # preds = np.zeros(tomo.shape + (self.num_class,)).astype(np.float16)
+        mask_tomo = read_mrc(os.path.join('/mnt/Data/Cryo-ET/DeepET/data2', 'target_grandmodel_9.mrc'))
+        mask_onehot = to_categorical(mask_tomo, self.num_class)
         patch_num = 1
         for z in z_centers:
             for y in y_centers:
                 for x in x_centers:
                     display('patch number ' + str(patch_num) + ' out of ' + str(total_pnum))
-                    patch = tomo[z - hdim:z + hdim, y - hdim:y + hdim, x - hdim:x + hdim]
+                    patch = tomo[z-bwidth:z+bwidth, y-bwidth:y+bwidth, x-bwidth:x+bwidth]
                     patch = np.expand_dims(patch, axis=0)  # expanding dimensions for predict function (batch)
                     patch = np.expand_dims(patch, axis=4)  # expanding dimensions for predict function (channel)
                     pred_vals = self.model.predict(patch, batch_size=1)
-                    print(np.unique(np.argmax(pred_vals, 4)))
+                    # print(np.unique(np.argmax(pred_vals, 4)))
+
+                    # # plot roc for this patch
+                    # if x == 186:
+                    #     truth_vals = mask_onehot[z-bwidth:z+bwidth, y-bwidth:y+bwidth, x-bwidth:x+bwidth]
+                    #     truth_vals_roc = truth_vals.reshape((truth_vals.shape[0]*truth_vals.shape[1]*truth_vals.shape[2]),
+                    #                                         13)
+                    #     pred_vals_roc = pred_vals.reshape((pred_vals.shape[0] * pred_vals.shape[1] *
+                    #                                        pred_vals.shape[2] * pred_vals.shape[3]), 13)
+                    #     plt.figure(num=3, figsize=(8, 6), dpi=80)
+                    #     plot_roc(truth_vals_roc, pred_vals_roc, self.num_class, self.output_path)
 
                     # assign predicted values to the corresponding patch location in the tomogram
-                    current_patch = pred_tclass[z - hdim:z + hdim, y - hdim:y + hdim, x - hdim:x + hdim, :]
-                    casted_pred_vals = np.float16(pred_vals[0, 0:2 * hdim, 0:2 * hdim, 0:2 * hdim, :])
-                    pred_tclass[z - hdim:z + hdim, y - hdim:y + hdim,
-                    x - hdim:x + hdim] = current_patch + casted_pred_vals
+                    current_patch = pred_tclass[z-bcrop:z+bcrop, y-bcrop:y+bcrop, x-bcrop:x+bcrop, :]
+                    lowb = bwidth-bcrop
+                    highb = bwidth+bcrop
+                    casted_pred_vals = np.float16(pred_vals[0, lowb:highb, lowb:highb, lowb:highb, :])
+                    pred_tclass[z-bcrop:z+bcrop, y-bcrop:y+bcrop, x-bcrop:x+bcrop] = current_patch + casted_pred_vals
 
                     # one-hot-encoded for normalization (labels)
-                    current_patch2 = pred_tvals[z - hdim:z + hdim, y - hdim:y + hdim, x - hdim:x + hdim]
-                    argmax_labels = np.ones((self.patch_size, self.patch_size, self.patch_size), dtype=np.int8)
-                    pred_tvals[z - hdim:z + hdim, y - hdim:y + hdim, x - hdim:x + hdim] = current_patch2 + argmax_labels
+                    current_patch2 = pred_tvals[z-bcrop:z+bcrop, y-bcrop:y+bcrop, x-bcrop:x+bcrop]
+                    size_dim = self.patch_size-2*self.patch_crop
+                    argmax_labels = np.ones((size_dim, size_dim, size_dim), dtype=np.int8)
+                    pred_tvals[z-bcrop:z+bcrop, y-bcrop:y+bcrop, x-bcrop:x+bcrop] = current_patch2 + argmax_labels
 
                     patch_num += 1
 
         print("Fetching Finished")
-
+        print(np.unique(np.argmax(pred_tclass, 3)))
         # required only if there are overlapping regions (normalization)
         for n in range(self.num_class):
             pred_tclass[:, :, :, n] = pred_tclass[:, :, :, n] / pred_tvals
-
-        # print(np.unique(np.argmax(pred_tclass, 3)))
+        print(np.unique(np.argmax(pred_tclass, 3)))
+        # write_mrc(preds, os.path.join(self.output_path, "probabilities.mrc"))
+        pred_tclass = pred_tclass[self.patch_crop:-self.patch_crop, self.patch_crop:-self.patch_crop, self.patch_crop:-self.patch_crop, :]  # unpad
+        print(np.unique(np.argmax(pred_tclass, 3)))
         return pred_tclass
 
     def save_result(self, scoremap_tomo, labelmap_tomo):
@@ -179,8 +207,10 @@ class EvaluationWindow(QMainWindow):
         binned_labelmap = np.int8(np.argmax(binned_scoremap, axis=-1))
 
         # Save labelmaps:
+        scoremap_path = os.path.join(self.output_path, 'scoremap_tomo.mrc')
         labelmap_path = os.path.join(self.output_path, 'tomo_labelmap.mrc')
         binned_labelmap_path = os.path.join(self.output_path, 'tomo_binned_labelmap.mrc')
+        write_mrc(binned_scoremap, scoremap_path)
         write_mrc(labelmap_tomo, labelmap_path)
         write_mrc(binned_labelmap, binned_labelmap_path)
         display_message("Results of labelmap and binned labelmap are saved as mrc files "
@@ -237,6 +267,7 @@ class EvaluationWindow(QMainWindow):
         obj_vals = np.transpose(np.array(np.nonzero(binned_labelmap > 0)))
         display("Clustering coordinates")
         clusters = MeanShift(bandwidth=radi, bin_seeding=True).fit(obj_vals)
+        # clusters = KMeans(n_clusters=self.num_class, random_state=0).fit(obj_vals)
         display("Clustering finished")
         num_clusters = clusters.cluster_centers_.shape[0]
 
@@ -356,11 +387,30 @@ class EvaluationWindow(QMainWindow):
                         + str(raw_ploc_path), False)
 
     def start_evaluation(self):
+        # initialziation
         list_classes = class_names
+        gtcoord_flag = True
+        gt_z_offset = 156
+        gt_z_offset = gtcoord_flag * gt_z_offset
+        padding = 0
+        total_num_hit = 0
+        total_dist = 0
+        clipped_ptls = 0
+
+        # set paths
         clean_objlist_path = os.path.join(self.output_path, 'tomo_objlist_thr.xml')
         clean_objlist = read_xml2(clean_objlist_path)
-        particle_lcoations = os.path.join(self.output_path, 'particle_locations_tomo9.txt')
-        file = open(particle_lcoations, 'w')
+        gt_ptls_path = os.path.join(self.output_path, "particle_locations_model.txt")
+        res_ptls_path = os.path.join(self.output_path, 'particle_locations_tomo.txt')
+        hitbox_path = os.path.join(self.output_path, "hitbox.mrc")
+
+        is_file(clean_objlist_path)
+        is_file(hitbox_path)
+        is_file(gt_ptls_path)
+        is_file(hitbox_path)
+
+        # read the particle locations
+        file = open(res_ptls_path, 'w')
         for p in range(len(clean_objlist)):
             x = int(clean_objlist[p]['x'])
             y = int(clean_objlist[p]['y'])
@@ -368,8 +418,145 @@ class EvaluationWindow(QMainWindow):
             l = int(clean_objlist[p]['label'])
             file.write(list_classes[l] + ' ' + str(x) + ' ' + str(y) + ' ' + str(z) + '\n')
         file.close()
-        display_message("Particle lcoations are saved as a txt file in " + str(particle_lcoations), False)
-        print("generating final results...")
+        # display("Particle lcoations are saved as a txt file in " + str(res_ptls_path))
+        # display("Generating final results...")
+
+        is_file(res_ptls_path)
+
+        # loading results
+        pred_ptls = []
+        with open(str(res_ptls_path), 'rU') as f:
+            for line in f:
+                pcn, zcoord, ycoord, xcoord, *_ = line.rstrip('\n').split()
+                x = round(float(zcoord))
+                y = round(float(ycoord))
+                z = round(float(xcoord))
+                pred_ptls.append((pcn, int(z), int(y), int(x)))
+
+        # loading ground truth
+        gt_ptls = []
+        with open(gt_ptls_path, 'rU') as f:
+            for line in f:
+                pcn_idx, zcoord, ycoord, xcoord, rot_1, rot_2, rot_3 = line.rstrip('\n').split()
+                x = round(float(zcoord))
+                y = round(float(ycoord))
+                z = round(float(xcoord))
+                gt_ptls.append((pcn_idx, int(z), int(y), int(x)))
+        gt_ptls_cls = np.asarray([reversed_class_names[p[0]] for p in gt_ptls])
+        hitbox = read_mrc(hitbox_path)
+
+        # variable definition
+        pred_ptls_num_hits = np.zeros((len(gt_ptls),), dtype=int)
+        pred_ptls_num_hitcls = {key: 0 for key, val in reversed_class_names.items()}
+        pred_ptls_cls = np.zeros_like(gt_ptls_cls)
+
+        predicted_particles = [(p[0], p[1] - gt_z_offset - padding, p[2] - padding, p[3] - padding) for p in pred_ptls]
+
+        # valdiate each particle
+        for idx, pt in enumerate(pred_ptls):
+            # force coordinates to be within the indices borders of the tomogram (clipping)
+            pcn, z, y, x = pt
+            zcoord = max(min(z, hitbox.shape[0] - 1), 0)
+            ycoord = max(min(y, hitbox.shape[1] - 1), 0)
+            xcoord = max(min(x, hitbox.shape[2] - 1), 0)
+
+            # count number of clipped particles
+            if zcoord != z or ycoord != y or xcoord != x:
+                clipped_ptls += 1
+
+            # get the corresponding id of the particle located at (z, y, x)
+            ptl = int(hitbox[z][y][x])
+
+            # check if there is a particle at that location (missed)
+            if ptl == 0:
+                pred_ptls_num_hitcls['0'] += 1
+                continue
+
+            # we consider indexing particles from 0, but the given hitbox indexed particles from 1 (0 does not exist)
+            ptl -= 1
+            pred_ptls_num_hits[ptl] += 1
+            pred_ptls_num_hitcls[pcn] += 1  # add one unit to the num of particles detected for corresponding class pt
+            total_num_hit += 1  # keep counting of total number of hits (over all classes)
+
+            # find ground truth center
+            real_particle = gt_ptls[ptl]  # ground truth particle
+            true_center = (real_particle[1], real_particle[2], real_particle[3])
+
+            # compute euclidean distance from predicted center to real center
+            total_dist += np.abs(distance.euclidean((z, y, x), true_center))
+
+            # use only the first classification prediction for that particle
+            if pred_ptls_cls[ptl] == 0:
+                pred_ptls_cls[ptl] = reversed_class_names[pcn]
+
+        # report some numbers
+        unique_particles_found = sum([int(p >= 1) for p in pred_ptls_num_hits])
+        unique_particles_not_found = sum([int(p == 0) for p in pred_ptls_num_hits])
+        multiple_hits = sum([int(p > 1) for p in pred_ptls_num_hits])
+
+        total_recall = unique_particles_found / len(gt_ptls_cls)
+        total_precision = unique_particles_found / len(predicted_particles)
+        total_f1 = 1 / ((1 / total_recall + 1 / total_precision) / 2)
+        total_missrate = unique_particles_not_found / len(gt_ptls)
+        avg_distance = total_dist / total_num_hit
+
+        cm = ConfusionMatrix(actual_vector=gt_ptls_cls, predict_vector=pred_ptls_cls)
+        # relabel confusion matrix
+        class_labels = class_names.copy()
+        # check whether all classes are represented and if not, remove them from label dict
+        for k in class_names:
+            if k not in cm.classes:
+                class_labels.pop(k)
+        cm.relabel(class_labels)
+
+        ############################################################################# print to log
+        log_path = os.path.join(self.output_path, 'evaluation_log.txt')
+        with open(log_path, 'w') as f:
+            with redirect_stdout(f):
+                print('############################## LOCALIZATION EVALUATION')
+                print(f'Found {len(predicted_particles)} results')
+                print(
+                    f'TP: {unique_particles_found} unique particles localized out of total {len(gt_ptls)} particles')
+                print(f'FP: {pred_ptls_num_hitcls["0"]} reported particles are false positives')
+                print(f'FN: {unique_particles_not_found} unique particles not found')
+                if multiple_hits:
+                    print(f'Note: there were {multiple_hits} unique particles that had more than one result')
+                if clipped_ptls:
+                    print(f'Note: there were {clipped_ptls} results that were outside of tomo bounds ({hitbox.shape})')
+                print(f'Average euclidean distance from predicted center to ground truth center: {avg_distance:.5f}')
+                print(f'Total recall: {total_recall:.5f}')
+                print(f'Total precision: {total_precision:.5f}')
+                print(f'Total miss rate: {total_missrate:.5f}')
+                print(f'Total f1-score: {total_f1:.5f}')
+                print('\n############################## CLASSIFICATION EVALUATION')
+                print(cm)
+
+        cm.save_html(os.path.join(self.output_path, 'classification_log'))
+        cm.save_csv(os.path.join(self.output_path, 'classification_log'))
+        # save confusion matrix as a plot
+        cnf_matrix = confusion_matrix(gt_ptls_cls, pred_ptls_cls)
+
+        # plot normalized and non-normalized confusion matrix
+        plt.figure(num=1, figsize=(10, 10), dpi=150)
+        plot_confusion_matrix(cnf_matrix, classes=class_names, eps_dir=self.output_path)
+
+        plt.figure(num=2, figsize=(10, 10), dpi=150)
+        plot_confusion_matrix(cnf_matrix, classes=class_names, eps_dir=self.output_path, normalize=True)
+
+        # Plot all ROC curves
+        # ROC curves are appropriate when the observations are balanced between each class ,
+        # whereas precision-recall curves are appropriate for imbalanced datasets.
+
+        # scoremap_path = os.path.join(self.output_path, 'scoremap_tomo.mrc')
+        # binmap_path = os.path.join(self.output_path, 'tomo_binned_labelmap.mrc')
+        # scoremap = read_mrc(scoremap_path)
+        # binnedmap = read_mrc(binmap_path)
+        # plt.figure(num=3, figsize=(8, 6), dpi=80)
+        # gt_ptls_cls_onehot_encoded = to_categorical(gt_ptls_cls, num_classes=self.num_class)
+        # plot_roc(gt_ptls_cls_onehot_encoded, pred_ptls, self.num_class, self.output_path)
+        plt.show()
+
+        display("Evaluation finished")
 
 
 if __name__ == "__main__":
