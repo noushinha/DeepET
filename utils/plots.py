@@ -39,11 +39,11 @@ def plot_confusion_matrix(cm, classes,
     This function prints and plots the confusion matrix.
     Normalization can be applied by setting `normalize=True`.
     """
-    # if normalize:
-    #     cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
-    #     print("Normalized confusion matrix")
+    if normalize:
+        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+        # print("Normalized confusion matrix")
     # else:
-    #     print('Confusion matrix, without normalization')
+        # print('Confusion matrix, without normalization')
 
     # print(cm)
 
@@ -66,10 +66,10 @@ def plot_confusion_matrix(cm, classes,
     plt.xlabel('Predicted label')
     if not normalize:
         cf_nonnormalized_filename = os.path.join(eps_dir, "NonNormalized_ConfMtrx" + ".eps")
-        plt.savefig(cf_nonnormalized_filename, format='eps', dpi=500, bbox_inches="tight")
+        plt.savefig(cf_nonnormalized_filename, format='eps', dpi=100, bbox_inches="tight")
     else:
         cf_normalized_filename = os.path.join(eps_dir, "Normalized_ConfMtrx" + ".eps")
-        plt.savefig(cf_normalized_filename, format='eps', dpi=500, bbox_inches="tight")
+        plt.savefig(cf_normalized_filename, format='eps', dpi=100, bbox_inches="tight")
 
 
 def plot_train_vs_vald(train_points, vald_points, eps_dir, epoch, is_loss=False):

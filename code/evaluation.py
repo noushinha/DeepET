@@ -147,14 +147,11 @@ class EvaluationWindow(QMainWindow):
         # total number of patches that we should extract
         total_pnum = len(x_centers) * len(y_centers) * len(z_centers)
 
-
         # two arrays to collect ther esults of rpediction
         # one for predicted intensity values, second hodls the predicted class labels
         pred_tvals = np.zeros(tomo.shape).astype(np.int8)
         pred_tclass = np.zeros(tomo.shape + (self.num_class,)).astype(np.float16)  # tomo.shape * # classes
-        # preds = np.zeros(tomo.shape + (self.num_class,)).astype(np.float16)
-        mask_tomo = read_mrc(os.path.join('/mnt/Data/Cryo-ET/DeepET/data2', 'target_grandmodel_9.mrc'))
-        mask_onehot = to_categorical(mask_tomo, self.num_class)
+
         patch_num = 1
         for z in z_centers:
             for y in y_centers:
@@ -165,16 +162,6 @@ class EvaluationWindow(QMainWindow):
                     patch = np.expand_dims(patch, axis=4)  # expanding dimensions for predict function (channel)
                     pred_vals = self.model.predict(patch, batch_size=1)
                     # print(np.unique(np.argmax(pred_vals, 4)))
-
-                    # # plot roc for this patch
-                    # if x == 186:
-                    #     truth_vals = mask_onehot[z-bwidth:z+bwidth, y-bwidth:y+bwidth, x-bwidth:x+bwidth]
-                    #     truth_vals_roc = truth_vals.reshape((truth_vals.shape[0]*truth_vals.shape[1]*truth_vals.shape[2]),
-                    #                                         13)
-                    #     pred_vals_roc = pred_vals.reshape((pred_vals.shape[0] * pred_vals.shape[1] *
-                    #                                        pred_vals.shape[2] * pred_vals.shape[3]), 13)
-                    #     plt.figure(num=3, figsize=(8, 6), dpi=80)
-                    #     plot_roc(truth_vals_roc, pred_vals_roc, self.num_class, self.output_path)
 
                     # assign predicted values to the corresponding patch location in the tomogram
                     current_patch = pred_tclass[z-bcrop:z+bcrop, y-bcrop:y+bcrop, x-bcrop:x+bcrop, :]
@@ -192,14 +179,14 @@ class EvaluationWindow(QMainWindow):
                     patch_num += 1
 
         print("Fetching Finished")
-        print(np.unique(np.argmax(pred_tclass, 3)))
+
         # required only if there are overlapping regions (normalization)
         for n in range(self.num_class):
             pred_tclass[:, :, :, n] = pred_tclass[:, :, :, n] / pred_tvals
-        print(np.unique(np.argmax(pred_tclass, 3)))
+
         # write_mrc(preds, os.path.join(self.output_path, "probabilities.mrc"))
         pred_tclass = pred_tclass[self.patch_crop:-self.patch_crop, self.patch_crop:-self.patch_crop, self.patch_crop:-self.patch_crop, :]  # unpad
-        print(np.unique(np.argmax(pred_tclass, 3)))
+
         return pred_tclass
 
     def save_result(self, scoremap_tomo, labelmap_tomo):
@@ -210,7 +197,7 @@ class EvaluationWindow(QMainWindow):
         scoremap_path = os.path.join(self.output_path, 'scoremap_tomo.mrc')
         labelmap_path = os.path.join(self.output_path, 'tomo_labelmap.mrc')
         binned_labelmap_path = os.path.join(self.output_path, 'tomo_binned_labelmap.mrc')
-        write_mrc(binned_scoremap, scoremap_path)
+        write_mrc(scoremap_tomo, scoremap_path)
         write_mrc(labelmap_tomo, labelmap_path)
         write_mrc(binned_labelmap, binned_labelmap_path)
         display_message("Results of labelmap and binned labelmap are saved as mrc files "
@@ -509,11 +496,11 @@ class EvaluationWindow(QMainWindow):
                 class_labels.pop(k)
         cm.relabel(class_labels)
 
-        ############################################################################# print to log
+        # save results as a log file
         log_path = os.path.join(self.output_path, 'evaluation_log.txt')
         with open(log_path, 'w') as f:
             with redirect_stdout(f):
-                print('############################## LOCALIZATION EVALUATION')
+                print('EVALUATION results for localization')
                 print(f'Found {len(predicted_particles)} results')
                 print(
                     f'TP: {unique_particles_found} unique particles localized out of total {len(gt_ptls)} particles')
@@ -528,7 +515,7 @@ class EvaluationWindow(QMainWindow):
                 print(f'Total precision: {total_precision:.5f}')
                 print(f'Total miss rate: {total_missrate:.5f}')
                 print(f'Total f1-score: {total_f1:.5f}')
-                print('\n############################## CLASSIFICATION EVALUATION')
+                print('\nEVALUATION results for classification')
                 print(cm)
 
         cm.save_html(os.path.join(self.output_path, 'classification_log'))
@@ -547,13 +534,16 @@ class EvaluationWindow(QMainWindow):
         # ROC curves are appropriate when the observations are balanced between each class ,
         # whereas precision-recall curves are appropriate for imbalanced datasets.
 
-        # scoremap_path = os.path.join(self.output_path, 'scoremap_tomo.mrc')
-        # binmap_path = os.path.join(self.output_path, 'tomo_binned_labelmap.mrc')
-        # scoremap = read_mrc(scoremap_path)
-        # binnedmap = read_mrc(binmap_path)
-        # plt.figure(num=3, figsize=(8, 6), dpi=80)
-        # gt_ptls_cls_onehot_encoded = to_categorical(gt_ptls_cls, num_classes=self.num_class)
-        # plot_roc(gt_ptls_cls_onehot_encoded, pred_ptls, self.num_class, self.output_path)
+        scoremap_path = os.path.join(self.output_path, 'scoremap_tomo.mrc')
+        score_tomo = read_mrc(scoremap_path)
+        mask_tomo = read_mrc(os.path.join(self.output_path, 'target_grandmodel_9.mrc'))
+        mask_onehot = to_categorical(mask_tomo, self.num_class)
+        # plot roc for this patch
+        mask_onehot = mask_onehot.reshape((mask_onehot.shape[0]*mask_onehot.shape[1]*mask_onehot.shape[2]), 13)
+        score_tomo = score_tomo.reshape((score_tomo.shape[0] * score_tomo.shape[1] *
+                                           score_tomo.shape[2]), 13)
+        plt.figure(num=3, figsize=(8, 6), dpi=80)
+        plot_roc(mask_onehot, score_tomo, self.num_class, self.output_path)
         plt.show()
 
         display("Evaluation finished")

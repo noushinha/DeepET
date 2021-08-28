@@ -86,7 +86,7 @@ class Ui_MainWindow(object):
         self.input_pathL.setText(_translate("MainWindow", "Input  Path"))
         self.input_path.setText(_translate("MainWindow", "/data2/grandmodel_9.mrc"))
         self.model_pathL.setText(_translate("MainWindow", "Model Path"))
-        self.model_path.setText(_translate("MainWindow", "/data2/net_weights_FINAL.h5"))
+        self.model_path.setText(_translate("MainWindow", "/data2/results/net_weights_FINAL.h5"))
         self.output_pathL.setText(_translate("MainWindow", "Output Path"))
         self.output_path.setText(_translate("MainWindow", "/data2/results/"))
         self.segtBtn.setText(_translate("MainWindow", "segment"))
