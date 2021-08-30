@@ -10,11 +10,12 @@
 # ============================================================================================
 import os
 import numpy as np
-import itertools
+import seaborn as sns
+from itertools import cycle, product
 import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, auc
 from matplotlib.ticker import MaxNLocator
-
+from utils import params
 # Smoothing the plots
 def smooth_curve(points, factor=0.8):
     """ This function smooths the fluctuation of a plot by
@@ -56,7 +57,7 @@ def plot_confusion_matrix(cm, classes,
 
     fmt = '.2f' if normalize else 'd'
     thresh = cm.max() / 2.
-    for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+    for i, j in product(range(cm.shape[0]), range(cm.shape[1])):
         plt.text(j, i, format(cm[i, j], fmt),
                  horizontalalignment="center",
                  color="white" if cm[i, j] > thresh else "black")
@@ -65,11 +66,15 @@ def plot_confusion_matrix(cm, classes,
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
     if not normalize:
-        cf_nonnormalized_filename = os.path.join(eps_dir, "NonNormalized_ConfMtrx" + ".eps")
-        plt.savefig(cf_nonnormalized_filename, format='eps', dpi=100, bbox_inches="tight")
+        cf_nonnormalized_filename1 = os.path.join(eps_dir, "evaluate/NonNormalized_ConfMtrx" + ".eps")
+        cf_nonnormalized_filename2 = os.path.join(eps_dir, "evaluate/NonNormalized_ConfMtrx" + ".png")
+        plt.savefig(cf_nonnormalized_filename1, format='eps', dpi=100, bbox_inches="tight")
+        plt.savefig(cf_nonnormalized_filename2, format='png', dpi=100, bbox_inches="tight")
     else:
-        cf_normalized_filename = os.path.join(eps_dir, "Normalized_ConfMtrx" + ".eps")
-        plt.savefig(cf_normalized_filename, format='eps', dpi=100, bbox_inches="tight")
+        cf_normalized_filename1 = os.path.join(eps_dir, "evaluate/Normalized_ConfMtrx" + ".eps")
+        cf_normalized_filename2 = os.path.join(eps_dir, "evaluate/Normalized_ConfMtrx" + ".png")
+        plt.savefig(cf_normalized_filename1, format='eps', dpi=100, bbox_inches="tight")
+        plt.savefig(cf_normalized_filename2, format='png', dpi=100, bbox_inches="tight")
 
 
 def plot_train_vs_vald(train_points, vald_points, eps_dir, epoch, is_loss=False):
@@ -145,20 +150,28 @@ def plot_roc(y_test, y_score, classes_num, eps_dir):
     roc_auc["macro"] = auc(fpr["macro"], tpr["macro"])
 
     # smoothing the micro roc curve
-    micro_poly = np.polyfit(fpr["micro"], tpr["micro"], 5)
-    micro_poly_y = np.poly1d(micro_poly)(fpr["micro"])
+    # micro_poly = np.polyfit(fpr["micro"], tpr["micro"], 5)
+    # micro_poly_y = np.poly1d(micro_poly)(fpr["micro"])
     plt.plot(fpr["micro"], tpr["micro"],
-             label='micro-average ROC curve (area = {0:0.2f})'
+             label='micro-average ROC = {0:0.2f}'
                    ''.format(roc_auc["micro"]),
-             color='magenta', linestyle=':', linewidth=1)
+             color='navy', linestyle=':', linewidth=1)
 
     # smoothing the macro roc curve
-    macro_poly = np.polyfit(fpr["macro"], tpr["macro"], 5)
-    macro_poly_y = np.poly1d(macro_poly)(fpr["macro"])
+    # macro_poly = np.polyfit(fpr["macro"], tpr["macro"], 5)
+    # macro_poly_y = np.poly1d(macro_poly)(fpr["macro"])
     plt.plot(fpr["macro"], tpr["macro"],
-             label='macro-average ROC curve (area = {0:0.2f})'
+             label='macro-average ROC = {0:0.2f}'
                    ''.format(roc_auc["macro"]),
-             color='blue', linestyle='-.', linewidth=lw)
+             color='black', linestyle='-.', linewidth=lw)
+
+    # colors = cycle(['aqua', 'darkorange', 'cornflowerblue'])
+    palette = cycle(sns.color_palette())
+
+    for i, color in zip(range(classes_num), palette):
+        plt.plot(fpr[i], tpr[i], color=color, lw=lw,
+                 label='class {cls} {arr}'
+                       ''.format(cls=params.class_names[i], arr=np.round(roc_auc[i],2)))
 
     plt.plot([0, 1], [0, 1], color='silver', linestyle='--', linewidth=lw)
     plt.xlim([0.0, 1.0])
@@ -167,8 +180,10 @@ def plot_roc(y_test, y_score, classes_num, eps_dir):
     plt.ylabel('True Positive Rate')
     plt.title('Receiver operating characteristic for each class')
     plt.legend(loc="lower right")
-    filename = os.path.join(eps_dir, "Micro_Macro_Avg_ROC_Curve_.eps")
-    plt.savefig(filename, format='eps', dpi=1000, bbox_inches="tight")
+    filename1 = os.path.join(eps_dir, "evaluate/Micro_Macro_Avg_ROC_Curve.eps")
+    filename2 = os.path.join(eps_dir, "evaluate/Micro_Macro_Avg_ROC_Curve.png")
+    plt.savefig(filename1, format='eps', dpi=150, bbox_inches="tight")
+    plt.savefig(filename2, format='png', dpi=150, bbox_inches="tight")
 
 
 # plotting learning rate
@@ -228,7 +243,6 @@ def plot_vol(vol_array, output_path):
     zx_slice = vol_array[:, yindx, :]  # the zx plane
     zy_slice = vol_array[:, :, xindx]  # the zy plane
 
-
     if vol_array.dtype == np.int8:
         fig1 = plt.figure(num=1, figsize=(10, 10))
         plt.imshow(xy_slice, cmap='jet', vmin=np.min(vol_array), vmax=np.max(vol_array))
@@ -246,8 +260,8 @@ def plot_vol(vol_array, output_path):
         fig3 = plt.figure(num=3, figsize=(5, 10))
         plt.imshow(zx_slice, cmap='gray', vmin=mu - 5 * std, vmax=mu + 5 * std)
 
-    fig1.savefig(os.path.join(output_path, "labelmap_xy_plane.png"))
-    fig2.savefig(os.path.join(output_path, "labelmap_zx_plane.png"))
-    fig3.savefig(os.path.join(output_path, "labelmap_zy_plane.png"))
+    fig1.savefig(os.path.join(output_path, "segment/labelmap_xy_plane.png"))
+    fig2.savefig(os.path.join(output_path, "segment/labelmap_zx_plane.png"))
+    fig3.savefig(os.path.join(output_path, "segment/labelmap_zy_plane.png"))
     plt.show()
 

@@ -7,10 +7,12 @@ import os
 epoch = 100
 legend_names = []
 class_names = ['bg', '1bxn', '1qvr', '1s3x', '1u6g', '2cg9', '3cf3', '3d2f', '3gl1', '3h84', '3qm1', '4b4t', '4d8q']
-axis_labels = ['Epochs', 'F1 Score']
-f1_scores = pd.read_csv('/mnt/Data/Cryo-ET/DeepET/data2/results/8VOVDRAT9LTM5W8S/Validation_Recall_Details.csv', header=None)
+# axis_labels = ['Epochs', 'F1 Score']
+# axis_labels = ['Epochs', 'Recall']
+axis_labels = ['Epochs', 'Precision']
+# f1_scores = pd.read_csv('/mnt/Data/Cryo-ET/DeepET/data2/results/8VOVDRAT9LTM5W8S/Validation_Recall_Details.csv', header=None)
 # f1_scores = pd.read_csv('/mnt/Data/Cryo-ET/DeepET/data2/results/8VOVDRAT9LTM5W8S/Validation_F1Score_Details.csv', header=None)
-# f1_scores = pd.read_csv('/mnt/Data/Cryo-ET/DeepET/data2/results/8VOVDRAT9LTM5W8S/Validation_Precision_Details.csv', header=None)
+f1_scores = pd.read_csv('/mnt/Data/Cryo-ET/DeepET/data2/results/8VOVDRAT9LTM5W8S/Validation_Precision_Details.csv', header=None)
 f1_scores = f1_scores.to_numpy()
 dims = f1_scores.shape
 sum2 = np.zeros((100, 13))
@@ -67,9 +69,15 @@ plt.legend(legend_names)
 plt.grid()
 ax.xaxis.set_major_locator(MaxNLocator(integer=True))
 
-filename = "/mnt/Data/Cryo-ET/DeepET/data2/results/8VOVDRAT9LTM5W8S/Recall_100_Epochs.eps"
-# filename = "/mnt/Data/Cryo-ET/DeepET/data2/results/8VOVDRAT9LTM5W8S/F1 Score_100_Epochs.eps"
-# filename = "/mnt/Data/Cryo-ET/DeepET/data2/results/8VOVDRAT9LTM5W8S/Precision_100_Epochs.eps"
-plt.savefig(filename, format='eps', dpi=500, bbox_inches="tight")
+# filename1 = "/mnt/Data/Cryo-ET/DeepET/data2/results/8VOVDRAT9LTM5W8S/Recall_100_Epochs.eps"
+# filename2 = "/mnt/Data/Cryo-ET/DeepET/data2/results/8VOVDRAT9LTM5W8S/Recall_100_Epochs.png"
 
+# filename1 = "/mnt/Data/Cryo-ET/DeepET/data2/results/8VOVDRAT9LTM5W8S/F1 Score_100_Epochs.eps"
+# filename2 = "/mnt/Data/Cryo-ET/DeepET/data2/results/8VOVDRAT9LTM5W8S/F1 Score_100_Epochs.png"
+
+filename1 = "/mnt/Data/Cryo-ET/DeepET/data2/results/8VOVDRAT9LTM5W8S/Precision_100_Epochs.eps"
+filename2 = "/mnt/Data/Cryo-ET/DeepET/data2/results/8VOVDRAT9LTM5W8S/Precision_100_Epochs.png"
+
+plt.savefig(filename1, format='eps', dpi=500, bbox_inches="tight")
+plt.savefig(filename2, format='png', dpi=500, bbox_inches="tight")
 plt.show()

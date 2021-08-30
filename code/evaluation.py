@@ -121,6 +121,7 @@ class EvaluationWindow(QMainWindow):
 
         # plot the label map
         plot_vol(labels_tomo, self.output_path)
+        print("Segmentation Finished")
         sys.exit()
 
     def extract_patches(self):
@@ -194,9 +195,9 @@ class EvaluationWindow(QMainWindow):
         binned_labelmap = np.int8(np.argmax(binned_scoremap, axis=-1))
 
         # Save labelmaps:
-        scoremap_path = os.path.join(self.output_path, 'scoremap_tomo.mrc')
-        labelmap_path = os.path.join(self.output_path, 'tomo_labelmap.mrc')
-        binned_labelmap_path = os.path.join(self.output_path, 'tomo_binned_labelmap.mrc')
+        scoremap_path = os.path.join(self.output_path, 'segment/scoremap_tomo.mrc')
+        labelmap_path = os.path.join(self.output_path, 'segment/tomo_labelmap.mrc')
+        binned_labelmap_path = os.path.join(self.output_path, 'segment/tomo_binned_labelmap.mrc')
         write_mrc(scoremap_tomo, scoremap_path)
         write_mrc(labelmap_tomo, labelmap_path)
         write_mrc(binned_labelmap, binned_labelmap_path)
@@ -234,12 +235,14 @@ class EvaluationWindow(QMainWindow):
         s = 2
 
         # check the file exists
-        labelmap_path = os.path.join(self.output_path, "tomo_binned_labelmap.mrc")
+        labelmap_path = os.path.join(self.output_path, "segment/tomo_binned_labelmap.mrc")
         is_file(labelmap_path)
 
         binned_labelmap = read_mrc(labelmap_path)
         object_list = self.save_coordinates(binned_labelmap, radi, thr)
         self.scale_coordinates(object_list, (s, s, s))
+        print("Clustering Finished")
+        sys.exit()
 
     def save_coordinates(self, binned_labelmap, radi, thr):
         """
@@ -362,8 +365,8 @@ class EvaluationWindow(QMainWindow):
             for p in range(len(objlist_class)):
                 clean_objlist.append(objlist_class[p])
 
-        raw_ploc_path = os.path.join(self.output_path, 'tomo_objlist_raw.xml')
-        scaled_ploc_path = os.path.join(self.output_path, 'tomo_objlist_thr.xml')
+        raw_ploc_path = os.path.join(self.output_path, 'cluster/tomo_objlist_raw.xml')
+        scaled_ploc_path = os.path.join(self.output_path, 'cluster/tomo_objlist_thr.xml')
 
         write_xml(objlist, raw_ploc_path)
         write_xml(clean_objlist, scaled_ploc_path)
@@ -385,7 +388,7 @@ class EvaluationWindow(QMainWindow):
         clipped_ptls = 0
 
         # set paths
-        clean_objlist_path = os.path.join(self.output_path, 'tomo_objlist_thr.xml')
+        clean_objlist_path = os.path.join(self.output_path, 'cluster/tomo_objlist_thr.xml')
         clean_objlist = read_xml2(clean_objlist_path)
         gt_ptls_path = os.path.join(self.output_path, "particle_locations_model.txt")
         res_ptls_path = os.path.join(self.output_path, 'particle_locations_tomo.txt')
@@ -396,6 +399,7 @@ class EvaluationWindow(QMainWindow):
         is_file(gt_ptls_path)
         is_file(hitbox_path)
 
+        display("Evaluation started")
         # read the particle locations
         file = open(res_ptls_path, 'w')
         for p in range(len(clean_objlist)):
@@ -497,7 +501,7 @@ class EvaluationWindow(QMainWindow):
         cm.relabel(class_labels)
 
         # save results as a log file
-        log_path = os.path.join(self.output_path, 'evaluation_log.txt')
+        log_path = os.path.join(self.output_path, 'evaluate/evaluation_log.txt')
         with open(log_path, 'w') as f:
             with redirect_stdout(f):
                 print('EVALUATION results for localization')
@@ -518,23 +522,25 @@ class EvaluationWindow(QMainWindow):
                 print('\nEVALUATION results for classification')
                 print(cm)
 
-        cm.save_html(os.path.join(self.output_path, 'classification_log'))
-        cm.save_csv(os.path.join(self.output_path, 'classification_log'))
+        # cm.save_html(os.path.join(self.output_path, 'evaluate/classification_log'))
+        # cm.save_csv(os.path.join(self.output_path, 'evaluate/classification_log'))
         # save confusion matrix as a plot
-        cnf_matrix = confusion_matrix(gt_ptls_cls, pred_ptls_cls)
-
-        # plot normalized and non-normalized confusion matrix
-        plt.figure(num=1, figsize=(10, 10), dpi=150)
-        plot_confusion_matrix(cnf_matrix, classes=class_names, eps_dir=self.output_path)
-
-        plt.figure(num=2, figsize=(10, 10), dpi=150)
-        plot_confusion_matrix(cnf_matrix, classes=class_names, eps_dir=self.output_path, normalize=True)
+        # cnf_matrix = confusion_matrix(gt_ptls_cls, pred_ptls_cls)
+        # cnf_matrix = cnf_matrix[1:cnf_matrix.shape[0], 1:cnf_matrix.shape[1]]  # remove background class
+        # class_lbls = np.transpose(list(class_names.values()))
+        # class_lbls = class_lbls[1:len(class_lbls)]
+        # # # plot normalized and non-normalized confusion matrix
+        # # plt.figure(num=1, figsize=(10, 10), dpi=150)
+        # # plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path)
+        # #
+        # # plt.figure(num=2, figsize=(10, 10), dpi=150)
+        # plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path, normalize=True)
 
         # Plot all ROC curves
         # ROC curves are appropriate when the observations are balanced between each class ,
         # whereas precision-recall curves are appropriate for imbalanced datasets.
 
-        scoremap_path = os.path.join(self.output_path, 'scoremap_tomo.mrc')
+        scoremap_path = os.path.join(self.output_path, 'segment/scoremap_tomo.mrc')
         score_tomo = read_mrc(scoremap_path)
         mask_tomo = read_mrc(os.path.join(self.output_path, 'target_grandmodel_9.mrc'))
         mask_onehot = to_categorical(mask_tomo, self.num_class)
@@ -547,6 +553,7 @@ class EvaluationWindow(QMainWindow):
         plt.show()
 
         display("Evaluation finished")
+        sys.exit()
 
 
 if __name__ == "__main__":
