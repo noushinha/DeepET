@@ -13,7 +13,7 @@ import numpy as np
 import seaborn as sns
 from itertools import cycle, product
 import matplotlib.pyplot as plt
-from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import roc_curve, auc, precision_recall_curve
 from matplotlib.ticker import MaxNLocator
 from utils import params
 # Smoothing the plots
@@ -68,13 +68,13 @@ def plot_confusion_matrix(cm, classes,
     if not normalize:
         cf_nonnormalized_filename1 = os.path.join(eps_dir, "evaluate/NonNormalized_ConfMtrx" + ".eps")
         cf_nonnormalized_filename2 = os.path.join(eps_dir, "evaluate/NonNormalized_ConfMtrx" + ".png")
-        plt.savefig(cf_nonnormalized_filename1, format='eps', dpi=100, bbox_inches="tight")
-        plt.savefig(cf_nonnormalized_filename2, format='png', dpi=100, bbox_inches="tight")
+        plt.savefig(cf_nonnormalized_filename1, format='eps', dpi=300, bbox_inches="tight")
+        plt.savefig(cf_nonnormalized_filename2, format='png', dpi=300, bbox_inches="tight")
     else:
         cf_normalized_filename1 = os.path.join(eps_dir, "evaluate/Normalized_ConfMtrx" + ".eps")
         cf_normalized_filename2 = os.path.join(eps_dir, "evaluate/Normalized_ConfMtrx" + ".png")
-        plt.savefig(cf_normalized_filename1, format='eps', dpi=100, bbox_inches="tight")
-        plt.savefig(cf_normalized_filename2, format='png', dpi=100, bbox_inches="tight")
+        plt.savefig(cf_normalized_filename1, format='eps', dpi=300, bbox_inches="tight")
+        plt.savefig(cf_normalized_filename2, format='png', dpi=300, bbox_inches="tight")
 
 
 def plot_train_vs_vald(train_points, vald_points, eps_dir, epoch, is_loss=False):
@@ -124,6 +124,9 @@ def plot_roc(y_test, y_score, classes_num, eps_dir):
     tpr = dict()
     roc_auc = dict()
 
+
+    # y_test = y_test[1:y_test.shape[0], 1:y_test.shape[1]]
+    # y_score = y_test[1:y_score.shape[0], 1:y_score.shape[1]]
     # calculating auc, false positive rate and true positive rate for each class
     for i in range(classes_num):
         fpr[i], tpr[i], _ = roc_curve(y_test[:, i], y_score[:, i])
@@ -153,7 +156,7 @@ def plot_roc(y_test, y_score, classes_num, eps_dir):
     # micro_poly = np.polyfit(fpr["micro"], tpr["micro"], 5)
     # micro_poly_y = np.poly1d(micro_poly)(fpr["micro"])
     plt.plot(fpr["micro"], tpr["micro"],
-             label='micro-average ROC = {0:0.2f}'
+             label='micro ROC, (AUC = {0:0.2f})'
                    ''.format(roc_auc["micro"]),
              color='navy', linestyle=':', linewidth=1)
 
@@ -161,7 +164,7 @@ def plot_roc(y_test, y_score, classes_num, eps_dir):
     # macro_poly = np.polyfit(fpr["macro"], tpr["macro"], 5)
     # macro_poly_y = np.poly1d(macro_poly)(fpr["macro"])
     plt.plot(fpr["macro"], tpr["macro"],
-             label='macro-average ROC = {0:0.2f}'
+             label='macro ROC, (AUC = {0:0.2f})'
                    ''.format(roc_auc["macro"]),
              color='black', linestyle='-.', linewidth=lw)
 
@@ -170,7 +173,7 @@ def plot_roc(y_test, y_score, classes_num, eps_dir):
 
     for i, color in zip(range(classes_num), palette):
         plt.plot(fpr[i], tpr[i], color=color, lw=lw,
-                 label='class {cls} {arr}'
+                 label='class {cls} ROC, (AUC = {arr})'
                        ''.format(cls=params.class_names[i], arr=np.round(roc_auc[i],2)))
 
     plt.plot([0, 1], [0, 1], color='silver', linestyle='--', linewidth=lw)
@@ -179,12 +182,87 @@ def plot_roc(y_test, y_score, classes_num, eps_dir):
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
     plt.title('Receiver operating characteristic for each class')
-    plt.legend(loc="lower right")
+    plt.legend(loc="best")
     filename1 = os.path.join(eps_dir, "evaluate/Micro_Macro_Avg_ROC_Curve.eps")
     filename2 = os.path.join(eps_dir, "evaluate/Micro_Macro_Avg_ROC_Curve.png")
-    plt.savefig(filename1, format='eps', dpi=150, bbox_inches="tight")
-    plt.savefig(filename2, format='png', dpi=150, bbox_inches="tight")
+    plt.savefig(filename1, format='eps', dpi=300, bbox_inches="tight")
+    plt.savefig(filename2, format='png', dpi=300, bbox_inches="tight")
 
+
+def plot_recall_precision(y_test, y_score, classes_num, eps_dir):
+    """
+    This function plots precision Vs. Recall for multi-class classification.
+    One precision recall plot for each class, also it plots micro and macro ROCs.
+    """
+
+    # variable definition
+    lw=1
+    lr_recall = dict()
+    lr_precision = dict()
+    rp_auc = dict()
+
+    # calculating auc, recall and precision for each class
+    for i in range(classes_num):
+        lr_precision[i], lr_recall[i], _ = precision_recall_curve(y_test[:, i], y_score[:, i])
+        rp_auc[i] = auc(lr_recall[i], lr_precision[i])
+
+
+    # Compute micro-average ROC curve and ROC area
+    lr_precision["micro"], lr_recall["micro"], _ = precision_recall_curve(y_test.ravel(), y_score.ravel())
+    rp_auc["micro"] = auc(lr_recall["micro"], lr_precision["micro"])
+
+    # Compute macro-average ROC curve and ROC area
+    # First aggregate all false positive rates
+    all_recalls = np.unique(np.concatenate([lr_recall[i] for i in range(classes_num)]))
+
+    # Then interpolate all ROC curves at this points
+    mean_precisions = np.zeros_like(all_recalls)
+    for i in range(classes_num):
+        mean_precisions += np.interp(all_recalls, lr_recall[i], lr_precision[i])
+
+    # Finally average it and compute AUC
+    mean_precisions /= classes_num
+
+    lr_recall["macro"] = all_recalls
+    lr_precision["macro"] = mean_precisions
+    rp_auc["macro"] = auc(lr_recall["macro"], lr_precision["macro"])
+
+    # smoothing the micro roc curve
+    # micro_poly = np.polyfit(fpr["micro"], tpr["micro"], 5)
+    # micro_poly_y = np.poly1d(micro_poly)(fpr["micro"])
+    plt.plot(lr_recall["micro"], lr_precision["micro"],
+             label='micro, (AUC = {0:0.2f})'
+                   ''.format(rp_auc["micro"]),
+             color='navy', linestyle=':', linewidth=1)
+
+    # smoothing the macro roc curve
+    # macro_poly = np.polyfit(fpr["macro"], tpr["macro"], 5)
+    # macro_poly_y = np.poly1d(macro_poly)(fpr["macro"])
+    plt.plot(lr_recall["macro"], lr_precision["macro"],
+             label='macro, (AUC = {0:0.2f})'
+                   ''.format(rp_auc["macro"]),
+             color='black', linestyle='-.', linewidth=lw)
+
+    # colors = cycle(['aqua', 'darkorange', 'cornflowerblue'])
+    palette = cycle(sns.color_palette())
+
+    for i, color in zip(range(classes_num), palette):
+        plt.plot(lr_recall[i], lr_precision[i], color=color, lw=lw,
+                 label='class {cls}, (AUC = {arr})'
+                       ''.format(cls=params.class_names[i], arr=np.round(rp_auc[i], 2)))
+
+    no_skill = len(y_test[y_test == 1]) / len(y_test)
+    plt.plot([0, 1], [no_skill, no_skill], linestyle='--', label='No Skill')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('Recall')
+    plt.ylabel('Precision')
+    plt.title('Class-based Recall Precision Curve ')
+    plt.legend(loc="best")
+    filename1 = os.path.join(eps_dir, "evaluate/Recall_Precision_Curve.eps")
+    filename2 = os.path.join(eps_dir, "evaluate/Recall_Precision_Curve.png")
+    plt.savefig(filename1, format='eps', dpi=300, bbox_inches="tight")
+    plt.savefig(filename2, format='png', dpi=300, bbox_inches="tight")
 
 # plotting learning rate
 def plot_lr(lr_points, eps_dir, epoch):
@@ -200,7 +278,7 @@ def plot_lr(lr_points, eps_dir, epoch):
     plt.ylabel('Learning Rate')
     plt.legend()
     filename = os.path.join(eps_dir, "Learning_Rate_" + str(epoch) + "_Epochs.eps")
-    plt.savefig(filename, format='eps', dpi=500, bbox_inches="tight")
+    plt.savefig(filename, format='eps', dpi=300, bbox_inches="tight")
 
 
 def general_plot(data_points, eps_dir, axis_labels, class_names, epoch, plot_num):
@@ -219,7 +297,7 @@ def general_plot(data_points, eps_dir, axis_labels, class_names, epoch, plot_num
     ax.xaxis.set_major_locator(MaxNLocator(integer=True))
 
     filename = os.path.join(eps_dir, axis_labels[0] + "_" + str(epoch) + "_Epochs.eps")
-    plt.savefig(filename, format='eps', dpi=500, bbox_inches="tight")
+    plt.savefig(filename, format='eps', dpi=300, bbox_inches="tight")
 
     plt.show()
 
@@ -265,3 +343,7 @@ def plot_vol(vol_array, output_path):
     fig3.savefig(os.path.join(output_path, "segment/labelmap_zy_plane.png"))
     plt.show()
 
+
+
+# export PATH=/usr/local/cuda-11/bin${PATH:+:${PATH}}
+# export LD_LIBRARY_PATH=/usr/local/cuda/lib64 #${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}

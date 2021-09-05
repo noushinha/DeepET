@@ -20,7 +20,7 @@ from PyQt5.QtGui import QIcon
 from gui.evaluation import evaluation
 from gui.theme_style import *
 from utils.params import *
-from models import *
+from train_models import *
 from sklearn.cluster import MeanShift, KMeans
 from sklearn.metrics import confusion_matrix
 from PyQt5.QtWidgets import QRadioButton, QHBoxLayout, QGridLayout, QButtonGroup
@@ -460,7 +460,7 @@ class EvaluationWindow(QMainWindow):
 
             # check if there is a particle at that location (missed)
             if ptl == 0:
-                pred_ptls_num_hitcls['0'] += 1
+                pred_ptls_num_hitcls['bg'] += 1
                 continue
 
             # we consider indexing particles from 0, but the given hitbox indexed particles from 1 (0 does not exist)
@@ -508,7 +508,7 @@ class EvaluationWindow(QMainWindow):
                 print(f'Found {len(predicted_particles)} results')
                 print(
                     f'TP: {unique_particles_found} unique particles localized out of total {len(gt_ptls)} particles')
-                print(f'FP: {pred_ptls_num_hitcls["0"]} reported particles are false positives')
+                print(f'FP: {pred_ptls_num_hitcls["bg"]} reported particles are false positives')
                 print(f'FN: {unique_particles_not_found} unique particles not found')
                 if multiple_hits:
                     print(f'Note: there were {multiple_hits} unique particles that had more than one result')
@@ -522,19 +522,19 @@ class EvaluationWindow(QMainWindow):
                 print('\nEVALUATION results for classification')
                 print(cm)
 
-        # cm.save_html(os.path.join(self.output_path, 'evaluate/classification_log'))
-        # cm.save_csv(os.path.join(self.output_path, 'evaluate/classification_log'))
+        cm.save_html(os.path.join(self.output_path, 'evaluate/classification_log'))
+        cm.save_csv(os.path.join(self.output_path, 'evaluate/classification_log'))
         # save confusion matrix as a plot
-        # cnf_matrix = confusion_matrix(gt_ptls_cls, pred_ptls_cls)
-        # cnf_matrix = cnf_matrix[1:cnf_matrix.shape[0], 1:cnf_matrix.shape[1]]  # remove background class
-        # class_lbls = np.transpose(list(class_names.values()))
-        # class_lbls = class_lbls[1:len(class_lbls)]
-        # # # plot normalized and non-normalized confusion matrix
-        # # plt.figure(num=1, figsize=(10, 10), dpi=150)
-        # # plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path)
-        # #
-        # # plt.figure(num=2, figsize=(10, 10), dpi=150)
-        # plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path, normalize=True)
+        cnf_matrix = confusion_matrix(gt_ptls_cls, pred_ptls_cls)
+        cnf_matrix = cnf_matrix[1:cnf_matrix.shape[0], 1:cnf_matrix.shape[1]]  # remove background class
+        class_lbls = np.transpose(list(class_names.values()))
+        class_lbls = class_lbls[1:len(class_lbls)]
+        # # plot normalized and non-normalized confusion matrix
+        # plt.figure(num=1, figsize=(10, 10), dpi=150)
+        # plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path)
+        #
+        # plt.figure(num=2, figsize=(10, 10), dpi=150)
+        plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path, normalize=True)
 
         # Plot all ROC curves
         # ROC curves are appropriate when the observations are balanced between each class ,
@@ -550,6 +550,8 @@ class EvaluationWindow(QMainWindow):
                                            score_tomo.shape[2]), 13)
         plt.figure(num=3, figsize=(8, 6), dpi=80)
         plot_roc(mask_onehot, score_tomo, self.num_class, self.output_path)
+        plt.figure(num=4, figsize=(8, 6), dpi=80)
+        plot_recall_precision(mask_onehot, score_tomo, self.num_class, self.output_path)
         plt.show()
 
         display("Evaluation finished")

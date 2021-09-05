@@ -139,14 +139,18 @@ def read_xml2(filename):
 
     obj_list = []
     for p in range(len(objl_xml)):
-        objid = int(objl_xml[p].get('obj_id'))
-        tidx = int(objl_xml[p].get('tomo_idx'))
+        object_id = objl_xml[p].get('obj_id')
+        tomo_idx = objl_xml[p].get('tomo_idx')
         lbl = objl_xml[p].get('class_label')
         x = objl_xml[p].get('x')
         y = objl_xml[p].get('y')
         z = objl_xml[p].get('z')
 
-        add_obj(obj_list, tomo_idx=tidx, obj_id=objid, label=int(lbl), coord=(float(z), float(y), float(x)))
+        if object_id is not None:
+            object_id = int(object_id)
+        if tomo_idx is not None:
+            tomo_idx = int(tomo_idx)
+        add_obj(obj_list, tomo_idx=tomo_idx, obj_id=object_id, label=int(lbl), coord=(float(z), float(y), float(x)))
     return obj_list
 
 

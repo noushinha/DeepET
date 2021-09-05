@@ -9,11 +9,12 @@
 # License: GPL v3.0. See <https://www.gnu.org/licenses/>
 # ============================================================================================
 
+from train_models import *
 from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtGui import QIcon, QColor
 from gui.train import train
 from gui.theme_style import *
-from models import *
+
 from PyQt5.QtWidgets import QRadioButton, QHBoxLayout, QGridLayout, QButtonGroup
 # from PyQt5.QtCore import pyqtSignal, QObject
 
@@ -32,14 +33,13 @@ class TrainingWindow(QMainWindow):
         white_color = QColor(255, 255, 255)
         self.ui.textEdit.setTextColor(white_color)
 
-
         self.model_names = ["3D UNet", "YOLOv3", "R-CNN", "Mask R-CNN"]
-        self.loss_names = ["Binary", "Categorical", "Sparse", "tversky"]
+        self.loss_names = ["Dice", "Categorical", "Focal", "Focal tversky", "tversky"]
         self.opt_names = ["Adam", "SGD", "RMS Prop"]
 
         self.generate_model_radio_btns(4)
         self.generate_optimizer_radio_btns(3)
-        self.generate_loss_radio_btns(4)
+        self.generate_loss_radio_btns(5)
 
         self.ui.trainBtn.clicked.connect(self.start_train)
 
@@ -148,12 +148,14 @@ class TrainingWindow(QMainWindow):
         self.opt = radio_text
 
     def set_loss(self, radio_text):
-        if radio_text == "Binary":
-            self.loss = "binary_crossentropy"
+        if radio_text == "Dice":
+            self.loss = "dice_loss"
         elif radio_text == "Categorical":
             self.loss = "categorical_crossentropy"
-        elif radio_text == "Sparse":
-            self.loss = "sparse_categorical_crossentropy"
+        elif radio_text == "Focal":
+            self.loss = "focal_loss"
+        elif radio_text == "Focal tversky":
+            self.loss = "focal_tversky"
         elif radio_text == "tversky":
             self.loss = "tversky"
 

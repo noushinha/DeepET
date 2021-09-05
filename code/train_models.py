@@ -9,34 +9,28 @@
 # License: GPL v3.0. See <https://www.gnu.org/licenses/>
 # ============================================================================================
 import re
-import os
 import time
 import math
 import shutil
 import random
 import string
-from random import randrange
-
-import numpy as np
+# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+# from sklearn.model_selection import train_test_split
+import tensorflow.keras.optimizers.schedules
+from sklearn.metrics import precision_recall_fscore_support
 
 from utils.params import *
 from utils.plots import *
 from utils.utility_tools import *
 from utils.CyclicLR.clr_callback import CyclicLR
-from sklearn.metrics import precision_recall_fscore_support
+from utils.losses import *
+from utils.models import *
 
-# from tensorflow import keras
 from keras.optimizers import *
-from keras import Model, layers, metrics
-from keras import backend as bk
+from keras import metrics
 from keras.utils import to_categorical
 from keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
-# import tensorflow as tf
-# from sklearn.model_selection import train_test_split
-
-# from tensorflow.python.client import device_lib
-# print(device_lib.list_local_devices())
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+from keras import backend as bk
 
 
 class TrainModel:
@@ -66,15 +60,15 @@ class TrainModel:
         self.patches_masks = []
 
         # initialize values
+        self.obj = obj
         self.train_img_path = os.path.join(obj.base_path, "images/")
         self.train_target_path = os.path.join(obj.base_path, "targets/")
-        self.obj = obj  # the object we receive from the form
-        self.lr = self.obj.lr
-        self.initial_lr = self.obj.lr
-        self.width = self.obj.img_dim[0]
-        self.height = self.obj.img_dim[1]
-        if self.obj.dim_num > 2:
-            self.depth = self.obj.img_dim[2]
+        self.lr = obj.lr
+        self.initial_lr = obj.lr
+        self.width = obj.img_dim[0]
+        self.height = obj.img_dim[1]
+        if obj.dim_num > 2:
+            self.depth = obj.img_dim[2]
 
         # create output directory
         seednum = 2
@@ -222,9 +216,10 @@ class TrainModel:
         start = time.clock()
 
         # if you use size of generated tensor it would be more accurate and it will never throw error
-        steps_per_epoch = 2  # int(self.patches_tomos.shape[0] / self.obj.batch_size)
-        vald_steps_per_epoch = 2
+        steps_per_epoch = 100  # int(self.patches_tomos.shape[0] / self.obj.batch_size)
+        vald_steps_per_epoch = 10
         counter = 0
+
         for e in range(self.obj.epochs):
             print("################################################################################\n")
             self.lr = self.initial_lr
@@ -256,15 +251,17 @@ class TrainModel:
 
                 # train model on each batch
                 # set learning schedule
-                self.lr_type = "exp_decay"
-                self.set_lr(counter)
-                self.history_lr.append(self.lr)
-                bk.set_value(self.net.optimizer.learning_rate, self.lr)  # set new learning_rate
+                # self.lr_type = "exp_decay"
+                # self.set_lr(counter)
+                # self.history_lr.append(self.net.optimizer.learning_rate)
+                # bk.set_value(self.net.optimizer.learning_rate, self.lr)  # set new learning_rate
                 loss_train = self.net.train_on_batch(batch_tomo, batch_mask, class_weight=self.model_weight)
 
                 # ['loss', 'acc', 'precision', 'recall', 'auc']
-                display('epoch %d/%d - b %d/%d - loss: %0.3f - acc: %0.3f' % (e + 1, self.obj.epochs, b + 1,
-                                                                              steps_per_epoch, loss_train[0], loss_train[1]))
+                display('epoch %d/%d - b %d/%d - loss: %0.3f - acc: %0.3f - lr: %0.8f' % (e + 1, self.obj.epochs,
+                                                                                          b + 1, steps_per_epoch,
+                                                                                          loss_train[0], loss_train[1],
+                                                                                          self.net.optimizer.learning_rate))
                 list_train_loss.append(loss_train[0])
                 list_train_acc.append(loss_train[1])
                 counter = counter + 1
@@ -280,9 +277,9 @@ class TrainModel:
                                                          labels=label_list, zero_division=0)
                 print("val. loss: {vl}, val acc: {va}".format(vl=loss_val[0],
                                                               va=loss_val[1]))
-                print("F1 Score : {f1s}, \n Recall: {res}, \n Precision: {prs}".format(f1s=scores[2],
-                                                                                       res=scores[1],
-                                                                                       prs=scores[0]))
+                print("F1 Score : {f1s}, \n Recall: {res}, \n Precision: {prs}".format(f1s=np.round(scores[2], 2),
+                                                                                       res=np.round(scores[1], 2),
+                                                                                       prs=np.round(scores[0], 2)))
                 list_vald_loss.append(loss_val[0])
                 list_vald_acc.append(loss_val[1])
                 list_f1_score.append(scores[2])
@@ -301,7 +298,7 @@ class TrainModel:
             if (e + 1) % 10 == 0:
                 self.set_weight_callback(e + 1)
         self.save_history()
-
+        self.net.save(self.obj.output_path + 'model_final_weights.h5')
         end = time.clock()
         self.process_time = (end - start)
         display(self.process_time)
@@ -452,8 +449,8 @@ class TrainModel:
             text_file.write(hyperparameter_setting)
         print(hyperparameter_setting)
 
-        shutil.copyfile(os.path.join(ROOT_DIR, "code/models.py"),
-                        os.path.join(self.output_path, "models.txt"))
+        shutil.copyfile(os.path.join(ROOT_DIR, "code/train_models.py"),
+                        os.path.join(self.output_path, "train_models.txt"))
 
     def set_optimizer(self):
         self.optimizer = Adam(lr=self.lr, beta_1=.9, beta_2=.999, epsilon=1e-08, decay=0.0)
@@ -472,34 +469,37 @@ class TrainModel:
             self.optimizer = RMSprop(lr=self.lr, rho=0.9, epsilon=1e-08, decay=0.0)
 
     # learning rate schedule
-    def lr_decay_step(self, counter):
-        self.lr = self.initial_lr * math.pow(.25, math.floor((1 + counter) / 2))
+    def lr_decay_step(self, epoch):
+        self.lr = self.initial_lr * math.pow(.25, math.floor((1 + epoch) / 2))
 
-    def lr_decay_exp(self, counter):
+    def lr_decay_exp(self, epoch):
         # compute the learning rate for the current epoch
-        exp = np.floor((1 + counter) / 2)
+        exp = np.floor((1 + epoch) / 2)
         self.lr = self.initial_lr * (.25 ** exp)
 
-    def lr_decay_poly(self, counter):
-        decay = (1 - (counter / float(100))) ** 1.0
+    def lr_decay_poly(self, epoch):
+        decay = (1 - (epoch / float(100))) ** 1.0
         self.lr = self.initial_lr * decay
 
-    def set_lr(self, counter):
+    def set_lr(self, epoch):
         """schedule learning rate decay using different methods
         step Decay: drops learning rate by a factor as a step function
         exp decay: drops learning rate exponentially
         poly decay: drops learning rate by a polynomial function
         cyclic: drops learning rate by a cyclic method"""
 
-        ReduceLROnPlateau(monitor='val_loss', factor=0.25, patience=10, min_lr=1e-06, mode='min', verbose=1)
         if self.lr_type == "step_decay":
-            LearningRateScheduler(self.lr_decay_step(counter))
+            LearningRateScheduler(self.lr_decay_step(epoch))
         elif self.lr_type == "exp_decay":
-            LearningRateScheduler(self.lr_decay_exp(counter))
-        elif self.lr_type == "poly_decay":
-            LearningRateScheduler(self.lr_decay_poly(counter))
+            LearningRateScheduler(self.lr_decay_exp(epoch))
+            # tensorflow.keras.optimizers.schedules.ExponentialDecay(self.initial_lr, decay_steps=10,
+            #                                                        decay_rate=0.75, staircase=True)
+        elif self.lr_type== "poly_decay":
+            LearningRateScheduler(self.lr_decay_poly(epoch))
         elif self.lr_type == "cyclic":
             CyclicLR(base_lr=self.initial_lr, max_lr=6e-04, step_size=500., mode='exp_range', gamma=0.99994)
+        else:
+            ReduceLROnPlateau(monitor='val_loss', factor=0.25, patience=10, min_lr=1e-06, mode='min', verbose=1)
 
     def set_compile(self):
         # self.obj.metrics = ['accuracy', self.lr]
@@ -511,12 +511,17 @@ class TrainModel:
                             metrics.Precision(name='precision'),
                             metrics.Recall(name='recall'),
                             metrics.AUC(name='auc')]
-        self.net.compile(optimizer=self.optimizer, loss="categorical_crossentropy", metrics=['accuracy'])
-        # if self.obj.loss != "tversky":
-        #     self.net.compile(optimizer=self.optimizer, loss=self.obj.loss, metrics=[self.obj.metrics])
-        # else:
-        #     self.net.compile(optimizer=self.optimizer, loss=self.tversky_loss, metrics=[self.obj.metrics])
-
+        # s = Semantic_loss_functions()
+        if self.obj.loss == "tversky":
+            self.net.compile(optimizer=self.optimizer, loss=s.tversky_loss, metrics=['accuracy'])
+        elif self.obj.loss == "focal_loss":
+            self.net.compile(optimizer=self.optimizer, loss=s.focal_loss, metrics=['accuracy'])
+        elif self.obj.loss == "dice_loss":
+            self.net.compile(optimizer=self.optimizer, loss=s.dice_loss, metrics=['accuracy'])
+        elif self.obj.loss == "focal_tversky":
+            self.net.compile(optimizer=self.optimizer, loss=s.focal_tversky, metrics=['accuracy'])
+        else:
+            self.net.compile(optimizer=self.optimizer, loss="categorical_crossentropy", metrics=['accuracy'])
 
     def set_weight_callback(self, e):
         # checkpoint directory
@@ -549,111 +554,4 @@ class TrainModel:
         setting_info = setting_info + "\nProcess Time in seconds = " + str(self.process_time)
         return setting_info
 
-    def tversky_loss(self, y_true, y_pred):
-        alpha = 0.5
-        beta = 0.5
 
-        ones = bk.ones(bk.shape(y_true))
-        p0 = y_pred  # proba that voxels are class i
-        p1 = ones - y_pred  # proba that voxels are not class i
-        g0 = y_true
-        g1 = ones - y_true
-
-        num = bk.sum(p0 * g0, (0, 1, 2, 3))
-        den = num + alpha * bk.sum(p0 * g1, (0, 1, 2, 3)) + beta * bk.sum(p1 * g0, (0, 1, 2, 3))
-
-        t_sum = bk.sum(num / den)  # when summing over classes, T has dynamic range [0 Ncl]
-
-        num_classes = bk.cast(bk.shape(y_true)[-1], 'float32')
-        return num_classes - t_sum
-
-class CNNModels:
-    def unet2d(self, input_shape, class_num):
-        # The original 2D UNET mdoel
-        input_img = layers.Input(shape=(input_shape[0], input_shape[1], 1))
-
-        # down-sampling part of the network
-        x = layers.Conv2D(32, 3, strides=2, padding="same")(input_img)
-        x = layers.BatchNormalization()(x)
-        x = layers.Activation("relu")(x)
-
-        previous_block_activation = x  # Set aside residual
-
-        # Blocks 1, 2, 3 are identical apart from the feature depth.
-        for filters in [64, 128, 256]:
-            x = layers.Activation("relu")(x)
-            x = layers.SeparableConv2D(filters, 3, padding="same")(x)
-            x = layers.BatchNormalization()(x)
-
-            x = layers.Activation("relu")(x)
-            x = layers.SeparableConv2D(filters, 3, padding="same")(x)
-            x = layers.BatchNormalization()(x)
-
-            x = layers.MaxPooling2D(3, strides=2, padding="same")(x)
-
-            # Project residual
-            residual = layers.Conv2D(filters, 1, strides=2, padding="same")(previous_block_activation)
-            x = layers.add([x, residual])  # Add back residual
-            previous_block_activation = x  # Set aside next residual
-
-        # up-sampling part of the network
-        for filters in [256, 128, 64, 32]:
-            x = layers.Activation("relu")(x)
-            x = layers.Conv2DTranspose(filters, 3, padding="same")(x)
-            x = layers.BatchNormalization()(x)
-
-            x = layers.Activation("relu")(x)
-            x = layers.Conv2DTranspose(filters, 3, padding="same")(x)
-            x = layers.BatchNormalization()(x)
-
-            x = layers.UpSampling2D(2)(x)
-
-            # Project residual
-            residual = layers.UpSampling2D(2)(previous_block_activation)
-            residual = layers.Conv2D(filters, 1, padding="same")(residual)
-            x = layers.add([x, residual])  # Add back residual
-            previous_block_activation = x  # Set aside next residual
-
-        # Add a per-pixel classification layer
-        outputs = layers.Conv2D(class_num, 3, activation="softmax", padding="same")(x)
-
-        # Define the model
-        self.net = Model(input_img, outputs)
-
-    def unet3d(self, input_shape, class_num):
-        # The UNET model from DeepFinder
-        input_img = layers.Input(shape=(input_shape[0], input_shape[1], input_shape[2], 1))
-
-        x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(input_img)
-        high = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(x)
-
-        x = layers.MaxPooling3D((2, 2, 2), strides=None)(high)
-
-        x = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu')(x)
-        mid = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu')(x)
-
-        x = layers.MaxPooling3D((2, 2, 2), strides=None)(mid)
-
-        x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
-        x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
-        x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
-        x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
-
-        x = layers.UpSampling3D(size=(2, 2, 2), data_format='channels_last')(x)
-        x = layers.Conv3D(64, (2, 2, 2), padding='same', activation='relu')(x)
-
-        x = layers.concatenate([x, mid])
-        x = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu')(x)
-        x = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu')(x)
-
-        x = layers.UpSampling3D(size=(2, 2, 2), data_format='channels_last')(x)
-        x = layers.Conv3D(48, (2, 2, 2), padding='same', activation='relu')(x)
-
-        x = layers.concatenate([x, high])
-        x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(x)
-        x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(x)
-
-        output = layers.Conv3D(class_num, (1, 1, 1), padding='same', activation='softmax')(x)
-
-        model = Model(input_img, output)
-        return model
