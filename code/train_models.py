@@ -15,7 +15,8 @@ import shutil
 import random
 import string
 # os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-# from sklearn.model_selection import train_test_split
+import numpy as np
+from sklearn.model_selection import train_test_split
 import tensorflow.keras.optimizers.schedules
 from sklearn.metrics import precision_recall_fscore_support
 
@@ -216,8 +217,8 @@ class TrainModel:
         start = time.clock()
 
         # if you use size of generated tensor it would be more accurate and it will never throw error
-        steps_per_epoch = 100  # int(self.patches_tomos.shape[0] / self.obj.batch_size)
-        vald_steps_per_epoch = 10
+        steps_per_epoch = 2  # int(self.patches_tomos.shape[0] / self.obj.batch_size)
+        vald_steps_per_epoch = 2
         counter = 0
 
         for e in range(self.obj.epochs):
@@ -233,9 +234,12 @@ class TrainModel:
 
             # steps per epoch
             for b in range(steps_per_epoch):
+                flag_new_epoch = False
                 # fetch the current batch of patches
-                batch_tomo, batch_mask = self.fetch_batch(e, bsize=self.obj.batch_size)
-
+                if b == 0:
+                    flag_new_epoch = True
+                batch_tomo, batch_mask = self.fetch_batch(e, b, self.obj.batch_size, flag_new_epoch, "Train")
+                # batch_tomo, batch_mask = self.fetch_batch(e, bsize=self.obj.batch_size)
                 # Split the data to train and validation (it shuffles the data so the order of patches is not the same )
                 # x_train, x_vald, y_train, y_vald = train_test_split(batch_tomo, batch_mask,
                 #                                                     test_size=0.2, shuffle=False)
@@ -258,15 +262,15 @@ class TrainModel:
                 loss_train = self.net.train_on_batch(batch_tomo, batch_mask, class_weight=self.model_weight)
 
                 # ['loss', 'acc', 'precision', 'recall', 'auc']
-                display('epoch %d/%d - b %d/%d - loss: %0.3f - acc: %0.3f - lr: %0.8f' % (e + 1, self.obj.epochs,
+                display('epoch %d/%d - b %d/%d - loss: %0.3f - acc: %0.3f' % (e + 1, self.obj.epochs,
                                                                                           b + 1, steps_per_epoch,
-                                                                                          loss_train[0], loss_train[1],
-                                                                                          self.net.optimizer.learning_rate))
+                                                                                          loss_train[0], loss_train[1]))
                 list_train_loss.append(loss_train[0])
                 list_train_acc.append(loss_train[1])
                 counter = counter + 1
             for d in range(vald_steps_per_epoch):
-                batch_tomo_vald, batch_mask_vald = self.fetch_batch(e, bsize=self.obj.batch_size)
+                batch_tomo_vald, batch_mask_vald = self.fetch_batch(e, d, self.obj.batch_size, False, "Valid")
+                # batch_tomo_vald, batch_mask_vald = self.fetch_batch(e, bsize=self.obj.batch_size)
 
                 # evaluate trained model on the validation set
                 loss_val = self.net.evaluate(batch_tomo_vald, batch_mask_vald, verbose=0)
@@ -323,13 +327,22 @@ class TrainModel:
         class_idx = np.concatenate(class_idx)
         return class_idx
 
-    def fetch_batch(self, e, bsize):
+    def fetch_batch(self, e, b, bsize, flag_new_epoch, flag_new_batch):
         """
         this function fetches the patches from the current tomo based on the batch index
         """
-        # bstart = self.batch_idx * self.obj.batch_size
-        # bend = (self.batch_idx * self.obj.batch_size) + self.obj.batch_size
-        mid_dim = np.int(np.floor(self.obj.patch_size / 2))
+        bstart = b * self.obj.batch_size
+        bend = (b * self.obj.batch_size) + self.obj.batch_size
+        mid_dim = int(np.floor(self.obj.patch_size / 2))
+        total_num_samples = len(self.list_annotations)
+        num_train_samples = int(np.round(len(self.list_annotations) * .9))
+        # num_valid_samples = len(self.list_annotations) - num_train_samples
+        if flag_new_epoch:
+            # shuffle list of all samples so in the new epoch we get different train and valid samples
+            random.shuffle(self.list_annotations)
+            self.train_samples = self.list_annotations[0:num_train_samples]
+            self.valid_samples = self.list_annotations[num_train_samples:-1]
+
 
         batch_tomo = np.zeros((bsize, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, 1))
         batch_mask = np.zeros((bsize, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, self.obj.classNum))
@@ -337,26 +350,29 @@ class TrainModel:
         balanced_data_flag = False
         flag_save = False
 
-        if balanced_data_flag:
-            obj_list = self.get_balance_data(self.list_annotations, bsize)
-        else:
-            obj_list = range(0, len(self.list_annotations))
-
-        for i in range(bsize):
-            if balanced_data_flag:
-                idx = i
+        # if balanced_data_flag:
+        #     obj_list = self.get_balance_data(self.list_annotations, bsize)
+        # else:
+        #     obj_list = range(0, len(self.list_annotations))
+        cnt = 0
+        for i in range(bstart, bend):
+            # if balanced_data_flag:
+            #     idx = i
+            # else:
+            #     # choose random sample in training set:
+            #     idx = np.random.choice(obj_list)
+            if flag_new_batch == "Train":
+                list = self.train_samples
             else:
-                # choose random sample in training set:
-                idx = np.random.choice(obj_list)
+                list = self.valid_samples
 
-            tomo_idx = int(self.list_annotations[idx]['tomo_idx'])
+            tomo_idx = int(list[i]['tomo_idx'])
 
             sample_tomo = self.patches_tomos[tomo_idx]
             sample_mask = self.patches_masks[tomo_idx]
 
             # Get patch position:
-            x, y, z = get_patch_position(self.patches_tomos[tomo_idx].shape, mid_dim,
-                                         self.list_annotations[idx], 13)
+            x, y, z = get_patch_position(self.patches_tomos[tomo_idx].shape, mid_dim, list[i], 13)
 
             # extract the patch:
             patch_tomo = sample_tomo[z - mid_dim:z + mid_dim, y - mid_dim:y + mid_dim, x - mid_dim:x + mid_dim]
@@ -372,8 +388,9 @@ class TrainModel:
             # convert to categorical labels
             patch_mask_onehot = to_categorical(patch_mask, self.obj.classNum)
 
-            batch_tomo[i, :, :, :, 0] = patch_tomo
-            batch_mask[i] = patch_mask_onehot
+            batch_tomo[cnt, :, :, :, 0] = patch_tomo
+            batch_mask[cnt] = patch_mask_onehot
+            cnt = cnt + 1
 
         return batch_tomo, batch_mask
 
@@ -511,7 +528,7 @@ class TrainModel:
                             metrics.Precision(name='precision'),
                             metrics.Recall(name='recall'),
                             metrics.AUC(name='auc')]
-        # s = Semantic_loss_functions()
+        s = Semantic_loss_functions()
         if self.obj.loss == "tversky":
             self.net.compile(optimizer=self.optimizer, loss=s.tversky_loss, metrics=['accuracy'])
         elif self.obj.loss == "focal_loss":
