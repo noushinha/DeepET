@@ -36,5 +36,4 @@ class_names = {0: "bg", 1: "1bxn", 2: "1qvr", 3: "1s3x", 4: "1u6g", 5: "2cg9", 6
                7: "3d2f", 8: "3gl1", 9: "3h84", 10: "3qm1", 11: "4b4t", 12: "4d8q"}
 reversed_class_names = OrderedDict({"bg": 0, "1bxn": 1, "1qvr": 2, "1s3x": 3, "1u6g": 4, "2cg9": 5, "3cf3": 6,
                                     "3d2f": 7, "3gl1": 8, "3h84": 9, "3qm1": 10, "4b4t": 11, "4d8q": 12})
-# ROOT_DIR =  '/mnt/Data/Cryo-ET/DeepTomo/'
-# ROOT_DIR = "C:\\Users\\Asus\\Desktop\\DeepTomo"
+class_radius = [6, 6, 3, 6, 6, 7, 6, 4, 4, 3, 10, 8]

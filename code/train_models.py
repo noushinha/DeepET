@@ -31,7 +31,7 @@ from keras.optimizers import *
 from keras import metrics
 from keras.utils import to_categorical
 from keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
-from keras import backend as bk
+import keras.backend as K
 
 
 class TrainModel:
@@ -62,6 +62,7 @@ class TrainModel:
 
         # initialize values
         self.obj = obj
+        print(self.obj.loss)
         self.train_img_path = os.path.join(obj.base_path, "images/")
         self.train_target_path = os.path.join(obj.base_path, "targets/")
         self.lr = obj.lr
@@ -217,11 +218,12 @@ class TrainModel:
         start = time.clock()
 
         # if you use size of generated tensor it would be more accurate and it will never throw error
-        steps_per_epoch = 2  # int(self.patches_tomos.shape[0] / self.obj.batch_size)
-        vald_steps_per_epoch = 2
+        steps_per_epoch = 717  # int(self.patches_tomos.shape[0] / self.obj.batch_size)
+        vald_steps_per_epoch = 79
         counter = 0
 
         for e in range(self.obj.epochs):
+            flag_new_epoch = True
             print("################################################################################\n")
             self.lr = self.initial_lr
             list_train_loss = []
@@ -231,13 +233,13 @@ class TrainModel:
             list_f1_score = []
             list_recall = []
             list_precision = []
+            list_lr = []
 
             # steps per epoch
             for b in range(steps_per_epoch):
-                flag_new_epoch = False
                 # fetch the current batch of patches
-                if b == 0:
-                    flag_new_epoch = True
+                if b != 0:
+                    flag_new_epoch = False
                 batch_tomo, batch_mask = self.fetch_batch(e, b, self.obj.batch_size, flag_new_epoch, "Train")
                 # batch_tomo, batch_mask = self.fetch_batch(e, bsize=self.obj.batch_size)
                 # Split the data to train and validation (it shuffles the data so the order of patches is not the same )
@@ -256,26 +258,35 @@ class TrainModel:
                 # train model on each batch
                 # set learning schedule
                 # self.lr_type = "exp_decay"
-                # self.set_lr(counter)
-                # self.history_lr.append(self.net.optimizer.learning_rate)
-                # bk.set_value(self.net.optimizer.learning_rate, self.lr)  # set new learning_rate
+                # set the learning rate function
+
+                # assign the newly calculated learning_rate
+                op_lr = K.eval(self.net.optimizer.lr)
+                # self.set_lr(e)
+                # K.set_value(self.net.optimizer.lr, self.lr)
+
+                list_lr.append(op_lr)
                 loss_train = self.net.train_on_batch(batch_tomo, batch_mask, class_weight=self.model_weight)
 
                 # ['loss', 'acc', 'precision', 'recall', 'auc']
-                display('epoch %d/%d - b %d/%d - loss: %0.3f - acc: %0.3f' % (e + 1, self.obj.epochs,
+                display('epoch %d/%d - b %d/%d - loss: %0.3f - acc: %0.3f - lr: %0.8f' % (e + 1, self.obj.epochs,
                                                                                           b + 1, steps_per_epoch,
-                                                                                          loss_train[0], loss_train[1]))
+                                                                                          loss_train[0], loss_train[1],
+                                                                                          op_lr))
                 list_train_loss.append(loss_train[0])
                 list_train_acc.append(loss_train[1])
                 counter = counter + 1
             for d in range(vald_steps_per_epoch):
-                batch_tomo_vald, batch_mask_vald = self.fetch_batch(e, d, self.obj.batch_size, False, "Valid")
+                batch_tomo_vald, batch_mask_vald = self.fetch_batch(e, d, self.obj.batch_size, False, "Validation")
                 # batch_tomo_vald, batch_mask_vald = self.fetch_batch(e, bsize=self.obj.batch_size)
 
                 # evaluate trained model on the validation set
                 loss_val = self.net.evaluate(batch_tomo_vald, batch_mask_vald, verbose=0)
                 batch_pred = self.net.predict(batch_tomo_vald)
-
+                print("--------------")
+                print(np.unique(np.argmax(batch_mask_vald, 4)))
+                print(np.unique(np.argmax(batch_pred, 4)))
+                print("--------------")
                 scores = precision_recall_fscore_support(batch_mask_vald.argmax(axis=-1).flatten(),
                                                          batch_pred.argmax(axis=-1).flatten(), average=None,
                                                          labels=label_list, zero_division=0)
@@ -291,6 +302,7 @@ class TrainModel:
                 list_precision.append(scores[0])
 
             self.history_train_loss.append(list_train_loss)
+            self.history_lr.append(list_lr)
             self.history_train_acc.append(list_train_acc)
             self.history_vald_loss.append(list_vald_loss)
             self.history_vald_acc.append(list_vald_acc)
@@ -328,11 +340,15 @@ class TrainModel:
         return class_idx
 
     def fetch_batch(self, e, b, bsize, flag_new_epoch, flag_new_batch):
+    # def fetch_batch(self, e, bsize):
         """
         this function fetches the patches from the current tomo based on the batch index
         """
         bstart = b * self.obj.batch_size
         bend = (b * self.obj.batch_size) + self.obj.batch_size
+        print("**********************" + flag_new_batch + "***************************")
+        print("start indx: {strt}, end indx: {stpt}".format(strt=bstart, stpt=bend))
+        print("**********************" + flag_new_batch + "***************************")
         mid_dim = int(np.floor(self.obj.patch_size / 2))
         total_num_samples = len(self.list_annotations)
         num_train_samples = int(np.round(len(self.list_annotations) * .9))
@@ -342,7 +358,6 @@ class TrainModel:
             random.shuffle(self.list_annotations)
             self.train_samples = self.list_annotations[0:num_train_samples]
             self.valid_samples = self.list_annotations[num_train_samples:-1]
-
 
         batch_tomo = np.zeros((bsize, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, 1))
         batch_mask = np.zeros((bsize, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, self.obj.classNum))
@@ -355,25 +370,26 @@ class TrainModel:
         # else:
         #     obj_list = range(0, len(self.list_annotations))
         cnt = 0
-        for i in range(bstart, bend):
+        # for i in range(bstart, bend):
+        for i in range(bsize):
             # if balanced_data_flag:
             #     idx = i
             # else:
             #     # choose random sample in training set:
-            #     idx = np.random.choice(obj_list)
+            # idx = np.random.choice(obj_list)
             if flag_new_batch == "Train":
                 list = self.train_samples
             else:
                 list = self.valid_samples
 
             tomo_idx = int(list[i]['tomo_idx'])
-
+            # tomo_idx = int(self.list_annotations[idx]['tomo_idx'])
             sample_tomo = self.patches_tomos[tomo_idx]
             sample_mask = self.patches_masks[tomo_idx]
 
             # Get patch position:
+            # x, y, z = get_patch_position(self.patches_tomos[tomo_idx].shape, mid_dim, self.list_annotations[idx], 13)
             x, y, z = get_patch_position(self.patches_tomos[tomo_idx].shape, mid_dim, list[i], 13)
-
             # extract the patch:
             patch_tomo = sample_tomo[z - mid_dim:z + mid_dim, y - mid_dim:y + mid_dim, x - mid_dim:x + mid_dim]
             # if 2 <= e <= 20 and flag_save:
@@ -387,16 +403,20 @@ class TrainModel:
 
             # convert to categorical labels
             patch_mask_onehot = to_categorical(patch_mask, self.obj.classNum)
-
+            # print(np.unique(np.argmax(patch_mask_onehot, 3)))
             batch_tomo[cnt, :, :, :, 0] = patch_tomo
             batch_mask[cnt] = patch_mask_onehot
+
+            if np.random.uniform() < 0.5:
+                batch_tomo[cnt] = np.rot90(batch_tomo[cnt], k=2, axes=(0, 2))
+                batch_mask[cnt] = np.rot90(batch_mask[cnt], k=2, axes=(0, 2))
             cnt = cnt + 1
 
         return batch_tomo, batch_mask
 
-    def realtime_output(self, newstr):
-        self.printstr = self.printstr + newstr
-        self.obj.ui.textEdit.setText(self.printstr)
+    # def realtime_output(self, newstr):
+    #     self.printstr = self.printstr + newstr
+    #     self.obj.ui.textEdit.setText(self.printstr)
 
     def print_history(self, history):
         printstr = ""
@@ -489,10 +509,11 @@ class TrainModel:
     def lr_decay_step(self, epoch):
         self.lr = self.initial_lr * math.pow(.25, math.floor((1 + epoch) / 2))
 
-    def lr_decay_exp(self, epoch):
+    def lr_decay_exp(self, epoch, lr):
         # compute the learning rate for the current epoch
         exp = np.floor((1 + epoch) / 2)
         self.lr = self.initial_lr * (.25 ** exp)
+        # return self.initial_lr * (.25 ** exp)
 
     def lr_decay_poly(self, epoch):
         decay = (1 - (epoch / float(100))) ** 1.0
@@ -509,14 +530,12 @@ class TrainModel:
             LearningRateScheduler(self.lr_decay_step(epoch))
         elif self.lr_type == "exp_decay":
             LearningRateScheduler(self.lr_decay_exp(epoch))
-            # tensorflow.keras.optimizers.schedules.ExponentialDecay(self.initial_lr, decay_steps=10,
-            #                                                        decay_rate=0.75, staircase=True)
         elif self.lr_type== "poly_decay":
             LearningRateScheduler(self.lr_decay_poly(epoch))
         elif self.lr_type == "cyclic":
             CyclicLR(base_lr=self.initial_lr, max_lr=6e-04, step_size=500., mode='exp_range', gamma=0.99994)
         else:
-            ReduceLROnPlateau(monitor='val_loss', factor=0.25, patience=10, min_lr=1e-06, mode='min', verbose=1)
+            ReduceLROnPlateau(monitor='val_loss', factor=0.25, patience=1, min_lr=1e-07, mode='min', verbose=1)
 
     def set_compile(self):
         # self.obj.metrics = ['accuracy', self.lr]
@@ -567,7 +586,7 @@ class TrainModel:
         setting_info = setting_info + "\nValidation loss = " + str(np.mean(self.vald_loss))
         setting_info = setting_info + "\nLoss Function = " + str(self.obj.loss)
         setting_info = setting_info + "\nOptimizer = " + str(self.obj.opt)
-        setting_info = setting_info + "\nDecay Function = " + str(self.obj.opt)
+        setting_info = setting_info + "\nDecay Function = " + str(self.lr_type)
         setting_info = setting_info + "\nProcess Time in seconds = " + str(self.process_time)
         return setting_info
 

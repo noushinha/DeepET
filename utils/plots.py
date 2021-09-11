@@ -55,7 +55,7 @@ def plot_confusion_matrix(cm, classes,
     plt.xticks(tick_marks, classes, rotation=45)
     plt.yticks(tick_marks, classes)
 
-    fmt = '.2f' if normalize else 'd'
+    fmt = '.2f' if normalize else '.0f'
     thresh = cm.max() / 2.
     for i, j in product(range(cm.shape[0]), range(cm.shape[1])):
         plt.text(j, i, format(cm[i, j], fmt),
@@ -313,9 +313,9 @@ def plot_vol(vol_array, output_path):
     """
 
     # Get central slices along each dimension:
-    zindx = np.int(np.round(vol_array.shape[0]/2))
-    yindx = np.int(np.round(vol_array.shape[1]/2))
-    xindx = np.int(np.round(vol_array.shape[2]/2))
+    zindx = int(np.round(vol_array.shape[0]/2))
+    yindx = int(np.round(vol_array.shape[1]/2))
+    xindx = int(np.round(vol_array.shape[2]/2))
 
     xy_slice = vol_array[zindx, :, :]  # the xy plane
     zx_slice = vol_array[:, yindx, :]  # the zx plane

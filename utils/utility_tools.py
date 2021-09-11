@@ -16,6 +16,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from gui import theme_style
 from lxml import etree
+from utils.params import *
+
 
 def display(message):
     print(message)
@@ -29,14 +31,15 @@ def is_list(listl, var):
 
 def is_3D(arr, var):
     if type(arr) != np.ndarray or len(arr.shape) != 3:
-        theme_style.display_message('variable "' + var + '" is ' + str(len(arr.shape)) + str(type(arr)) + '. 3D Numpy array is expected.')
+        theme_style.display_message(
+            'variable "' + var + '" is ' + str(len(arr.shape)) + str(type(arr)) + '. 3D Numpy array is expected.')
         sys.exit()
 
 
 def is_empty(arr, var):
-   if arr.size == 0:
-       theme_style.display_message('array "' + var + '" is empty. Non empty array is expected.')
-       sys.exit()
+    if arr.size == 0:
+        theme_style.display_message('array "' + var + '" is empty. Non empty array is expected.')
+        sys.exit()
 
 
 def is_file(filename):
@@ -58,7 +61,7 @@ def is_dir(dirpath):
 
 
 def is_int(num, var):
-    if type(num)!=int and type(num)!=np.int8 and type(num)!=np.int16:
+    if type(num) != int and type(num) != np.int8 and type(num) != np.int16:
         theme_style.display_message('variable "' + var + '" is ' + str(type(num)) + '. An integer is required.')
         sys.exit()
 
@@ -66,7 +69,7 @@ def is_int(num, var):
 def is_positive(num, var):
     is_int(num, var)
     if num <= 0:
-        theme_style.display_message('variable "'+var+'" is negative. positive value is required.')
+        theme_style.display_message('variable "' + var + '" is negative. positive value is required.')
         sys.exit()
 
 
@@ -121,7 +124,7 @@ def read_xml(filename):
     firstchild = root.getchildren()[0]
     all_attributes = list(firstchild.iter())
     cols = [element.tag for element in all_attributes]
-    cols = cols[1:] # drop the first tag name because it is the name of the child itself and not the attributes
+    cols = cols[1:]  # drop the first tag name because it is the name of the child itself and not the attributes
 
     for i in range(len(root.getchildren())):
         child = root.getchildren()[i]
@@ -181,6 +184,7 @@ def get_patch_position(tomodim, p_in, obj, shiftr):
 
     return x, y, z
 
+
 def correct_center_positions(xc, yc, zc, dim, offset):
     # If there are still few pixels at the end:
     if xc[-1] < dim[2] - offset:
@@ -192,10 +196,11 @@ def correct_center_positions(xc, yc, zc, dim, offset):
 
     return xc, yc, zc
 
+
 def add_obj(obj_list, label, coord, obj_id=None, tomo_idx=None, c_size=None):
     obj = {
         'tomo_idx': tomo_idx,
-        'obj_id': obj_id ,
+        'obj_id': obj_id,
         'label': label,
         'x': coord[2],
         'y': coord[1],
@@ -205,6 +210,7 @@ def add_obj(obj_list, label, coord, obj_id=None, tomo_idx=None, c_size=None):
 
     obj_list.append(obj)
     return obj_list
+
 
 def read_starfile(filename):
     """ This function receives a QtFile object that is selected through browse button and
@@ -301,7 +307,7 @@ def normalize_image(img):
         Args: img: image nd.array that has a range of value like [-1, 1] or [0,1]
         Returns: image nd.array with range [0, 255]
     """
-    img = cv2.normalize(img, None, alpha = 0, beta = 255, norm_type = cv2.NORM_MINMAX, dtype = cv2.CV_32F)
+    img = cv2.normalize(img, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
     img = img.astype('float32')
     return img
 
@@ -349,9 +355,10 @@ def generate_spheres(content, target_mask, class_radilist):
     # 2nd list item -> reference for label 2; etc.
     radius_vals = list(class_radilist.values())
     Rmax = max(radius_vals)
+    dim = [2 * Rmax, 2 * Rmax, 2 * Rmax]
     radi_ref = []
     for idx in range(len(radius_vals)):
-        sphere = prepare_ref_sphere(radius_vals[idx])
+        sphere = prepare_ref_sphere(dim, radius_vals[idx])
         radi_ref.append(sphere)
     target_array = generate_masks(content, target_mask, radi_ref, class_radilist)
     return target_array
@@ -374,16 +381,30 @@ def generate_masks(content, target_mask, radi_ref, class_radilist):
     dim = target_mask.shape  # image shape (mask shape is same as image shape)
     # for each annotation
     for row in range(ann_num):
-        cls_ann = int(tuple(class_radilist.keys()).index(content[row][-1]))
-        z = int(content[row][1])
-        y = int(content[row][2])
-        x = int(content[row][3])
+        print(content[row][-1])
+        # 1bxn -> 1, 1qvr -> 6, 1s3x -> 3, 1u6g -> 4, 2cg9 -> 5, 3cf3 -> 6
+        # 3d2f -> 7, 3gl1 -> 8, 3h84 -> 9, 3qm1 -> 10, 4b4t -> 10, 4d8q -> 12
+        cls_ann = int(tuple(reversed_class_names.keys()).index(content[row][-1]))
+        # check_lbl(cls_ann, content[row][-1])
+        # cls_ann = int(tuple(class_radilist.keys()).index(content[row][-1]))
+        z = int(content[row][1]) - 1
+        y = int(content[row][2]) - 1
+        x = int(content[row][3]) - 1
+        the = np.float(content[row][5])
+        psi = np.float(content[row][6])
+        phi = np.float(content[row][4])
+
         display('Annotating point ' + str(row + 1) + ' / ' + str(ann_num) +
                 ' with class ' + str(content[row][-1]) +
-                ' and color ' + str(boxcolor[cls_ann]))
+                ' and class label ' + str(cls_ann) +
+                ' and color ')  # boxcolor[cls_ann]
 
         ref = radi_ref[cls_ann - 1]
-        cOffset = np.int(np.floor(ref.shape[0] / 2))  # guarantees a cubic reference
+        cOffset = int(np.floor(ref.shape[0] / 2))
+
+        if phi is not None and psi is not None and the is not None:
+            ref = rotate_array(ref, (phi, psi, the))
+            ref = np.int8(np.round(ref))
 
         # identify coordinates of particle in mask
         obj_voxels = np.nonzero(ref == 1)
@@ -396,22 +417,117 @@ def generate_masks(content, target_mask, radi_ref, class_radilist):
             yVox = y_coord[idx]
             zVox = z_coord[idx]
             # check that after offset transfer the coords are in the boudnary of tomo
-            if xVox >= 0 and xVox < dim[2] and yVox >= 0 and yVox < dim[1] and zVox >= 0 and zVox < dim[0]:
-                target_mask[zVox, yVox, xVox] = cls_ann+1  # boxcolor[cls_ann]
+            if 0 <= xVox < dim[2] and 0 <= yVox < dim[1] and 0 <= zVox < dim[0]:
+                target_mask[zVox, yVox, xVox] = cls_ann  # boxcolor[cls_ann]
     return target_mask
 
 
-def prepare_ref_sphere(radi):
+def check_lbl(cls, gt):
+    # 1bxn -> 1, 1qvr -> 6, 1s3x -> 3, 1u6g -> 4, 2cg9 -> 5, 3cf3 -> 6
+    # 3d2f -> 7, 3gl1 -> 8, 3h84 -> 9, 3qm1 -> 10, 4b4t -> 10, 4d8q -> 12
+    if gt == "1bxn" and cls == 1:
+        print("class label 1")
+        return True
+    elif gt == "1qvr" and cls == 2:
+        print("class label 2")
+        return True
+    elif gt == "1s3x" and cls == 3:
+        print("class label 3")
+        return True
+    elif gt == "1u6g" and cls == 4:
+        print("class label 4")
+        return True
+    elif gt == "2cg9" and cls == 5:
+        print("class label 5")
+        return True
+    elif gt == "3cf3" and cls == 6:
+        print("class label 6")
+        return True
+    elif gt == "3d2f" and cls == 7:
+        print("class label 7")
+        return True
+    elif gt == "3gl1" and cls == 8:
+        print("class label 8")
+        return True
+    elif gt == "3h84" and cls == 9:
+        print("class label 9")
+        return True
+    elif gt == "3qm1" and cls == 10:
+        print("class label 10")
+        return True
+    elif gt == "4b4t" and cls == 11:
+        print("class label 11")
+        return True
+    elif gt == "4d8q" and cls == 12:
+        print("class label 12")
+        return True
+
+
+def rotate_array(array, orient):
+    from scipy.ndimage import map_coordinates
+    from scipy.spatial.transform import Rotation as R
+    phi = orient[0]
+    psi = orient[1]
+    the = orient[2]
+
+    # Some voodoo magic so that rotation is the same as in pytom:
+    new_phi = -phi
+    new_psi = -the
+    new_the = -psi
+
+    # create meshgrid
+    dim = array.shape
+    ax = np.arange(dim[0])
+    ay = np.arange(dim[1])
+    az = np.arange(dim[2])
+    coords = np.meshgrid(ax, ay, az)
+
+    # stack the meshgrid to position vectors, center them around 0 by substracting dim/2
+    xyz = np.vstack([coords[0].reshape(-1) - float(dim[0]) / 2,  # x coordinate, centered
+                     coords[1].reshape(-1) - float(dim[1]) / 2,  # y coordinate, centered
+                     coords[2].reshape(-1) - float(dim[2]) / 2])  # z coordinate, centered
+
+    # create transformation matrix: the convention is not 'zxz' as announced in TOM toolbox
+    r = R.from_euler('YZY', [new_phi, new_psi, new_the], degrees=True)
+    ##r = R.from_euler('ZXZ', [the, psi, phi], degrees=True)
+    mat = r.as_matrix()
+
+    # apply transformation
+    transformed_xyz = np.dot(mat, xyz)
+
+    # extract coordinates
+    x = transformed_xyz[0, :] + float(dim[0]) / 2
+    y = transformed_xyz[1, :] + float(dim[1]) / 2
+    z = transformed_xyz[2, :] + float(dim[2]) / 2
+
+    x = x.reshape((dim[1],dim[0],dim[2]))
+    y = y.reshape((dim[1],dim[0],dim[2]))
+    z = z.reshape((dim[1],dim[0],dim[2])) # reason for strange ordering: see next line
+
+    # the coordinate system seems to be strange, it has to be ordered like this
+    new_xyz = [y, x, z]
+
+    # sample
+    arrayR = map_coordinates(array, new_xyz, order=1)
+
+    # Remark: the above is equivalent to the below, however the above is faster (0.01s vs 0.03s for 40^3 vol).
+    # arrayR = scipy.ndimage.rotate(array, new_phi, axes=(1, 2), reshape=False)
+    # arrayR = scipy.ndimage.rotate(arrayR, new_psi, axes=(0, 1), reshape=False)
+    # arrayR = scipy.ndimage.rotate(arrayR, new_the, axes=(1, 2), reshape=False)
+    return arrayR
+
+
+def prepare_ref_sphere(dim, radi):
     """ This function creates a sphere for the radius it receives
         Args: radi: list of particle radius
               dim: list of x, y, z radius of the sphere
         Returns: a sphere
     """
-    dim = [2 * radi, 2 * radi, 2 * radi]  # not necessary but makes the code legible
-    center = np.floor((dim[0]/2, dim[1]/2, dim[2]/2))
+    # dim = [2 * radi, 2 * radi, 2 * radi]  # not necessary but makes the code legible
+    center = np.floor((dim[0] / 2, dim[1] / 2, dim[2] / 2))
     x, y, z = np.meshgrid(range(dim[0]), range(dim[1]), range(dim[2]))
 
-    Sph = ((x - center[0])/radi)**2 + ((y - center[1])/radi)**2 + ((z - center[2])/radi)**2
+    Sph = ((x - center[0]) / radi) ** 2 + ((y - center[1]) / radi) ** 2 + ((z - center[2]) / radi) ** 2
     Sph = np.int8(Sph <= 1)
     return Sph
 
@@ -426,19 +542,19 @@ def save_volume(input_array, filename):
 
     # Get central slices along each dimension:
     dim = input_array.shape
-    z = np.int(np.round(dim[0]/2))
-    y = np.int(np.round(dim[1]/2))
-    x = np.int(np.round(dim[2]/2))
+    z = np.int(np.round(dim[0] / 2))
+    y = np.int(np.round(dim[1] / 2))
+    x = np.int(np.round(dim[2] / 2))
 
     slice0 = input_array[z, :, :]
     slice1 = input_array[:, y, :]
     slice2 = input_array[:, :, x]
 
     # creating an image out of ortho-slices:
-    input_img = np.zeros((slice0.shape[0]+slice1.shape[0], slice0.shape[1]+slice1.shape[0]))
+    input_img = np.zeros((slice0.shape[0] + slice1.shape[0], slice0.shape[1] + slice1.shape[0]))
     input_img[0:slice0.shape[0], 0:slice0.shape[1]] = slice0
-    input_img[slice0.shape[0]-1:-1, 0:slice0.shape[1]] = slice1
-    input_img[0:slice0.shape[0], slice0.shape[1]-1:-1] = np.flipud(np.rot90(slice2))
+    input_img[slice0.shape[0] - 1:-1, 0:slice0.shape[1]] = slice1
+    input_img[0:slice0.shape[0], slice0.shape[1] - 1:-1] = np.flipud(np.rot90(slice2))
 
     # plot and save:
     fig = plt.figure(figsize=(10, 10))
@@ -448,7 +564,7 @@ def save_volume(input_array, filename):
         # calculating mean and std of data
         mu = np.mean(input_array)
         sig = np.std(input_array)
-        plt.imshow(input_img, cmap='gray', vmin=mu-5*sig, vmax=mu+5*sig)
+        plt.imshow(input_img, cmap='gray', vmin=mu - 5 * sig, vmax=mu + 5 * sig)
     # plt.show()
     fig.savefig(filename)
 

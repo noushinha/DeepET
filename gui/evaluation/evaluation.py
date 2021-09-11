@@ -84,9 +84,9 @@ class Ui_MainWindow(object):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.input_pathL.setText(_translate("MainWindow", "Input  Path"))
-        self.input_path.setText(_translate("MainWindow", "/data2/results/evaluation/tomo9.mrc"))
+        self.input_path.setText(_translate("MainWindow", "/data2/results/evaluation/grandmodel_9.mrc"))
         self.model_pathL.setText(_translate("MainWindow", "Model Path"))
-        self.model_path.setText(_translate("MainWindow", "/data2/results/evaluation/net_weights_FINAL.h5"))
+        self.model_path.setText(_translate("MainWindow", "/data2/results/evaluation/model_final_weights_categorical_100_DET.h5"))
         self.output_pathL.setText(_translate("MainWindow", "Output Path"))
         self.output_path.setText(_translate("MainWindow", "/data2/results/evaluation/"))
         self.segtBtn.setText(_translate("MainWindow", "segment"))

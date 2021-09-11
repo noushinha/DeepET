@@ -162,18 +162,18 @@ class EvaluationWindow(QMainWindow):
                     patch = np.expand_dims(patch, axis=0)  # expanding dimensions for predict function (batch)
                     patch = np.expand_dims(patch, axis=4)  # expanding dimensions for predict function (channel)
                     pred_vals = self.model.predict(patch, batch_size=1)
-                    # print(np.unique(np.argmax(pred_vals, 4)))
+                    print(np.unique(np.argmax(pred_vals, 4)))
 
                     # assign predicted values to the corresponding patch location in the tomogram
                     current_patch = pred_tclass[z-bcrop:z+bcrop, y-bcrop:y+bcrop, x-bcrop:x+bcrop, :]
-                    lowb = bwidth-bcrop
-                    highb = bwidth+bcrop
+                    lowb = bwidth - bcrop
+                    highb = bwidth + bcrop
                     casted_pred_vals = np.float16(pred_vals[0, lowb:highb, lowb:highb, lowb:highb, :])
                     pred_tclass[z-bcrop:z+bcrop, y-bcrop:y+bcrop, x-bcrop:x+bcrop] = current_patch + casted_pred_vals
 
                     # one-hot-encoded for normalization (labels)
                     current_patch2 = pred_tvals[z-bcrop:z+bcrop, y-bcrop:y+bcrop, x-bcrop:x+bcrop]
-                    size_dim = self.patch_size-2*self.patch_crop
+                    size_dim = self.patch_size - 2 * self.patch_crop
                     argmax_labels = np.ones((size_dim, size_dim, size_dim), dtype=np.int8)
                     pred_tvals[z-bcrop:z+bcrop, y-bcrop:y+bcrop, x-bcrop:x+bcrop] = current_patch2 + argmax_labels
 
@@ -182,12 +182,12 @@ class EvaluationWindow(QMainWindow):
         print("Fetching Finished")
 
         # required only if there are overlapping regions (normalization)
-        for n in range(self.num_class):
+        for n in range(0, self.num_class):
             pred_tclass[:, :, :, n] = pred_tclass[:, :, :, n] / pred_tvals
 
         # write_mrc(preds, os.path.join(self.output_path, "probabilities.mrc"))
         pred_tclass = pred_tclass[self.patch_crop:-self.patch_crop, self.patch_crop:-self.patch_crop, self.patch_crop:-self.patch_crop, :]  # unpad
-
+        print(np.unique(np.argmax(pred_tclass, 3)))
         return pred_tclass
 
     def save_result(self, scoremap_tomo, labelmap_tomo):
@@ -495,10 +495,10 @@ class EvaluationWindow(QMainWindow):
         # relabel confusion matrix
         class_labels = class_names.copy()
         # check whether all classes are represented and if not, remove them from label dict
-        for k in class_names:
-            if k not in cm.classes:
-                class_labels.pop(k)
-        cm.relabel(class_labels)
+        # for k in class_names:
+        #     if k not in cm.classes:
+        #         class_labels.pop(k)
+        # cm.relabel(class_labels)
 
         # save results as a log file
         log_path = os.path.join(self.output_path, 'evaluate/evaluation_log.txt')

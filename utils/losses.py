@@ -120,7 +120,7 @@ class Semantic_loss_functions(object):
         true_pos = K.sum(y_true_pos * y_pred_pos)
         false_neg = K.sum(y_true_pos * (1 - y_pred_pos))
         false_pos = K.sum((1 - y_true_pos) * y_pred_pos)
-        alpha = 0.7
+        alpha = 0.5
         return (true_pos + smooth) / (true_pos + alpha * false_neg + (
                     1 - alpha) * false_pos + smooth)
 
