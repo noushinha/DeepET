@@ -535,6 +535,7 @@ class EvaluationWindow(QMainWindow):
         #
         # plt.figure(num=2, figsize=(10, 10), dpi=150)
         plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path, normalize=True)
+        plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path, normalize=False)
 
         # Plot all ROC curves
         # ROC curves are appropriate when the observations are balanced between each class ,

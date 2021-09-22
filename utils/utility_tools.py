@@ -151,6 +151,8 @@ def read_xml2(filename):
 
         if object_id is not None:
             object_id = int(object_id)
+        else:
+            object_id = p
         if tomo_idx is not None:
             tomo_idx = int(tomo_idx)
         add_obj(obj_list, tomo_idx=tomo_idx, obj_id=object_id, label=int(lbl), coord=(float(z), float(y), float(x)))
@@ -403,7 +405,7 @@ def generate_masks(content, target_mask, radi_ref, class_radilist):
         cOffset = int(np.floor(ref.shape[0] / 2))
 
         if phi is not None and psi is not None and the is not None:
-            ref = rotate_array(ref, (phi, psi, the))
+            ref = rotate_vol(ref, (phi, psi, the))
             ref = np.int8(np.round(ref))
 
         # identify coordinates of particle in mask
@@ -419,7 +421,7 @@ def generate_masks(content, target_mask, radi_ref, class_radilist):
             # check that after offset transfer the coords are in the boudnary of tomo
             if 0 <= xVox < dim[2] and 0 <= yVox < dim[1] and 0 <= zVox < dim[0]:
                 target_mask[zVox, yVox, xVox] = cls_ann  # boxcolor[cls_ann]
-    return target_mask
+    return np.int8(target_mask)
 
 
 def check_lbl(cls, gt):
@@ -463,33 +465,26 @@ def check_lbl(cls, gt):
         return True
 
 
-def rotate_array(array, orient):
+def rotate_vol(vol, oriensi):
     from scipy.ndimage import map_coordinates
     from scipy.spatial.transform import Rotation as R
-    phi = orient[0]
-    psi = orient[1]
-    the = orient[2]
 
-    # Some voodoo magic so that rotation is the same as in pytom:
-    new_phi = -phi
-    new_psi = -the
-    new_the = -psi
+    phi, psi, the = oriensi[0], oriensi[1], oriensi[2]
+    # to adjust by the positive axises:
+    new_phi, new_psi, new_the = -phi, -the, -psi
 
-    # create meshgrid
-    dim = array.shape
-    ax = np.arange(dim[0])
-    ay = np.arange(dim[1])
-    az = np.arange(dim[2])
+    # a meshgrid to work on its field
+    dim = vol.shape
+    ax, ay, az = np.arange(dim[0]), np.arange(dim[1]), np.arange(dim[2])
     coords = np.meshgrid(ax, ay, az)
 
-    # stack the meshgrid to position vectors, center them around 0 by substracting dim/2
+    # stack the meshgrid to locations, then center them around origin by dividing dimension on half
     xyz = np.vstack([coords[0].reshape(-1) - float(dim[0]) / 2,  # x coordinate, centered
                      coords[1].reshape(-1) - float(dim[1]) / 2,  # y coordinate, centered
                      coords[2].reshape(-1) - float(dim[2]) / 2])  # z coordinate, centered
 
-    # create transformation matrix: the convention is not 'zxz' as announced in TOM toolbox
+    # create transformation matrix based on TOM Toolbox (YZY)
     r = R.from_euler('YZY', [new_phi, new_psi, new_the], degrees=True)
-    ##r = R.from_euler('ZXZ', [the, psi, phi], degrees=True)
     mat = r.as_matrix()
 
     # apply transformation
@@ -500,20 +495,15 @@ def rotate_array(array, orient):
     y = transformed_xyz[1, :] + float(dim[1]) / 2
     z = transformed_xyz[2, :] + float(dim[2]) / 2
 
-    x = x.reshape((dim[1],dim[0],dim[2]))
-    y = y.reshape((dim[1],dim[0],dim[2]))
-    z = z.reshape((dim[1],dim[0],dim[2])) # reason for strange ordering: see next line
+    # order found by practice
+    x = x.reshape((dim[1], dim[0], dim[2]))
+    y = y.reshape((dim[1], dim[0], dim[2]))
+    z = z.reshape((dim[1], dim[0], dim[2]))
 
-    # the coordinate system seems to be strange, it has to be ordered like this
+    # the coordinate system must be like y, x, z
     new_xyz = [y, x, z]
+    arrayR = map_coordinates(vol, new_xyz, order=1)
 
-    # sample
-    arrayR = map_coordinates(array, new_xyz, order=1)
-
-    # Remark: the above is equivalent to the below, however the above is faster (0.01s vs 0.03s for 40^3 vol).
-    # arrayR = scipy.ndimage.rotate(array, new_phi, axes=(1, 2), reshape=False)
-    # arrayR = scipy.ndimage.rotate(arrayR, new_psi, axes=(0, 1), reshape=False)
-    # arrayR = scipy.ndimage.rotate(arrayR, new_the, axes=(1, 2), reshape=False)
     return arrayR
 
 
@@ -577,4 +567,4 @@ def save_npy(data, output_path, flag="Train", name="Probabilities"):
 # saving labels or predicted probablities as a csv file
 def save_csv(data, output_path, flag="Train", name="Probabilities"):
     df = pd.DataFrame(data)
-    df.to_csv(os.path.join(output_path, flag + "_" + name + ".csv"))
+    df.to_csv(os.path.join(output_path, flag + "_" + name + ".csv"), index=False)

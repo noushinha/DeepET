@@ -55,7 +55,7 @@ class MaskGenerationwindow(QMainWindow):
         # download_path = self.ui.inputPath.text()
         # dialog = QFileDialog()
         # dialog.setDirectory(os.path.abspath(__file__))
-        selected_file = QFileDialog.getOpenFileName(self, 'Single File', '../data', "CSV files (*.csv);;Text files (*.txt);;XML files (*.xml);;Star files (*.star)")
+        selected_file = QFileDialog.getOpenFileName(self, 'Single File', '../data', "Star files (*.star);;CSV files (*.csv);;Text files (*.txt);;XML files (*.xml)")
         self.ui.inputPath.setText(selected_file[0])
         self.readfile(selected_file)
 
@@ -85,7 +85,7 @@ class MaskGenerationwindow(QMainWindow):
         self.readimage()
 
     def loadmask(self):
-        # load the tomogram and coordinates
+        # generate a tomogram for masks to be written on
         self.mask_image = np.zeros(self.tomodim)
         self.isNotDragged = True
 
@@ -121,8 +121,6 @@ class MaskGenerationwindow(QMainWindow):
             self.input_image = read_mrc(self.image_path)
         elif self.extension == "tif":
             self.input_image = read_xml(self.image_path)
-        elif self.extension == "h5":
-            self.input_image = read_starfile(self.image_path)
         else:
             throwErr('ext:'+str(self.extension))
         self.tomodim = self.input_image.shape
@@ -139,7 +137,49 @@ class MaskGenerationwindow(QMainWindow):
         filename = 'target_' + self.image_path.split(OS_path_separator)[-1]
         # save_volume(self.dwidget.lmap, output_path + filename + '.png')
         write_mrc(np.array(self.dwidget.lmap).astype(np.int8), output_path + filename)
+        self.plot_vol(np.array(self.dwidget.lmap).astype(np.int8), output_path)
         print("finished!")
+
+    def plot_vol(self, vol_array, output_path):
+        """
+            save a file from slices of a volume array.
+            If volume is int8, the function plots labelmap in color scale.
+            otherwise the function consider the volume as a tomogram and plots in gray scale.
+
+            inputs: vol_array: a 3D numpy array
+                    filename: '/path/to/output png file'
+        """
+
+        # Get central slices along each dimension:
+        zindx = int(np.round(vol_array.shape[0] / 2))
+        yindx = int(np.round(vol_array.shape[1] / 2))
+        xindx = int(np.round(vol_array.shape[2] / 2))
+
+        xy_slice = vol_array[zindx, :, :]  # the xy plane
+        zx_slice = vol_array[:, yindx, :]  # the zx plane
+        zy_slice = vol_array[:, :, xindx]  # the zy plane
+
+        if vol_array.dtype == np.int8:
+            fig1 = plt.figure(num=1, figsize=(10, 10))
+            plt.imshow(xy_slice, cmap='jet', vmin=np.min(vol_array), vmax=np.max(vol_array))
+            fig2 = plt.figure(num=2, figsize=(10, 5))
+            plt.imshow(zx_slice, cmap='jet', vmin=np.min(vol_array), vmax=np.max(vol_array))
+            fig3 = plt.figure(num=3, figsize=(5, 10))
+            plt.imshow(np.flipud(np.rot90(zy_slice)), cmap='jet', vmin=np.min(vol_array), vmax=np.max(vol_array))
+        else:
+            mu = np.mean(vol_array)  # mean of the volume/tomogram
+            std = np.std(vol_array)  # standard deviation of the volume/tomogram
+            fig1 = plt.figure(num=1, figsize=(10, 10))
+            plt.imshow(xy_slice, cmap='gray', vmin=mu - 5 * std, vmax=mu + 5 * std)
+            fig2 = plt.figure(num=2, figsize=(10, 5))
+            plt.imshow(zy_slice, cmap='gray', vmin=mu - 5 * std, vmax=mu + 5 * std)
+            fig3 = plt.figure(num=3, figsize=(5, 10))
+            plt.imshow(zx_slice, cmap='gray', vmin=mu - 5 * std, vmax=mu + 5 * std)
+
+        fig1.savefig(os.path.join(output_path, "labelmap_xy_plane.png"))
+        fig2.savefig(os.path.join(output_path, "labelmap_zx_plane.png"))
+        fig3.savefig(os.path.join(output_path, "labelmap_zy_plane.png"))
+        plt.show()
 
     def set_opacity(self):
         self.dwidget.isLmapLoaded = True

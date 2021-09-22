@@ -55,7 +55,7 @@ def plot_confusion_matrix(cm, classes,
     plt.xticks(tick_marks, classes, rotation=45)
     plt.yticks(tick_marks, classes)
 
-    fmt = '.2f' if normalize else '.0f'
+    fmt = '.2f' if normalize else 'd'
     thresh = cm.max() / 2.
     for i, j in product(range(cm.shape[0]), range(cm.shape[1])):
         plt.text(j, i, format(cm[i, j], fmt),
@@ -276,7 +276,7 @@ def plot_lr(lr_points, eps_dir, epoch):
 
     plt.xlabel('Epochs')
     plt.ylabel('Learning Rate')
-    plt.legend()
+    plt.legend(['Learning Rate'])
     filename = os.path.join(eps_dir, "Learning_Rate_" + str(epoch) + "_Epochs.eps")
     plt.savefig(filename, format='eps', dpi=300, bbox_inches="tight")
 

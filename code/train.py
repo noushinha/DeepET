@@ -33,11 +33,11 @@ class TrainingWindow(QMainWindow):
         white_color = QColor(255, 255, 255)
         self.ui.textEdit.setTextColor(white_color)
 
-        self.model_names = ["3D UNet", "YOLOv3", "R-CNN", "Mask R-CNN"]
+        self.model_names = ["3D UNet", "Mask R-CNN"]
         self.loss_names = ["Dice", "Categorical", "Focal", "Focal tversky", "tversky"]
         self.opt_names = ["Adam", "SGD", "RMS Prop"]
 
-        self.generate_model_radio_btns(4)
+        self.generate_model_radio_btns(2)
         self.generate_optimizer_radio_btns(3)
         self.generate_loss_radio_btns(5)
 
