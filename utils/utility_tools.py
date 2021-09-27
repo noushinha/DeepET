@@ -16,6 +16,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from gui import theme_style
 from lxml import etree
+import mrcfile as mrc
 from utils.params import *
 
 
@@ -234,8 +235,14 @@ def read_mrc(filename):
     if is_file(filename):
         import mrcfile as mrc
         with mrc.open(filename, mode='r+', permissive=True) as mc:
+            # print(mc.print_header())
             mc.update_header_from_data()
+            # print(mc.print_header())
             mrc_tomo = mc.data
+            # print(mc.voxel_size)
+            mc.voxel_size = (1.0, 1.0, 1.0)
+            # print(mc.voxel_size)
+
         is_empty(mrc_tomo, 'mrc_tomo')
     return mrc_tomo
 
@@ -245,9 +252,14 @@ def write_mrc(array, filename):
         Args: filename: /saving/path
               array: nd array
     """
-    import mrcfile as mrc
+    # mc = mrc.new_mmap(filename, shape=array.shape, mrc_mode=0, overwrite=True)
+    # for val in range(len(mc.data)):
+    #     mc.data[val] = array[val]
+    # read_mrc(filename)
+
     with mrc.new(filename, overwrite=True) as mc:
         mc.set_data(array)
+    read_mrc(filename)
 
 
 def write_xml(objlist, output_path):
@@ -399,7 +411,7 @@ def generate_masks(content, target_mask, radi_ref, class_radilist):
         display('Annotating point ' + str(row + 1) + ' / ' + str(ann_num) +
                 ' with class ' + str(content[row][-1]) +
                 ' and class label ' + str(cls_ann) +
-                ' and color ')  # boxcolor[cls_ann]
+                ' and color ' + str(boxcolor[cls_ann-1]))  # boxcolor[cls_ann]
 
         ref = radi_ref[cls_ann - 1]
         cOffset = int(np.floor(ref.shape[0] / 2))
@@ -420,7 +432,7 @@ def generate_masks(content, target_mask, radi_ref, class_radilist):
             zVox = z_coord[idx]
             # check that after offset transfer the coords are in the boudnary of tomo
             if 0 <= xVox < dim[2] and 0 <= yVox < dim[1] and 0 <= zVox < dim[0]:
-                target_mask[zVox, yVox, xVox] = cls_ann  # boxcolor[cls_ann]
+                target_mask[zVox, yVox, xVox] = cls_ann  # boxcolor[cls_ann-1]
     return np.int8(target_mask)
 
 

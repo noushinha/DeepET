@@ -8,7 +8,7 @@
 # Team Leader: Daniel Baum
 # License: GPL v3.0. See <https://www.gnu.org/licenses/>
 # ============================================================================================
-
+import numpy as np
 from PyQt5.QtWidgets import QFileDialog, QTableWidgetItem, QApplication, QMainWindow
 from gui.theme_style import *
 from PyQt5.QtGui import QIcon
@@ -44,7 +44,7 @@ class MaskGenerationwindow(QMainWindow):
         self.ui.saveBtn.clicked.connect(self.save_mask)
 
         self.ui.opacity.valueChanged.connect(self.change_opacity)
-        self.set_sldier()
+        self.set_slider(True)
         self.ui.slider.valueChanged.connect(self.change_slide)
 
         p = self.ui.annTable.palette()
@@ -55,7 +55,9 @@ class MaskGenerationwindow(QMainWindow):
         # download_path = self.ui.inputPath.text()
         # dialog = QFileDialog()
         # dialog.setDirectory(os.path.abspath(__file__))
-        selected_file = QFileDialog.getOpenFileName(self, 'Single File', '../data', "Star files (*.star);;CSV files (*.csv);;Text files (*.txt);;XML files (*.xml)")
+        selected_file = QFileDialog.getOpenFileName(self, 'Single File', '../data',
+                                                    "CSV files (*.csv);;Star files (*.star);;"
+                                                    "Text files (*.txt);;XML files (*.xml)")
         self.ui.inputPath.setText(selected_file[0])
         self.readfile(selected_file)
 
@@ -86,14 +88,17 @@ class MaskGenerationwindow(QMainWindow):
 
     def loadmask(self):
         # generate a tomogram for masks to be written on
-        self.mask_image = np.zeros(self.tomodim)
+        self.mask_image = np.zeros(self.tomodim, dtype=np.int8)
+        output_path = ROOT_DIR.__str__() + self.ui.outputPath.text()
+        # filename = 'target_' + self.image_path.split(OS_path_separator)[-1]
+        # write_mrc(self.mask_image, output_path + filename)
         self.isNotDragged = True
 
         self.getmaskshape()
         self.getradiuslength()
 
         self.dwidget.lmap = generate_spheres(self.content, self.mask_image, self.class_radilist)
-
+        # self.dwidget.lmap = self.mask_image
         self.change_slide()
         self.set_opacity()
 
@@ -131,13 +136,23 @@ class MaskGenerationwindow(QMainWindow):
         self.class_num = len(self.class_names)
 
     def save_mask(self):
+        # import mrcfile
         output_path = ROOT_DIR.__str__() + self.ui.outputPath.text()
 
         # save the generated mask
         filename = 'target_' + self.image_path.split(OS_path_separator)[-1]
-        # save_volume(self.dwidget.lmap, output_path + filename + '.png')
         write_mrc(np.array(self.dwidget.lmap).astype(np.int8), output_path + filename)
         self.plot_vol(np.array(self.dwidget.lmap).astype(np.int8), output_path)
+        # save_volume(self.dwidget.lmap, output_path + filename + '.png')
+
+        # tomo_patch = self.input_image[248:448, 1000:1512, 1000:1512]
+        # mytensor = np.array(tomo_patch, dtype=np.int8)
+        # write_mrc(mytensor, output_path + 'tomo_patch_8.mrc')
+        # mrctensor = mrcfile.new_mmap(output_path + filename, shape=self.tomodim, mrc_mode=0)
+        # for val in range(len(mrctensor.data)):
+        #     mrctensor.data[val] = val
+        # write_mrc(mytensor, output_path + filename)
+
         print("finished!")
 
     def plot_vol(self, vol_array, output_path):
@@ -194,15 +209,20 @@ class MaskGenerationwindow(QMainWindow):
         opacity = float(self.ui.opacity.value()) / 100
         self.dwidget.set_lmap_opacity(opacity)
 
-    def set_sldier(self):
-        self.ui.slider.setMaximum(0)
-        self.ui.slider.setMaximum(199)  # self.tomodim[0])
-        self.ui.slider.setValue(np.round(100))  # self.tomodim[0] / 2
+    def set_slider(self, flag):
+        self.ui.slider.setMinimum(0)
+        if flag:
+            self.ui.slider.setMaximum(199)
+            self.ui.slider.setValue(100)
+        else:
+            self.ui.slider.setMaximum(int(self.tomodim[0]))
+            self.ui.slider.setValue(int(self.tomodim[0]/2))
         slide_tootip = "value" + str(self.ui.slider.value())
         self.ui.slider.setToolTip(slide_tootip)
         # self.change_slide()
 
     def change_slide(self):
+        self.set_slider(False)
         self.dwidget.slide = self.ui.slider.value()
         self.dwidget.set_vol(self.input_image)
 
@@ -221,7 +241,6 @@ if __name__ == "__main__":
 
     application = MaskGenerationwindow()
     application.show()
-
     application.showMaximized()
 
     sys.exit(app.exec_())
