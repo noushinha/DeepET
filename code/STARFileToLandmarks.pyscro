@@ -1,0 +1,190 @@
+#############################################################
+# Import Particle Positions From SHREC challenge data
+#
+# Description:
+#    Opens a particle_locations_model_N.txt
+#    and converts it to a landmarkAscii
+# Usage:
+#    Select text file in port 'Particle Location File', press Apply
+#
+# Author: Robert Brandt, Andreas Staude
+#         Thermo Fisher Scientific
+#         Materials and Structural Analysis
+#         Berlin (Germany)
+#
+# Version: 0.1
+# Date: 2021-06-22
+#
+#############################################################
+
+import io
+import numpy as np
+import tempfile
+import os
+import _hx_core
+
+
+class ConvertSTARfileToLandmark(PyScriptObject):
+
+    ###########################    INIT    ##########################
+    #
+    # init is called only when the module is created
+    # it is where the interface (GUI elements) are first defined
+    #################################################################
+    
+    
+    
+    def __init__(self):
+    
+        self.data.visible = False
+        
+        self.tomo = HxConnection(self, 'tomogram', 'Tomogram')
+        self.tomo.valid_types =('HxUniformScalarField3', 'HxVolumeDataObject')
+        # file name for input file:
+        self.input_file = HxPortFilename(self,'inputDir','STAR File')
+        self.input_file.mode = HxPortFilename.ANY_FILE
+        # C:\\Users\\robert.brandt\\ownCloud\\CryoEM\\MPI\\ribo19002.star
+        self.input_file.filenames = "C:/Users/robert.brandt/ownCloud/CryoEM/MPI/ribo19002.star"
+        #file_on_start = hx_paths.install_dir
+        #self.input_file.filenames = file_on_start
+        
+        # Drop-down menu for marker type
+        self.m_type = HxPortMultiMenu(self, 'mType', 'Marker Type')
+        self.m_type.menus = [HxPortButtonMenu.Menu(options=['Point', 'Philips', 'Leibinger', 'Beekley', 'ThermoSeed'])]
+        self.m_type.menus[0].selected = 0
+        
+        # Apply button
+        self.do_it = HxPortDoIt(self, 'apply', 'Apply')
+        
+        # Scaling values for particle locations
+        # If no tomograms is connected, the locations are treated as voxel size 1 1 1
+        self.voxel_size = (1.0, 1.0, 1.0)
+        self.offset = (0.0, 0.0, 0.0)
+        
+        
+    # end INIT
+        
+    ##########################    UPDATE    #########################
+    # update() is called whenever something happens in the 
+    # environment of the module, when a connection is modified, 
+    # when a button of the GUI is pressed, or when a parameter is 
+    # changed...   
+    #
+    # update() should concentrate on updating the interface ; 
+    # e.g. adapt some parameters to the image intensity range ; 
+    # hide some options ; etc...
+    #################################################################
+    
+    def update(self):
+
+        if self.tomo.is_new == True:
+            # if port 'Tomogram' is connected
+            if self.tomo.source() is None:
+                print('Info: No Tomogram connected')
+                return
+            tom = self.tomo.source()
+            bb = tom.bounding_box
+            print(bb)
+            dims = tom._tcl_interp(" getDims")
+            dims = dims.split()
+            dims = (int(dims[0]), int(dims[1]), int(dims[2]))
+            print(dims)
+            v_size_x = (bb[1][0] - bb[0][0]) / (dims[0] - 1)
+            v_size_y = (bb[1][1] - bb[0][1]) / (dims[1] - 1)
+            v_size_z = (bb[1][2] - bb[0][2]) / (dims[2] - 1)
+            self.voxel_size = (v_size_x, v_size_y, v_size_z)
+            self.offset = (bb[0][0], bb[0][1], bb[0][2])
+            print(self.voxel_size)
+            print(self.offset)
+
+    # end UPDATE
+
+    #########################    COMPUTE    #########################
+    #
+    # compute() is also called whenever something happens in the
+    # environment of the module when a connection is modified, 
+    # when a button of the GUI is pressed, or when a parameter is 
+    # changed...
+    #
+    # However, it should always exit immediatly unless an action is 
+    # requested (button pressed...)
+    #################################################################
+    
+    def compute(self):
+
+        if not self.do_it.was_hit:
+            return
+
+        # read the table, skip the particle class
+        input_array = np.genfromtxt(self.input_file.filenames, skip_header=21)
+        # read columns 2, 3, 4 as particle coordinates (in nm)
+        coords = input_array[:, 5:8]
+        # Scale coordinates with voxel size of tomogram. If no tomogram is connected,
+        # voxel size 1 1 1 and offset of 0 is assumed
+        coords[:, 0] = coords[:, 0] * self.voxel_size[0] + self.offset[0]
+        coords[:, 1] = coords[:, 1] * self.voxel_size[1] + self.offset[1]
+        coords[:, 2] = coords[:, 2] * self.voxel_size[2] + self.offset[2]
+        # read columns 5, 6, 7 as orientation in Euler angles (degree)
+        angles = input_array[:, 12:15]
+        # convert angles to radians
+        angles = angles*np.pi/180
+        
+        # get number of particles
+        n_particles = coords.shape[0]
+        # create new array for marker types
+        types = np.zeros((n_particles, 1), dtype=int)
+        # set marker type to value of Marker Type port
+        # mtype = self.m_type.menus[0].selected
+        
+        types = types + self.ports.mType.menus[0].selected
+        # open tempfile to store the landmarkAscii
+        fd, fname = tempfile.mkstemp(text=True, suffix=".landmarkAscii")
+        f = open(fd, "w")
+        # write header
+        f.write("# Amira 3D ASCII 3.0\n")
+        f.write("\n")
+        f.write("define Markers "+str(n_particles)+"\n")
+        f.write("\n")
+        f.write("Parameters {\n")
+        f.write("    Units {\n")
+        f.write("        Coordinates \"nm\"\n")
+        f.write("    }\n")
+        f.write("    NumSets 1,\n")
+        f.write("    ContentType \"LandmarkSet\"\n")
+        f.write("}\n")
+        f.write("\n")
+        f.write("Markers { float[3] Coordinates } @1\n")
+        f.write("Markers { float[3] Orientations } @2\n")
+        f.write("Markers { int MarkerTypes } @3\n")
+        f.write("\n")
+        f.write("# Data section follows\n")
+        f.write("@1\n")
+        # write coordinates data block
+        for i in range(0,n_particles):
+            f.write(str(coords[i][0]) + " " + str(coords[i][1]) + " " + str(coords[i][2]) + "\n")
+
+        f.write("\n")
+        f.write("@2\n")
+        # write orientation data block
+        for i in range(0,n_particles):
+            f.write(str(angles[i][0]) + " " + str(angles[i][1]) + " " + str(angles[i][2]) + "\n")
+
+        f.write("\n")
+        f.write("@3\n")
+        # write types data block
+        np.savetxt(f, types, fmt="%i")
+        # close tempfile
+        f.close()
+        # compose object name from input filename
+        hd, tl = os.path.split(self.input_file.filenames)
+        nm, ext = os.path.splitext(tl)
+        # p_name = self.class_names[self.p_class.menus[0].selected]
+        # reload landmarkAscii and set object name
+        lm_obj = hx_project.load(fname)
+        self.results[0] = lm_obj
+        lm_obj.name = nm + ".landmarkAscii"
+        os.remove(fname)
+        return
+
+    # end COMPUTE
+
