@@ -4,14 +4,15 @@ import pandas as pd
 from lxml import etree
 
 
-def write_xml(content, output_path):
+def write_xml(content, output_path, tomo_id):
     objl_xml = etree.Element('objlist')
+    voxSize = 4.537897311
     for row in range(len(content)):
-        tidx = 8
+        tidx = tomo_id
         objid = row
-        x = content[row][3]
-        y = content[row][2]
-        z = content[row][1]
+        x = int(content[row][3] / voxSize) - 1  # content[row][3]
+        y = int(content[row][2] / voxSize) - 1  # content[row][2]
+        z = int(content[row][1] / voxSize) - 1  # content[row][1]
         phi = content[row][4]
         psi = content[row][5]
         the = content[row][6]
@@ -38,6 +39,10 @@ def write_xml(content, output_path):
     tree = etree.ElementTree(objl_xml)
     tree.write(output_path, pretty_print=True)
 
-data = pd.read_csv('/mnt/Data/Cryo-ET/DeepET/data/invitro_RibosomeAndProteasome/tomo_8/proteasome8.csv')
+
+tomo_id = 23
+csv_path = '/mnt/Data/Cryo-ET/DeepET/data/invitro_RibosomeAndProteasome/tomo_' + str(tomo_id) + '/proteasome' + str(tomo_id) + '.csv'
+data = pd.read_csv(csv_path)
 data = np.asarray(data.values)
-write_xml(data, '/mnt/Data/Cryo-ET/DeepET/data/invitro_RibosomeAndProteasome/tomo_8/objectlist8.xml')
+xml_path = '/mnt/Data/Cryo-ET/DeepET/data/invitro_RibosomeAndProteasome/tomo_' + str(tomo_id) + '/objectlist' + str(tomo_id) + '.xml'
+write_xml(data, xml_path, tomo_id)

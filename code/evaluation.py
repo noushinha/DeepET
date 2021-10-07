@@ -38,13 +38,13 @@ class EvaluationWindow(QMainWindow):
         self.ui.segtBtn.clicked.connect(self.start_segmentation)
         self.ui.clusBtn.clicked.connect(self.start_clustering)
         self.ui.evalBtn.clicked.connect(self.start_evaluation)
-        self.model_names = ["3D UNet", "YOLOv3", "R-CNN", "Mask R-CNN"]
-        self.generate_model_radio_btns(4)
+        self.model_names = ["3D UNet"]  # "YOLOv3", "R-CNN", "Mask R-CNN"]
+        self.generate_model_radio_btns(1)
 
-        self.num_class = 13
-        self.patch_size = 160
-        self.patch_crop = 25
-        self.patch_overlap = 55
+        self.num_class = 3
+        self.patch_size = 64
+        self.patch_crop = 10
+        self.patch_overlap = 25
         self.slide = None
         self.tomo = None
         self.model_type = "3D UNet"

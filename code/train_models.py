@@ -205,11 +205,11 @@ class TrainModel:
             self.net = cnnobj.unet2d((self.obj.patch_size, self.obj.patch_size), self.obj.classNum)
         elif self.obj.model_type == "3D UNet":
             self.net = cnnobj.unet3d((self.obj.patch_size, self.obj.patch_size, self.obj.patch_size), self.obj.classNum)
-
+        print(self.net.summary())
         # set the properties of the mdoel
         self.set_optimizer()
         self.set_compile()
-        # print(self.net.summary())
+
 
     def fit_model(self):
         label_list = []
@@ -401,14 +401,14 @@ class TrainModel:
             x, y, z = get_patch_position(self.patches_tomos[tomo_idx].shape, mid_dim, list[i], 13)
             # extract the patch:
             patch_tomo = sample_tomo[z - mid_dim:z + mid_dim, y - mid_dim:y + mid_dim, x - mid_dim:x + mid_dim]
-            if e ==2  and flag_new_batch == "Train":
-                 write_mrc(patch_tomo, os.path.join(self.output_path, "tomo_train_" + str(i) + ".mrc"))
+            # if e == 1 and b < 5 and flag_new_batch == "Train":
+            #      write_mrc(patch_tomo, os.path.join(self.output_path, "tomo_train_" + str(i) + ".mrc"))
             patch_tomo = (patch_tomo - np.mean(patch_tomo)) / np.std(patch_tomo)
 
             patch_mask = sample_mask[z - mid_dim:z + mid_dim, y - mid_dim:y + mid_dim, x - mid_dim:x + mid_dim]
             # print(np.unique(patch_mask))
-            if e == 2 and flag_new_batch == "Train":
-                 write_mrc(patch_mask, os.path.join(self.output_path, "mask_" + str(i) + ".mrc"))
+            # if e == 1 and b < 5 and flag_new_batch == "Train":
+            #      write_mrc(patch_mask, os.path.join(self.output_path, "mask_" + str(i) + ".mrc"))
 
             # convert to categorical labels
             patch_mask_onehot = to_categorical(patch_mask, self.obj.classNum)

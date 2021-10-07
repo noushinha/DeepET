@@ -88,7 +88,7 @@ class MaskGenerationwindow(QMainWindow):
 
     def loadmask(self):
         # generate a tomogram for masks to be written on
-        self.mask_image = np.zeros(self.tomodim, dtype=np.int8)
+        self.mask_image = np.zeros(self.tomodim, dtype=np.uint16)
         output_path = ROOT_DIR.__str__() + self.ui.outputPath.text()
         # filename = 'target_' + self.image_path.split(OS_path_separator)[-1]
         # write_mrc(self.mask_image, output_path + filename)
@@ -97,8 +97,8 @@ class MaskGenerationwindow(QMainWindow):
         self.getmaskshape()
         self.getradiuslength()
 
-        self.dwidget.lmap = generate_spheres(self.content, self.mask_image, self.class_radilist)
-        # self.dwidget.lmap = self.mask_image
+        self.mask_image = generate_spheres(self.content, self.mask_image, self.class_radilist)
+        self.dwidget.lmap = self.mask_image
         self.change_slide()
         self.set_opacity()
 
@@ -141,7 +141,8 @@ class MaskGenerationwindow(QMainWindow):
 
         # save the generated mask
         filename = 'target_' + self.image_path.split(OS_path_separator)[-1]
-        write_mrc(np.array(self.dwidget.lmap).astype(np.int8), output_path + filename)
+        # write_mrc(np.array(self.dwidget.lmap).astype(np.uint16), output_path + filename)
+        write_mrc(self.mask_image, output_path + filename)
         self.plot_vol(np.array(self.dwidget.lmap).astype(np.int8), output_path)
         # save_volume(self.dwidget.lmap, output_path + filename + '.png')
 

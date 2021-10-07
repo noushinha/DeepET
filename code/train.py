@@ -123,7 +123,7 @@ class TrainingWindow(QMainWindow):
         self.batch_size = int(self.ui.batchsize.text())
         self.patch_size = int(self.ui.patchsize.text())
         self.base_path = ROOT_DIR.__str__() + self.ui.basePath.text()
-        self.output_path = ROOT_DIR.__str__() + str(self.ui.basePath.text()) + "results/"
+        self.output_path = ROOT_DIR.__str__() + str(self.ui.basePath.text()) + "results/RealData/"
         self.lr = float(self.ui.LR.text())
         self.class_names = self.ui.classnames.text()
         self.classNum = len(self.class_names.split(","))+1

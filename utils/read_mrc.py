@@ -25,17 +25,26 @@ def read_mrc(filename):
     """
     if is_file(filename):
         with mrc.open(filename, mode='r+', permissive=True) as mc:
-            print(mc.print_header())
-            mc.update_header_from_data()
+            # print(mc.print_header())
+            # mc.update_header_from_data()
+            # mc.update_header_stats()
+            # # mc.header.exttyp = 'FEI1'
+            # # mc.set_extended_header(mc.header)
             print(mc.print_header())
             mrc_tomo = mc.data
 
-        print(np.unique(mrc_tomo))
+        # print(np.unique(mrc_tomo))
         print(mrc_tomo.shape)
-        # print(mc.voxel_size)
+
         is_empty(mrc_tomo, 'mrc_tomo')
     return mrc_tomo
 
 
-read_mrc('/mnt/Data/Cryo-ET/DeepET/data/invitro_RibosomeAndProteasome/tomo_8/target_8.mrc')
-# read_mrc('/mnt/Data/Cryo-ET/DeepET/data2/targets/target_grandmodel_8.mrc')
+
+filename1 = '/mnt/Data/Cryo-ET/DeepET/data/invitro_RibosomeAndProteasome/tomo_10/10.mrc'
+# filename2 = '/mnt/Data/Cryo-ET/DeepET/data/SHREC/0/masks/target_grandmodel_0.mrc'
+read_mrc(filename1)
+# read_mrc(filename2)
+
+print(mrc.validate(filename1))
+# print(mrc.validate(filename1))

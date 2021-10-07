@@ -235,14 +235,13 @@ def read_mrc(filename):
     if is_file(filename):
         import mrcfile as mrc
         with mrc.open(filename, mode='r+', permissive=True) as mc:
-            # print(mc.print_header())
             mc.update_header_from_data()
-            # print(mc.print_header())
+            # mc.update_header_stats()
+            # if not mrc.validate(filename):
+            #     display("The MRC file cannot be validated")
+            #     sys.exit()
             mrc_tomo = mc.data
-            # print(mc.voxel_size)
-            mc.voxel_size = (1.0, 1.0, 1.0)
-            # print(mc.voxel_size)
-
+            # print(mc.print_header())
         is_empty(mrc_tomo, 'mrc_tomo')
     return mrc_tomo
 
@@ -259,6 +258,18 @@ def write_mrc(array, filename):
 
     with mrc.new(filename, overwrite=True) as mc:
         mc.set_data(array)
+        # mc.update_header_from_data()
+        # print("########## 111111 ############")
+        # mc.print_header()
+
+        vox_sizes = mc.voxel_size.copy()
+        vox_sizes.flags.writeable = True
+        vox_sizes = (4.537897311, 4.537897311, 4.537897311)
+        mc.voxel_size = vox_sizes
+        # mc.header.nx = mc.data.shape[-1]
+        # mc.header.exttyp = 'FEI1'
+        # mc.set_extended_header(mc.header)
+
     read_mrc(filename)
 
 
@@ -388,22 +399,27 @@ def generate_masks(content, target_mask, radi_ref, class_radilist):
     """
     is_3D(target_mask, 'target_mask')
     is_list(radi_ref, 'radi_ref')
-
+    voxSize = 4.537897311
+    offset = 696
     boxcolor = color_pallete(len(class_radilist.keys()), list(class_radilist.keys()))
 
     ann_num = content.shape[0]  # number of available annotation we have
     dim = target_mask.shape  # image shape (mask shape is same as image shape)
     # for each annotation
     for row in range(ann_num):
-        print(content[row][-1])
+        # print(content[row][-1])
         # 1bxn -> 1, 1qvr -> 6, 1s3x -> 3, 1u6g -> 4, 2cg9 -> 5, 3cf3 -> 6
         # 3d2f -> 7, 3gl1 -> 8, 3h84 -> 9, 3qm1 -> 10, 4b4t -> 10, 4d8q -> 12
         cls_ann = int(tuple(reversed_class_names.keys()).index(content[row][-1]))
         # check_lbl(cls_ann, content[row][-1])
         # cls_ann = int(tuple(class_radilist.keys()).index(content[row][-1]))
-        z = int(content[row][1]) - 1
-        y = int(content[row][2]) - 1
-        x = int(content[row][3]) - 1
+        z = int(content[row][1] / voxSize) - 1
+        y = int(content[row][2] / voxSize) - 1
+        x = int(content[row][3] / voxSize) - 1
+        # z = int(content[row][1]) * voxSize - 1
+        # # # z = z - (offset * voxSize)
+        # y = int(content[row][2]) * voxSize - 1
+        # x = int(content[row][3]) * voxSize - 1
         the = np.float(content[row][5])
         psi = np.float(content[row][6])
         phi = np.float(content[row][4])
@@ -433,7 +449,7 @@ def generate_masks(content, target_mask, radi_ref, class_radilist):
             # check that after offset transfer the coords are in the boudnary of tomo
             if 0 <= xVox < dim[2] and 0 <= yVox < dim[1] and 0 <= zVox < dim[0]:
                 target_mask[zVox, yVox, xVox] = cls_ann  # boxcolor[cls_ann-1]
-    return np.int8(target_mask)
+    return np.uint16(target_mask)
 
 
 def check_lbl(cls, gt):
