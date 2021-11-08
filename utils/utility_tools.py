@@ -413,9 +413,12 @@ def generate_masks(content, target_mask, radi_ref, class_radilist):
         cls_ann = int(tuple(reversed_class_names.keys()).index(content[row][-1]))
         # check_lbl(cls_ann, content[row][-1])
         # cls_ann = int(tuple(class_radilist.keys()).index(content[row][-1]))
-        z = int(content[row][1] / voxSize) - 1
-        y = int(content[row][2] / voxSize) - 1
-        x = int(content[row][3] / voxSize) - 1
+        z = int(content[row][1]) - 1
+        y = int(content[row][2]) - 1
+        x = int(content[row][3]) - 1
+        # z = int(content[row][1] / voxSize) - 1
+        # y = int(content[row][2] / voxSize) - 1
+        # x = int(content[row][3] / voxSize) - 1
         # z = int(content[row][1]) * voxSize - 1
         # # # z = z - (offset * voxSize)
         # y = int(content[row][2]) * voxSize - 1

@@ -41,10 +41,10 @@ class EvaluationWindow(QMainWindow):
         self.model_names = ["3D UNet"]  # "YOLOv3", "R-CNN", "Mask R-CNN"]
         self.generate_model_radio_btns(1)
 
-        self.num_class = 3
-        self.patch_size = 64
-        self.patch_crop = 10
-        self.patch_overlap = 25
+        self.num_class = 13
+        self.patch_size = 160
+        self.patch_crop = 20
+        self.patch_overlap = 55
         self.slide = None
         self.tomo = None
         self.model_type = "3D UNet"
@@ -541,18 +541,18 @@ class EvaluationWindow(QMainWindow):
         # ROC curves are appropriate when the observations are balanced between each class ,
         # whereas precision-recall curves are appropriate for imbalanced datasets.
 
-        scoremap_path = os.path.join(self.output_path, 'segment/scoremap_tomo.mrc')
-        score_tomo = read_mrc(scoremap_path)
-        mask_tomo = read_mrc(os.path.join(self.output_path, 'target_grandmodel_9.mrc'))
-        mask_onehot = to_categorical(mask_tomo, self.num_class)
-        # plot roc for this patch
-        mask_onehot = mask_onehot.reshape((mask_onehot.shape[0]*mask_onehot.shape[1]*mask_onehot.shape[2]), 13)
-        score_tomo = score_tomo.reshape((score_tomo.shape[0] * score_tomo.shape[1] *
-                                           score_tomo.shape[2]), 13)
-        plt.figure(num=3, figsize=(8, 6), dpi=80)
-        plot_roc(mask_onehot, score_tomo, self.num_class, self.output_path)
-        plt.figure(num=4, figsize=(8, 6), dpi=80)
-        plot_recall_precision(mask_onehot, score_tomo, self.num_class, self.output_path)
+        # scoremap_path = os.path.join(self.output_path, 'segment/scoremap_tomo.mrc')
+        # score_tomo = read_mrc(scoremap_path)
+        # mask_tomo = read_mrc(os.path.join(self.output_path, 'target_grandmodel_9.mrc'))
+        # mask_onehot = to_categorical(mask_tomo, self.num_class)
+        # # plot roc for this patch
+        # mask_onehot = mask_onehot.reshape((mask_onehot.shape[0]*mask_onehot.shape[1]*mask_onehot.shape[2]), 13)
+        # score_tomo = score_tomo.reshape((score_tomo.shape[0] * score_tomo.shape[1] *
+        #                                    score_tomo.shape[2]), 13)
+        # plt.figure(num=3, figsize=(8, 6), dpi=80)
+        # plot_roc(mask_onehot, score_tomo, self.num_class, self.output_path)
+        # plt.figure(num=4, figsize=(8, 6), dpi=80)
+        # plot_recall_precision(mask_onehot, score_tomo, self.num_class, self.output_path)
         plt.show()
 
         display("Evaluation finished")
