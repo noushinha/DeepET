@@ -34,6 +34,7 @@ class MaskGenerationwindow(QMainWindow):
         self.class_names = []
         self.class_num = len(self.class_names)
         self.input_image = np.array([])
+        self.modified_tomo = np.array([])
         self.tomodim = self.input_image.shape
         self.mask_image = []
         self.mask_shape = 'circle'
@@ -97,7 +98,9 @@ class MaskGenerationwindow(QMainWindow):
         self.getmaskshape()
         self.getradiuslength()
 
-        self.mask_image = generate_spheres(self.content, self.mask_image, self.class_radilist)
+        # self.mask_image, self.modified_tomo = generate_spheres(self.content, self.mask_image, self.input_image,
+        # self.class_radilist)
+        self.mask_image = generate_spheres(self.content, self.mask_image, self.input_image, self.class_radilist)
         self.dwidget.lmap = self.mask_image
         self.change_slide()
         self.set_opacity()
@@ -141,9 +144,11 @@ class MaskGenerationwindow(QMainWindow):
 
         # save the generated mask
         filename = 'target_' + self.image_path.split(OS_path_separator)[-1]
+        # filename2 = 'modified_' + self.image_path.split(OS_path_separator)[-1]
         # write_mrc(np.array(self.dwidget.lmap).astype(np.uint16), output_path + filename)
         write_mrc(self.mask_image, output_path + filename)
         self.plot_vol(np.array(self.dwidget.lmap).astype(np.int8), output_path)
+        # write_mrc(self.modified_tomo, output_path + filename2)
         # save_volume(self.dwidget.lmap, output_path + filename + '.png')
 
         # tomo_patch = self.input_image[248:448, 1000:1512, 1000:1512]

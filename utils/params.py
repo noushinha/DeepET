@@ -37,6 +37,10 @@ class_names = {0: "bg", 1: "1bxn", 2: "1qvr", 3: "1s3x", 4: "1u6g", 5: "2cg9", 6
 reversed_class_names = OrderedDict({"bg": 0, "1bxn": 1, "1qvr": 2, "1s3x": 3, "1u6g": 4, "2cg9": 5, "3cf3": 6,
                                     "3d2f": 7, "3gl1": 8, "3h84": 9, "3qm1": 10, "4b4t": 11, "4d8q": 12})
 class_radius = [0, 6, 6, 3, 6, 6, 7, 6, 4, 4, 3, 10, 8]
+# class_names_list = ["1bxn", "1qvr", "3cf3", "4b4t", "4d8q"]
+# class_names = {0: "bg", 1: "1bxn", 2: "1qvr", 3: "3cf3", 4: "4b4t", 5: "4d8q"}
+# reversed_class_names = OrderedDict({"bg": 0, "1bxn": 1, "1qvr": 2, "3cf3": 3, "4b4t": 4, "4d8q": 5})
+# class_radius = [0, 6, 6, 7, 10, 8]
                # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
 # class_names_list = ["pt", "rb"]
 # class_names = {0: "bg", 1: "pt", 2: "rb"}

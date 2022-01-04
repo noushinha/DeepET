@@ -10,7 +10,8 @@
 # ============================================================================================
 import pandas as pd
 import os
-import sys
+import random
+import secrets
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
@@ -262,10 +263,10 @@ def write_mrc(array, filename):
         # print("########## 111111 ############")
         # mc.print_header()
 
-        vox_sizes = mc.voxel_size.copy()
-        vox_sizes.flags.writeable = True
-        vox_sizes = (4.537897311, 4.537897311, 4.537897311)
-        mc.voxel_size = vox_sizes
+        # vox_sizes = mc.voxel_size.copy()
+        # vox_sizes.flags.writeable = True
+        # vox_sizes = (4.537897311, 4.537897311, 4.537897311)
+        # mc.voxel_size = vox_sizes
         # mc.header.nx = mc.data.shape[-1]
         # mc.header.exttyp = 'FEI1'
         # mc.set_extended_header(mc.header)
@@ -365,13 +366,14 @@ def radius_list(class_name, str_radiuslist):
     class_radlist = dict.fromkeys(class_name, 0)
     cnt = 0
     for i in class_name:
-        class_radlist[i] = int(radiuslist[cnt])
-        cnt = cnt + 1
+        if i in class_names_list:
+            class_radlist[i] = int(radiuslist[cnt])
+            cnt = cnt + 1
 
     return class_radlist
 
 
-def generate_spheres(content, target_mask, class_radilist):
+def generate_spheres(content, target_mask, tomo, class_radilist):
     """ preprocessing and preparing lists of ref. spheres for generating masks
     """
     # radi_ref: reference list for radius of classes (spheres)
@@ -385,11 +387,12 @@ def generate_spheres(content, target_mask, class_radilist):
     for idx in range(len(radius_vals)):
         sphere = prepare_ref_sphere(dim, radius_vals[idx])
         radi_ref.append(sphere)
-    target_array = generate_masks(content, target_mask, radi_ref, class_radilist)
-    return target_array
+    # target_array, modified_tomo = generate_masks(content, target_mask, tomo, radi_ref, class_radilist)
+    target_array = generate_masks(content, target_mask, tomo, radi_ref, class_radilist)
+    return target_array  # , modified_tomo
 
 
-def generate_masks(content, target_mask, radi_ref, class_radilist):
+def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
     """ Having a annotation list, this function generates the segmentation mask
     Args: content: Should contain the following data and in order:
                    [Path/to/image/file,z,y,x,[...optional columns],label]
@@ -397,10 +400,12 @@ def generate_masks(content, target_mask, radi_ref, class_radilist):
                      dimension order should be [z,y,x] to be compatible with content
     Returns: 3D np array of the mask, '0' is taken for background class, '1','2',... for rest of classes.
     """
+    # modified_tomo = tomo
     is_3D(target_mask, 'target_mask')
     is_list(radi_ref, 'radi_ref')
-    voxSize = 4.537897311
-    offset = 696
+    # voxSize = 4.537897311
+    # offset = 696
+
     boxcolor = color_pallete(len(class_radilist.keys()), list(class_radilist.keys()))
 
     ann_num = content.shape[0]  # number of available annotation we have
@@ -409,50 +414,75 @@ def generate_masks(content, target_mask, radi_ref, class_radilist):
     for row in range(ann_num):
         # print(content[row][-1])
         # 1bxn -> 1, 1qvr -> 6, 1s3x -> 3, 1u6g -> 4, 2cg9 -> 5, 3cf3 -> 6
-        # 3d2f -> 7, 3gl1 -> 8, 3h84 -> 9, 3qm1 -> 10, 4b4t -> 10, 4d8q -> 12
-        cls_ann = int(tuple(reversed_class_names.keys()).index(content[row][-1]))
-        # check_lbl(cls_ann, content[row][-1])
-        # cls_ann = int(tuple(class_radilist.keys()).index(content[row][-1]))
-        z = int(content[row][1]) - 1
-        y = int(content[row][2]) - 1
-        x = int(content[row][3]) - 1
-        # z = int(content[row][1] / voxSize) - 1
-        # y = int(content[row][2] / voxSize) - 1
-        # x = int(content[row][3] / voxSize) - 1
-        # z = int(content[row][1]) * voxSize - 1
-        # # # z = z - (offset * voxSize)
-        # y = int(content[row][2]) * voxSize - 1
-        # x = int(content[row][3]) * voxSize - 1
-        the = np.float(content[row][5])
-        psi = np.float(content[row][6])
-        phi = np.float(content[row][4])
+        # 3d2f -> 7, 3gl1 -> 8, 3h84 -> 9, 3qm1 -> 10, 4b4t -> 11, 4d8q -> 12
+        if content[row][-1] in class_names_list:
+            cls_ann = int(tuple(reversed_class_names.keys()).index(content[row][-1]))
+            # check_lbl(cls_ann, content[row][-1])
+            # cls_ann = int(tuple(class_radilist.keys()).index(content[row][-1]))
+            z = int(content[row][1]) - 1
+            y = int(content[row][2]) - 1
+            x = int(content[row][3]) - 1
+            # z = int(content[row][1] / voxSize) - 1
+            # y = int(content[row][2] / voxSize) - 1
+            # x = int(content[row][3] / voxSize) - 1
+            # z = int(content[row][1]) * voxSize - 1
+            # # # z = z - (offset * voxSize)
+            # y = int(content[row][2]) * voxSize - 1
+            # x = int(content[row][3]) * voxSize - 1
+            the = np.float(content[row][5])
+            psi = np.float(content[row][6])
+            phi = np.float(content[row][4])
 
-        display('Annotating point ' + str(row + 1) + ' / ' + str(ann_num) +
-                ' with class ' + str(content[row][-1]) +
-                ' and class label ' + str(cls_ann) +
-                ' and color ' + str(boxcolor[cls_ann-1]))  # boxcolor[cls_ann]
+            display('Annotating point ' + str(row + 1) + ' / ' + str(ann_num) +
+                    ' with class ' + str(content[row][-1]) +
+                    ' and class label ' + str(cls_ann) +
+                    ' and color ' + str(boxcolor[cls_ann-1]))  # boxcolor[cls_ann]
 
-        ref = radi_ref[cls_ann - 1]
-        cOffset = int(np.floor(ref.shape[0] / 2))
+            ref = radi_ref[cls_ann - 1]
+            cOffset = int(np.floor(ref.shape[0] / 2))
 
-        if phi is not None and psi is not None and the is not None:
-            ref = rotate_vol(ref, (phi, psi, the))
-            ref = np.int8(np.round(ref))
+            if phi is not None and psi is not None and the is not None:
+                ref = rotate_vol(ref, (phi, psi, the))
+                ref = np.int8(np.round(ref))
 
-        # identify coordinates of particle in mask
-        obj_voxels = np.nonzero(ref == 1)
-        x_coord = obj_voxels[2] + x - cOffset
-        y_coord = obj_voxels[1] + y - cOffset
-        z_coord = obj_voxels[0] + z - cOffset
+            # identify coordinates of particle in mask
+            obj_voxels = np.nonzero(ref == 1)
+            x_coord = obj_voxels[2] + x - cOffset
+            y_coord = obj_voxels[1] + y - cOffset
+            z_coord = obj_voxels[0] + z - cOffset
 
-        for idx in range(x_coord.size):
-            xVox = x_coord[idx]
-            yVox = y_coord[idx]
-            zVox = z_coord[idx]
-            # check that after offset transfer the coords are in the boudnary of tomo
-            if 0 <= xVox < dim[2] and 0 <= yVox < dim[1] and 0 <= zVox < dim[0]:
-                target_mask[zVox, yVox, xVox] = cls_ann  # boxcolor[cls_ann-1]
-    return np.uint16(target_mask)
+            for idx in range(x_coord.size):
+                # newx_coord = []
+                # newy_coord = []
+                # newz_coord = []
+                xVox = x_coord[idx]
+                yVox = y_coord[idx]
+                zVox = z_coord[idx]
+                # check that after offset transfer the coords are in the boudnary of tomo
+                if 0 <= xVox < dim[2] and 0 <= yVox < dim[1] and 0 <= zVox < dim[0]:
+                    if cls_ann == 11:
+                        target_mask[zVox, yVox, xVox] = 1  # boxcolor[cls_ann-1]
+                    elif cls_ann == 12:
+                        target_mask[zVox, yVox, xVox] = 2  # boxcolor[cls_ann-1]
+                    # else:
+                    #     zbg = secrets.choice(zbglocs)
+                    #     ybg = secrets.choice(ybglocs)
+                    #     xbg = secrets.choice(xbglocs)
+                    #     new_intensity_val = tomo[zbg, ybg, xbg]
+                    #     modified_tomo[zVox, yVox, xVox] = new_intensity_val
+                    # newx_coord.append(xVox)
+                    # newy_coord.append(yVox)
+                    # newz_coord.append(zVox)
+                            # np.int(np.sum(modified_tomo[zVox:-1:zVox+1, yVox-1:yVox+1, xVox-1:xVox+1]) + new_intensity_val / 2)
+
+            # print(modified_tomo.shape)
+            # print(modified_tomo[newz_coord, newy_coord, newx_coord])
+
+            # if cls_ann != 11:
+            #     if cls_ann != 12:
+            #         modified_tomo[newz_coord, newy_coord, newx_coord] = np.mean(modified_tomo[newz_coord, newy_coord, newx_coord], dtype=np.float)
+
+    return np.uint16(target_mask)  # , modified_tomo
 
 
 def check_lbl(cls, gt):
