@@ -99,18 +99,9 @@ class EvaluationWindow(QMainWindow):
 
     def cnn_model(self):
         # self.model = load_model(self.model_path)
-
         cnnobj = CNNModels()
-        if self.model_type == "3D UNet":
-            self.model = cnnobj.unet3d((self.patch_size, self.patch_size, self.patch_size), self.num_class)
-            self.model.load_weights(self.model_path)
-        elif self.model_type == "3D UCAP":
-            self.model = UCaps3D.load_from_checkpoint(
-                "/mnt/Data/Cryo-ET/3D-UCaps/logs/ucaps_shrec_0/version_0/checkpoints/epoch=162-val_dice=0.6580.ckpt",
-                val_patch_size=1,
-                sw_batch_size=1,
-                overlap=0,
-            )
+        self.model = cnnobj.unet3d((self.patch_size, self.patch_size, self.patch_size), self.num_class)
+        self.model.load_weights(self.model_path)
 
     def start_segmentation(self):
         """
@@ -438,7 +429,7 @@ class EvaluationWindow(QMainWindow):
         is_file(clean_objlist_path)
         is_file(hitbox_path)
         is_file(gt_ptls_path)
-        is_file(hitbox_path)
+        # is_file(hitbox_path)
 
         display("Evaluation started")
         # read the particle locations

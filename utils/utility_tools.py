@@ -464,6 +464,8 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
                         target_mask[zVox, yVox, xVox] = 1  # boxcolor[cls_ann-1]
                     elif cls_ann == 12:
                         target_mask[zVox, yVox, xVox] = 2  # boxcolor[cls_ann-1]
+                    elif cls_ann == 6:
+                        target_mask[zVox, yVox, xVox] = 3  # boxcolor[cls_ann-1]
                     # else:
                     #     zbg = secrets.choice(zbglocs)
                     #     ybg = secrets.choice(ybglocs)

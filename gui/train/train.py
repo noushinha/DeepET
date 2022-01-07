@@ -137,5 +137,6 @@ class Ui_MainWindow(object):
         self.height.setText(_translate("MainWindow", "409"))
         self.depth.setText(_translate("MainWindow", "154"))
         # self.classnames.setText(_translate("MainWindow", "1bxn, 1qvr, 1s3x, 1u6g, 2cg9, 3cf3, 3d2f, 3gl1, 3h84, 3qm1, 4b4t, 4d8q"))
-        self.classnames.setText(_translate("MainWindow", "pt, rb"))
+        # self.classnames.setText(_translate("MainWindow", "4b4t, 4d8q"))  # SHREC 2 class
+        self.classnames.setText(_translate("MainWindow", "pt, rb"))  # invitro
         self.basePath.setText(_translate("MainWindow", "/data2/"))
