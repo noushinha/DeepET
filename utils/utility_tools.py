@@ -403,8 +403,8 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
     # modified_tomo = tomo
     is_3D(target_mask, 'target_mask')
     is_list(radi_ref, 'radi_ref')
-    # voxSize = 4.537897311
-    # offset = 696
+    voxSize = 4.537897311
+    offset = 696
 
     boxcolor = color_pallete(len(class_radilist.keys()), list(class_radilist.keys()))
 
@@ -419,16 +419,17 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
             cls_ann = int(tuple(reversed_class_names.keys()).index(content[row][-1]))
             # check_lbl(cls_ann, content[row][-1])
             # cls_ann = int(tuple(class_radilist.keys()).index(content[row][-1]))
-            z = int(content[row][1]) - 1
-            y = int(content[row][2]) - 1
-            x = int(content[row][3]) - 1
+            z = int(content[row][1])
+            y = int(content[row][2])
+            x = int(content[row][3])
+
             # z = int(content[row][1] / voxSize) - 1
             # y = int(content[row][2] / voxSize) - 1
             # x = int(content[row][3] / voxSize) - 1
-            # z = int(content[row][1]) * voxSize - 1
-            # # # z = z - (offset * voxSize)
-            # y = int(content[row][2]) * voxSize - 1
-            # x = int(content[row][3]) * voxSize - 1
+            # z = int(content[row][1] * voxSize)
+            # z = z - (offset * voxSize)
+            # y = int(content[row][2] * voxSize)
+            # x = int(content[row][3] * voxSize)
             the = np.float(content[row][5])
             psi = np.float(content[row][6])
             phi = np.float(content[row][4])
@@ -462,17 +463,18 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
                 if 0 <= xVox < dim[2] and 0 <= yVox < dim[1] and 0 <= zVox < dim[0]:
                     if cls_ann == 11:
                         target_mask[zVox, yVox, xVox] = 1  # boxcolor[cls_ann-1]
-                    elif cls_ann == 12:
-                        target_mask[zVox, yVox, xVox] = 2  # boxcolor[cls_ann-1]
-                    elif cls_ann == 6:
-                        target_mask[zVox, yVox, xVox] = 3  # boxcolor[cls_ann-1]
+                    # elif cls_ann == 12:
+                    #     target_mask[zVox, yVox, xVox] = 2  # boxcolor[cls_ann-1]
+                    # if cls_ann == 6:
+                    #     target_mask[zVox, yVox, xVox] = 1  # boxcolor[cls_ann-1]
                     # else:
                     #     zbg = secrets.choice(zbglocs)
                     #     ybg = secrets.choice(ybglocs)
                     #     xbg = secrets.choice(xbglocs)
                     #     new_intensity_val = tomo[zbg, ybg, xbg]
                     #     modified_tomo[zVox, yVox, xVox] = new_intensity_val
-                    # newx_coord.append(xVox)
+                    # newx_coord.append(xVox)kos@zib123
+
                     # newy_coord.append(yVox)
                     # newz_coord.append(zVox)
                             # np.int(np.sum(modified_tomo[zVox:-1:zVox+1, yVox-1:yVox+1, xVox-1:xVox+1]) + new_intensity_val / 2)

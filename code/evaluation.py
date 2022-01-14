@@ -42,8 +42,8 @@ class EvaluationWindow(QMainWindow):
         self.model_names = ["3D UNet", "3D UCAP"]  # "YOLOv3", "R-CNN", "Mask R-CNN"]
         self.generate_model_radio_btns(2)
 
-        self.num_class = 3
-        self.patch_size = 120
+        self.num_class = 13
+        self.patch_size = 160
         self.patch_crop = 20
         self.patch_overlap = 55
         self.slide = None
@@ -83,15 +83,15 @@ class EvaluationWindow(QMainWindow):
         self.tomo_path = ROOT_DIR.__str__() + str(self.ui.input_path.text())
         self.model_path = ROOT_DIR.__str__() + str(self.ui.model_path.text())
         self.output_path = ROOT_DIR.__str__() + str(self.ui.output_path.text())
-        self.mask_path = ROOT_DIR.__str__() + str('/data2/0InvitroTargets/target_8_resampled.mrc')
+        # self.mask_path = ROOT_DIR.__str__() + str('/data2/0InvitroTargets/target_8_resampled.mrc')
 
         is_file(self.tomo_path)
-        is_file(self.mask_path)
-        is_file(self.model_path)
+        # is_file(self.mask_path)
+        # is_file(self.model_path)
         is_dir(self.output_path)
 
         self.tomo = read_mrc(self.tomo_path)
-        self.mask = read_mrc(self.mask_path)
+        # self.mask = read_mrc(self.mask_path)
         self.cnn_model()
 
         if flag:
@@ -138,7 +138,7 @@ class EvaluationWindow(QMainWindow):
         tomo = self.tomo
         # tomo = (self.tomo - np.mean(self.tomo)) / np.std(self.tomo)
         # tomo = np.pad(tomo, self.patch_crop, mode='constant', constant_values=0)
-        mask = self.mask
+        # mask = self.mask
         # self.tomo = tomo
 
         # z_half_dim, y_half_dim, x_half_dim = (self.patch_size / 2, self.patch_size / 2, self.patch_size / 2)
@@ -163,7 +163,7 @@ class EvaluationWindow(QMainWindow):
                 for x in x_centers:
                     display('patch number ' + str(patch_num) + ' out of ' + str(total_pnum))
                     patch = tomo[z-bwidth:z+bwidth, y-bwidth:y+bwidth, x-bwidth:x+bwidth]
-                    patch_mask = mask[z-bwidth:z+bwidth, y-bwidth:y+bwidth, x-bwidth:x+bwidth]
+                    # patch_mask = mask[z-bwidth:z+bwidth, y-bwidth:y+bwidth, x-bwidth:x+bwidth]
 
                     # import nibabel as nib
                     # # nifti_patch = (patch - np.mean(patch)) / np.std(patch)

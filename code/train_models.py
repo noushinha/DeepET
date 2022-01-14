@@ -59,6 +59,7 @@ class TrainModel:
         self.history_train_loss = []
         self.patches_tomos = []
         self.patches_masks = []
+        self.pathes_test = 0
 
         # initialize values
         self.obj = obj
@@ -219,9 +220,18 @@ class TrainModel:
 
         # if you use size of generated tensor it would be more accurate and it will never throw error
         # len(int(np.round(len(.9 * self.list_annotations)))/self.obj.batch_size) - 1
-        steps_per_epoch = int(np.round(.9 * len(self.list_annotations))/self.obj.batch_size) - 1  # 717
-        vald_steps_per_epoch = int(np.round(.1 * len(self.list_annotations)) / self.obj.batch_size) - 1  # 79
+
+        # for shrec data
+        # steps_per_epoch = (int(np.round(.83 * len(self.list_annotations))/self.obj.batch_size) - 1)  # 717
+        # vald_steps_per_epoch = int(np.round(.17 * len(self.list_annotations)) / self.obj.batch_size) - 1  # 79
+
+        # for real data
+        steps_per_epoch = int(np.round(.8333 * len(self.list_annotations)) / self.obj.batch_size)  # 809
+        vald_steps_per_epoch = int(np.round(.1667 * len(self.list_annotations)) / self.obj.batch_size) - 1  # 164
         counter = 0
+
+        print("Train - Steps per epoch: ", steps_per_epoch)
+        print("Validation - Steps per epoch: ", vald_steps_per_epoch)
 
         for e in range(self.obj.epochs):
             flag_new_epoch = True
@@ -317,7 +327,7 @@ class TrainModel:
             self.history_precision.append(list_precision)
 
             print("################################################################################\n")
-            if (e + 1) % 10 == 0:
+            if (e + 1) % 40 == 0:
                 self.set_weight_callback(e + 1)
         self.save_history()
         self.net.save(self.obj.output_path + 'model_final_weights.h5')
@@ -357,7 +367,8 @@ class TrainModel:
         print("**********************" + flag_new_batch + "***************************")
         mid_dim = int(np.floor(self.obj.patch_size / 2))
         total_num_samples = len(self.list_annotations)
-        num_train_samples = int(np.round(len(self.list_annotations) * .9))
+        # num_train_samples = int(np.round(len(self.list_annotations) * .9))
+        num_train_samples = int(np.round(len(self.list_annotations) * .8333))
         # num_valid_samples = len(self.list_annotations) - num_train_samples
         if flag_new_epoch:
             # shuffle list of all samples so in the new epoch we get different train and valid samples
@@ -378,7 +389,7 @@ class TrainModel:
         #     obj_list = range(0, len(self.list_annotations))
         cnt = 0
         # for i in range(bstart, bend):
-        list_of_val_samples = []
+        # list_of_val_samples = []
         for i in range(bstart, bend):
             # if balanced_data_flag:
             #     idx = i
@@ -389,8 +400,9 @@ class TrainModel:
                 list = self.train_samples
             else:
                 list = self.valid_samples
-                list_of_val_samples.append(list[i]['obj_id'])
+                # list_of_val_samples.append(list[i]['obj_id'])
 
+            # print(tomo_idx)
             tomo_idx = int(list[i]['tomo_idx'])
             # tomo_idx = int(self.list_annotations[idx]['tomo_idx'])
             sample_tomo = self.patches_tomos[tomo_idx]
@@ -398,7 +410,8 @@ class TrainModel:
 
             # Get patch position:
             # x, y, z = get_patch_position(self.patches_tomos[tomo_idx].shape, mid_dim, self.list_annotations[idx], 13)
-            x, y, z = get_patch_position(self.patches_tomos[tomo_idx].shape, mid_dim, list[i], 13)
+            x, y, z = get_patch_position(self.patches_tomos[tomo_idx].shape, mid_dim, list[i], 0)
+
             # extract the patch:
             patch_tomo = sample_tomo[z - mid_dim:z + mid_dim, y - mid_dim:y + mid_dim, x - mid_dim:x + mid_dim]
             # if e == 1 and b < 5 and flag_new_batch == "Train":
@@ -421,9 +434,9 @@ class TrainModel:
                 batch_mask[cnt] = np.rot90(batch_mask[cnt], k=2, axes=(0, 2))
             cnt = cnt + 1
 
-        if flag_new_batch != "Train":
+        # if flag_new_batch != "Train":
             # print("$$$$$$$$$$$$$$$$$$$$$$List of Indices for Valdiation Samples$$$$$$$$$$$$$$$$$$$$$$$")
-            print(list_of_val_samples)
+            # print(list_of_val_samples)
             # print("$$$$$$$$$$$$$$$$$$$$$$List of Indices for Valdiation Samples$$$$$$$$$$$$$$$$$$$$$$$")
         return batch_tomo, batch_mask
 
