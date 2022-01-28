@@ -330,7 +330,7 @@ class TrainModel:
             if (e + 1) % 40 == 0:
                 self.set_weight_callback(e + 1)
         self.save_history()
-        self.net.save(self.obj.output_path + 'model_final_weights.h5')
+        self.net.save(self.output_path + '/model_final_weights.h5')
         end = time.clock()
         self.process_time = (end - start)
         display(self.process_time)

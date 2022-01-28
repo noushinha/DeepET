@@ -35,7 +35,8 @@ def plot_confusion_matrix(cm, classes,
                           eps_dir,
                           normalize=False,
                           title='Confusion matrix',
-                          cmap=plt.cm.Blues):
+                          cmap=plt.cm.Blues,
+                          plot_num=1):
     """
     This function prints and plots the confusion matrix.
     Normalization can be applied by setting `normalize=True`.
@@ -47,10 +48,10 @@ def plot_confusion_matrix(cm, classes,
         # print('Confusion matrix, without normalization')
 
     # print(cm)
-
+    plt.figure(num=plot_num, figsize=(8, 8), dpi=300)
     plt.imshow(cm, interpolation='nearest', cmap=cmap)
-    plt.title(title)
-    plt.colorbar()
+    # plt.title(title)
+    # plt.colorbar()
     tick_marks = np.arange(len(classes))
     plt.xticks(tick_marks, classes, rotation=45)
     plt.yticks(tick_marks, classes)

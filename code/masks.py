@@ -69,6 +69,7 @@ class MaskGenerationwindow(QMainWindow):
     def getradiuslength(self):
         radiuslisttext = self.ui.radiLen.text()
         self.class_radilist = radius_list(self.class_names, radiuslisttext)
+        print(self.class_radilist)
 
     def loaddata(self):
         self.ui.annTable.setRowCount(0)

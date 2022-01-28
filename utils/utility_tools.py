@@ -403,8 +403,8 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
     # modified_tomo = tomo
     is_3D(target_mask, 'target_mask')
     is_list(radi_ref, 'radi_ref')
-    voxSize = 4.537897311
-    offset = 696
+    # voxSize = 4.537897311
+    # offset = 696
 
     boxcolor = color_pallete(len(class_radilist.keys()), list(class_radilist.keys()))
 
@@ -430,9 +430,10 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
             # z = z - (offset * voxSize)
             # y = int(content[row][2] * voxSize)
             # x = int(content[row][3] * voxSize)
-            the = np.float(content[row][5])
-            psi = np.float(content[row][6])
+
             phi = np.float(content[row][4])
+            psi = np.float(content[row][5])
+            the = np.float(content[row][6])
 
             display('Annotating point ' + str(row + 1) + ' / ' + str(ann_num) +
                     ' with class ' + str(content[row][-1]) +
@@ -461,8 +462,9 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
                 zVox = z_coord[idx]
                 # check that after offset transfer the coords are in the boudnary of tomo
                 if 0 <= xVox < dim[2] and 0 <= yVox < dim[1] and 0 <= zVox < dim[0]:
-                    if cls_ann == 11:
-                        target_mask[zVox, yVox, xVox] = 1  # boxcolor[cls_ann-1]
+                    target_mask[zVox, yVox, xVox] = cls_ann  # boxcolor[cls_ann-1]
+                    # if cls_ann == 11:
+                    #     target_mask[zVox, yVox, xVox] = 1  # boxcolor[cls_ann-1]
                     # elif cls_ann == 12:
                     #     target_mask[zVox, yVox, xVox] = 2  # boxcolor[cls_ann-1]
                     # if cls_ann == 6:

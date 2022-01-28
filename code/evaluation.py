@@ -42,10 +42,10 @@ class EvaluationWindow(QMainWindow):
         self.model_names = ["3D UNet", "3D UCAP"]  # "YOLOv3", "R-CNN", "Mask R-CNN"]
         self.generate_model_radio_btns(2)
 
-        self.num_class = 13
-        self.patch_size = 160
-        self.patch_crop = 20
-        self.patch_overlap = 55
+        self.num_class = 2
+        self.patch_size = 128
+        self.patch_crop = 10
+        self.patch_overlap = 25
         self.slide = None
         self.tomo = None
         self.model_type = "3D UNet"
@@ -217,8 +217,8 @@ class EvaluationWindow(QMainWindow):
             pred_tclass[:, :, :, n] = pred_tclass[:, :, :, n] / pred_tvals
 
         # write_mrc(preds, os.path.join(self.output_path, "probabilities.mrc"))
-        if self.patch_crop != 0:
-            pred_tclass = pred_tclass[self.patch_crop:-self.patch_crop, self.patch_crop:-self.patch_crop, self.patch_crop:-self.patch_crop, :]  # unpad
+        # if self.patch_crop != 0:
+        pred_tclass = pred_tclass[self.patch_crop:-self.patch_crop, self.patch_crop:-self.patch_crop, self.patch_crop:-self.patch_crop, :]  # unpad
         print(np.unique(np.argmax(pred_tclass, 3)))
         return pred_tclass
 
@@ -362,11 +362,14 @@ class EvaluationWindow(QMainWindow):
             new_objlist[i]['y'] = scale[1] * y
             new_objlist[i]['z'] = scale[0] * z
             new_objlist[i]['obj_id'] = i
-            new_objlist[i]['tomo_idx'] = 9
+            new_objlist[i]['tomo_idx'] = 8
 
         # drop small particles based on threshold for each class
-        labels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-        thresholds = [50, 100, 20, 100, 50, 100, 100, 50, 50, 20, 300, 300]
+        # labels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        # thresholds = [50, 100, 20, 100, 50, 100, 100, 50, 50, 20, 300, 300]
+
+        labels = [1, 2]
+        thresholds = [300, 100]
 
         clean_objlist = []
         for l in labels:
@@ -424,7 +427,7 @@ class EvaluationWindow(QMainWindow):
         clean_objlist = read_xml2(clean_objlist_path)
         gt_ptls_path = os.path.join(self.output_path, "particle_locations_model.txt")
         res_ptls_path = os.path.join(self.output_path, 'particle_locations_tomo.txt')
-        hitbox_path = os.path.join(self.output_path, "hitbox.mrc")
+        hitbox_path = os.path.join(self.output_path, "hitbox_23_self.mrc")
 
         is_file(clean_objlist_path)
         is_file(hitbox_path)
@@ -566,8 +569,8 @@ class EvaluationWindow(QMainWindow):
         # plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path)
         #
         # plt.figure(num=2, figsize=(10, 10), dpi=150)
-        plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path, normalize=True)
-        plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path, normalize=False)
+        plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path, normalize=True, plot_num=1)
+        plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path, normalize=False, plot_num=2)
 
         # Plot all ROC curves
         # ROC curves are appropriate when the observations are balanced between each class ,

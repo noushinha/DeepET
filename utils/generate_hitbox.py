@@ -68,19 +68,20 @@ def add_obj(obj_list, label, coord, obj_id=None, tomo_idx=None, c_size=None):
     return obj_list
 
 
-tomo_id = 9
-# base_dir = "/mnt/Data/Cryo-ET/DeepET/data2/0InvitroTargets/"
-base_dir = "/mnt/Data/Cryo-ET/DeepET/data/SHREC/9/micrographs/"
-# output_dir = "/mnt/Data/Cryo-ET/DeepET/data/invitro_RibosomeAndProteasome/tomo_23/"
-output_dir = "/mnt/Data/Cryo-ET/DeepET/data/SHREC/9/"
-# tomo_name = base_dir + str(tomo_id) + '_resampled.mrc'
-tomo_name = base_dir + 'reconstruction_model_09.mrc'
+tomo_id = 8
+base_dir = "/mnt/Data/Cryo-ET/DeepET/data2/0InvitroTargets/"
+# base_dir = "/mnt/Data/Cryo-ET/DeepET/data/SHREC/9/micrographs/"
+output_dir = "/mnt/Data/Cryo-ET/DeepET/data/invitro_RibosomeAndProteasome/tomo_8/"
+# output_dir = "/mnt/Data/Cryo-ET/DeepET/data/SHREC/9/"
+tomo_name = base_dir + str(tomo_id) + '_resampled.mrc'
+# tomo_name = base_dir + 'reconstruction_model_09.mrc'
 tomo = read_mrc(tomo_name)
 hitbox_size = tomo - tomo
 print(tomo.shape)
 
-# list_annotations = read_xml2(os.path.join(output_dir, "objectlist23.xml"))
-list_annotations = read_xml2(os.path.join(output_dir, "objectlist9.xml"))
+# list_annotations = read_xml2(os.path.join(output_dir, "objectlist23_rb.xml"))
+# list_annotations = read_xml2(os.path.join(output_dir, "objectlist9.xml"))
+list_annotations = read_xml2(os.path.join(output_dir, "objectlist8_pt.xml"))
 
 # for each annotation
 for row in range(0, len(list_annotations)):
@@ -93,8 +94,9 @@ for row in range(0, len(list_annotations)):
 
     radi = class_radius[int(list_annotations[row]['label'])]
 
-    hitbox_size[z-radi:z+radi, y-radi:y+radi, x-radi:x+radi] = 128.0
+    hitbox_size[z-radi:z+radi, y-radi:y+radi, x-radi:x+radi] = row  # 128.0
 
 print(np.unique(hitbox_size))
-read_mrc("/mnt/Data/Cryo-ET/DeepET/data/SHREC/9/hitbox_9.mrc")
-write_mrc(np.float32(hitbox_size), os.path.join(output_dir, "hitbox_" + str(tomo_id) + "_self.mrc"))
+# read_mrc("/mnt/Data/Cryo-ET/DeepET/data/SHREC/9/hitbox_9.mrc")
+# read_mrc("/mnt/Data/Cryo-ET/DeepET/data/SHREC/9/hitbox_9.mrc")
+write_mrc(np.float32(hitbox_size), os.path.join(output_dir, "hitbox_" + str(tomo_id) + "_pt.mrc"))
