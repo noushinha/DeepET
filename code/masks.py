@@ -148,7 +148,7 @@ class MaskGenerationwindow(QMainWindow):
         # filename2 = 'modified_' + self.image_path.split(OS_path_separator)[-1]
         # write_mrc(np.array(self.dwidget.lmap).astype(np.uint16), output_path + filename)
         write_mrc(self.mask_image, output_path + filename)
-        self.plot_vol(np.array(self.dwidget.lmap).astype(np.int8), output_path)
+        # self.plot_vol(np.array(self.dwidget.lmap).astype(np.int16), output_path)
         # write_mrc(self.modified_tomo, output_path + filename2)
         # save_volume(self.dwidget.lmap, output_path + filename + '.png')
 
@@ -198,9 +198,9 @@ class MaskGenerationwindow(QMainWindow):
             fig3 = plt.figure(num=3, figsize=(5, 10))
             plt.imshow(zx_slice, cmap='gray', vmin=mu - 5 * std, vmax=mu + 5 * std)
 
-        fig1.savefig(os.path.join(output_path, "labelmap_xy_plane.png"))
-        fig2.savefig(os.path.join(output_path, "labelmap_zx_plane.png"))
-        fig3.savefig(os.path.join(output_path, "labelmap_zy_plane.png"))
+        # fig1.savefig(os.path.join(output_path, "labelmap_xy_plane.png"))
+        # fig2.savefig(os.path.join(output_path, "labelmap_zx_plane.png"))
+        # fig3.savefig(os.path.join(output_path, "labelmap_zy_plane.png"))
         plt.show()
 
     def set_opacity(self):

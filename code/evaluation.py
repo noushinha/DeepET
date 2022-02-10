@@ -24,8 +24,6 @@ from train_models import *
 from sklearn.cluster import MeanShift, KMeans
 from sklearn.metrics import confusion_matrix
 from PyQt5.QtWidgets import QRadioButton, QHBoxLayout, QGridLayout, QButtonGroup
-from pytorch_lightning import Trainer
-from monai.data import DataLoader
 
 class EvaluationWindow(QMainWindow):
     def __init__(self):
@@ -42,7 +40,7 @@ class EvaluationWindow(QMainWindow):
         self.model_names = ["3D UNet", "3D UCAP"]  # "YOLOv3", "R-CNN", "Mask R-CNN"]
         self.generate_model_radio_btns(2)
 
-        self.num_class = 2
+        self.num_class = 3
         self.patch_size = 128
         self.patch_crop = 10
         self.patch_overlap = 25
@@ -190,9 +188,7 @@ class EvaluationWindow(QMainWindow):
                     patch = np.expand_dims(patch, axis=4)  # expanding dimensions for predict function (channel)
                     if self.model_type == "3D UNet":
                         pred_vals = self.model.predict(patch, batch_size=1)
-                    else:
-                        trainer = Trainer(benchmark=True, gpus=1)
-                        pred_vals = trainer.predict(self.model, dataloaders=DataLoader(patch, batch_size=5))
+
                     print(np.unique(np.argmax(pred_vals, 4)))
 
                     # assign predicted values to the corresponding patch location in the tomogram

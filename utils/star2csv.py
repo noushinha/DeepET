@@ -3,7 +3,7 @@ import starfile
 import pandas as pd
 
 
-tomo_id = 23
+tomo_id = 8
 
 
 def read_starfile(filename1, filename2):
@@ -38,4 +38,4 @@ filename2 = '/mnt/Data/Cryo-ET/DeepET/data/invitro_RibosomeAndProteasome/tomo_' 
 data_numpy = read_starfile(filename1, filename2)
 
 data_panda = pd.DataFrame(data_numpy, columns=['name', 'z', 'y', 'x', 'phi', 'psi', 'the', 'Class'])
-data_panda.to_csv('/mnt/Data/Cryo-ET/DeepET/data/invitro_RibosomeAndProteasome/tomo_' + str(tomo_id) + '/proteasome' + str(tomo_id) + '.csv', index=False)
+data_panda.to_csv('/mnt/Data/Cryo-ET/DeepET/data/invitro_RibosomeAndProteasome/tomo_' + str(tomo_id) + '/pt_rb_real_size' + str(tomo_id) + '.csv', index=False)

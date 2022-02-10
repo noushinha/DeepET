@@ -252,26 +252,26 @@ def write_mrc(array, filename):
         Args: filename: /saving/path
               array: nd array
     """
-    # mc = mrc.new_mmap(filename, shape=array.shape, mrc_mode=0, overwrite=True)
-    # for val in range(len(mc.data)):
-    #     mc.data[val] = array[val]
-    # read_mrc(filename)
-
-    with mrc.new(filename, overwrite=True) as mc:
-        mc.set_data(array)
-        # mc.update_header_from_data()
-        # print("########## 111111 ############")
-        # mc.print_header()
-
-        # vox_sizes = mc.voxel_size.copy()
-        # vox_sizes.flags.writeable = True
-        # vox_sizes = (4.537897311, 4.537897311, 4.537897311)
-        # mc.voxel_size = vox_sizes
-        # mc.header.nx = mc.data.shape[-1]
-        # mc.header.exttyp = 'FEI1'
-        # mc.set_extended_header(mc.header)
-
+    mc = mrc.new_mmap(filename, shape=array.shape, mrc_mode=0, overwrite=True)
+    for val in range(len(mc.data)):
+        mc.data[val] = array[val]
     read_mrc(filename)
+
+    # with mrc.new(filename, overwrite=True) as mc:
+    #     mc.set_data(array)
+    #     # mc.update_header_from_data()
+    #     # print("########## 111111 ############")
+    #     # mc.print_header()
+    #
+    #     # vox_sizes = mc.voxel_size.copy()
+    #     # vox_sizes.flags.writeable = True
+    #     # vox_sizes = (4.537897311, 4.537897311, 4.537897311)
+    #     # mc.voxel_size = vox_sizes
+    #     # mc.header.nx = mc.data.shape[-1]
+    #     # mc.header.exttyp = 'FEI1'
+    #     # mc.set_extended_header(mc.header)
+
+    # read_mrc(filename)
 
 
 def write_xml(objlist, output_path):
@@ -432,8 +432,9 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
             # x = int(content[row][3] * voxSize)
 
             phi = np.float(content[row][4])
-            psi = np.float(content[row][5])
-            the = np.float(content[row][6])
+            the = np.float(content[row][5])
+            psi = np.float(content[row][6])
+
 
             display('Annotating point ' + str(row + 1) + ' / ' + str(ann_num) +
                     ' with class ' + str(content[row][-1]) +
@@ -454,16 +455,13 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
             z_coord = obj_voxels[0] + z - cOffset
 
             for idx in range(x_coord.size):
-                # newx_coord = []
-                # newy_coord = []
-                # newz_coord = []
                 xVox = x_coord[idx]
                 yVox = y_coord[idx]
                 zVox = z_coord[idx]
                 # check that after offset transfer the coords are in the boudnary of tomo
                 if 0 <= xVox < dim[2] and 0 <= yVox < dim[1] and 0 <= zVox < dim[0]:
                     target_mask[zVox, yVox, xVox] = cls_ann  # boxcolor[cls_ann-1]
-                    # if cls_ann == 11:
+                    # if cls_ann == 2:
                     #     target_mask[zVox, yVox, xVox] = 1  # boxcolor[cls_ann-1]
                     # elif cls_ann == 12:
                     #     target_mask[zVox, yVox, xVox] = 2  # boxcolor[cls_ann-1]

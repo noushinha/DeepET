@@ -138,7 +138,7 @@ class Ui_MainWindow(object):
         self.maskShapeL.setText(_translate("MainWindow", "Mask Shape"))
         # self.radiLen.setText(_translate("MainWindow", "6, 6, 3, 6, 6, 7, 6, 4, 4, 3, 10, 8"))
         # self.radiLen.setText(_translate("MainWindow", "6, 6, 7, 10, 8"))  # 12, 8
-        self.radiLen.setText(_translate("MainWindow", "10, 8"))
+        self.radiLen.setText(_translate("MainWindow", "10, 13"))
         self.outputPathL.setText(_translate("MainWindow", "output path"))
         self.radiLenL.setText(_translate("MainWindow", "radius  / length list of particles"))
         self.inputPathL.setText(_translate("MainWindow", "Annotation file: (XML, CSV, txt, and star)"))

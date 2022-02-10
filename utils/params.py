@@ -46,20 +46,20 @@ else:
 # reversed_class_names = OrderedDict({"bg": 0, "4b4t": 1, "4d8q": 2})
 
 # Invitro with 2 classes
-# class_radius = [0, 10, 8]
-# class_names_list = ["pt", "rb"]
-# class_names = {0: "bg", 1: "pt", 2: "rb"}
-# reversed_class_names = OrderedDict({"bg": 0, "pt": 1, "rb": 2})
+class_radius = [0, 10, 13]
+class_names_list = ["pt", "rb"]
+class_names = {0: "bg", 1: "pt", 2: "rb"}
+reversed_class_names = OrderedDict({"bg": 0, "pt": 1, "rb": 2})
 
 # Invitro with class proteasome
-class_radius = [0, 10]
-class_names_list = ["pt"]
-class_names = {0: "bg", 1: "pt"}
-reversed_class_names = OrderedDict({"bg": 0, "pt": 1})
+# class_radius = [0, 10]
+# class_names_list = ["pt"]
+# class_names = {0: "bg", 1: "pt"}
+# reversed_class_names = OrderedDict({"bg": 0, "pt": 1})
 
 
 # Invitro with class ribosome
-# class_radius = [0, 8]
+# class_radius = [0, 15]
 # class_names_list = ["rb"]
 # class_names = {0: "bg", 1: "rb"}
 # reversed_class_names = OrderedDict({"bg": 0, "rb": 1})
