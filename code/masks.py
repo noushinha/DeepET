@@ -198,7 +198,12 @@ class MaskGenerationwindow(QMainWindow):
             fig3 = plt.figure(num=3, figsize=(5, 10))
             plt.imshow(zx_slice, cmap='gray', vmin=mu - 5 * std, vmax=mu + 5 * std)
 
-        # fig1.savefig(os.path.join(output_path, "labelmap_xy_plane.png"))
+        # fig1.savefig(os.pat
+        #
+        #
+        #
+        #
+        # h.join(output_path, "labelmap_xy_plane.png"))
         # fig2.savefig(os.path.join(output_path, "labelmap_zx_plane.png"))
         # fig3.savefig(os.path.join(output_path, "labelmap_zy_plane.png"))
         plt.show()

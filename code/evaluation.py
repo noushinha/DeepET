@@ -24,6 +24,7 @@ from train_models import *
 from sklearn.cluster import MeanShift, KMeans
 from sklearn.metrics import confusion_matrix
 from PyQt5.QtWidgets import QRadioButton, QHBoxLayout, QGridLayout, QButtonGroup
+from utils.invitro import InvitroDataModule
 
 class EvaluationWindow(QMainWindow):
     def __init__(self):
@@ -40,13 +41,14 @@ class EvaluationWindow(QMainWindow):
         self.model_names = ["3D UNet", "3D UCAP"]  # "YOLOv3", "R-CNN", "Mask R-CNN"]
         self.generate_model_radio_btns(2)
 
-        self.num_class = 3
-        self.patch_size = 128
-        self.patch_crop = 10
-        self.patch_overlap = 25
+        self.num_class = 2
+        self.patch_size = 153
+        self.patch_crop = 0
+        self.patch_overlap = 1
         self.slide = None
         self.tomo = None
-        self.model_type = "3D UNet"
+        self.model_type = "3D UCAP"
+        # self.model_type = "3D UNet"
         self.model_path = None
         self.output_path = None
         self.model = None
@@ -85,7 +87,7 @@ class EvaluationWindow(QMainWindow):
 
         is_file(self.tomo_path)
         # is_file(self.mask_path)
-        # is_file(self.model_path)
+        is_file(self.model_path)
         is_dir(self.output_path)
 
         self.tomo = read_mrc(self.tomo_path)
@@ -97,9 +99,23 @@ class EvaluationWindow(QMainWindow):
 
     def cnn_model(self):
         # self.model = load_model(self.model_path)
-        cnnobj = CNNModels()
-        self.model = cnnobj.unet3d((self.patch_size, self.patch_size, self.patch_size), self.num_class)
-        self.model.load_weights(self.model_path)
+        if self.model_type == "3D UNet":
+            cnnobj = CNNModels()
+            self.model = cnnobj.unet3d((self.patch_size, self.patch_size, self.patch_size), self.num_class)
+            self.model.load_weights(self.model_path)
+        else:
+            # self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            # print(self.device)
+            self.model = UCaps3D.load_from_checkpoint(
+                self.model_path,
+                # hparams_file='/mnt/Data/Cryo-ET/3D-UCaps/logs/ucaps_invitro_0/version_9/hparams.yaml'
+                val_patch_size=self.patch_size,
+                sw_batch_size=1,
+                overlap=0,
+                gpus=1
+            )
+            # self.model.to(self.device)
+
 
     def start_segmentation(self):
         """
@@ -112,7 +128,7 @@ class EvaluationWindow(QMainWindow):
 
         # extract patches from the tomo
         scores_tomo = self.extract_patches()
-
+        # print(scores_tomo)
         # convert confidence values to class labels to generate a label map
         labels_tomo = np.int8(np.argmax(scores_tomo, axis=-1))
 
@@ -133,8 +149,9 @@ class EvaluationWindow(QMainWindow):
         bcrop = int(bwidth - self.patch_crop)
         slide = int(2 * bwidth + 1 - self.patch_overlap)  # self.patch_size + 1
         # normalize and zero pad the tomogram values
-        tomo = self.tomo
-        # tomo = (self.tomo - np.mean(self.tomo)) / np.std(self.tomo)
+        # tomo = self.tomo
+        tomo = (self.tomo - np.mean(self.tomo)) / np.std(self.tomo)
+        # write_mrc(tomo, '/mnt/Data/Cryo-ET/3D-UCaps (copy)/data/invitro/output/labelsTs/23_resamples_normalized.mrc')
         # tomo = np.pad(tomo, self.patch_crop, mode='constant', constant_values=0)
         # mask = self.mask
         # self.tomo = tomo
@@ -159,8 +176,32 @@ class EvaluationWindow(QMainWindow):
         for z in z_centers:
             for y in y_centers:
                 for x in x_centers:
-                    display('patch number ' + str(patch_num) + ' out of ' + str(total_pnum))
-                    patch = tomo[z-bwidth:z+bwidth, y-bwidth:y+bwidth, x-bwidth:x+bwidth]
+
+                    # patch = tomo[z - bwidth:z + bwidth, y - bwidth:y + bwidth, x - bwidth:x + bwidth]
+                    # patch = np.reshape(patch, (1, self.patch_size, self.patch_size, self.patch_size, 1))  # reshape for keras [batch,x,y,z,channel]
+                    # pred = self.model.predict(patch, batch_size=1)
+                    # print(np.unique(np.argmax(pred, 4)))
+                    # pred_tclass[z - bcrop:z + bcrop, y - bcrop:y + bcrop, x - bcrop:x + bcrop, :] = pred_tclass[
+                    #                                                                               z - bcrop:z + bcrop,
+                    #                                                                               y - bcrop:y + bcrop,
+                    #                                                                               x - bcrop:x + bcrop,
+                    #                                                                               :] + np.float16(
+                    #     pred[0,
+                    #     bwidth - bcrop:bwidth + bcrop,
+                    #     bwidth - bcrop:bwidth + bcrop,
+                    #     bwidth - bcrop:bwidth + bcrop, :])
+                    # pred_tvals[z - bcrop:z + bcrop, y - bcrop:y + bcrop, x - bcrop:x + bcrop] = pred_tvals[
+                    #                                                                            z - bcrop:z + bcrop,
+                    #                                                                            y - bcrop:y + bcrop,
+                    #                                                                            x - bcrop:x + bcrop] + np.ones(
+                    #     (self.patch_size - 2 * self.patch_crop, self.patch_size - 2 * self.patch_crop, self.patch_size - 2 * self.patch_crop), dtype=np.int8)
+                    # # self.P = 160  # self.patch_size
+                    # # self.pcrop = 25  # self.patch_crop
+                    # # self.poverlap = 55  # self.patch_overlap
+                    # # l = np.int(self.P / 2)  # bwidth
+                    # # lcrop = np.int(l - self.pcrop)  # bcrop
+                    # # step = np.int(2 * l + 1 - self.poverlap)  # slide
+                    # **************** saving niftis ********************************
                     # patch_mask = mask[z-bwidth:z+bwidth, y-bwidth:y+bwidth, x-bwidth:x+bwidth]
 
                     # import nibabel as nib
@@ -183,19 +224,31 @@ class EvaluationWindow(QMainWindow):
                     # patch_tomo_name = os.path.join(nifti_output_dir, patch_tomo_name)
                     # nib.save(nifti_mask, patch_tomo_name)
                     # display(patch_tomo_name + " is saved")
-
+                    display('patch number ' + str(patch_num) + ' out of ' + str(total_pnum))
+                    patch = tomo[z - bwidth:z + bwidth, y - bwidth:y + bwidth, x - bwidth:x + bwidth]
                     patch = np.expand_dims(patch, axis=0)  # expanding dimensions for predict function (batch)
-                    patch = np.expand_dims(patch, axis=4)  # expanding dimensions for predict function (channel)
                     if self.model_type == "3D UNet":
+                        patch = np.expand_dims(patch, axis=4)  # expanding dimensions for predict function (channel)
                         pred_vals = self.model.predict(patch, batch_size=1)
+                    else:
+                        self.model.freeze()  # [2, 1, 64, 64, 64]
+                        patch = np.expand_dims(patch, axis=1)
+                        patch = torch.from_numpy(patch)
+                        # patch = patch.to(self.device)
+                        patch = self.model(patch)
+                        pred_vals = patch.numpy()
+                        pred_vals = np.rollaxis(pred_vals, 1, 5)
+                    # print(pred_vals.shape)  # (1, 128, 128, 128, 3)
 
-                    print(np.unique(np.argmax(pred_vals, 4)))
+                    # print(pred_vals)  # 7.06669828e-03]]]]]
+                    print(np.unique(np.argmax(pred_vals, 4)))  # [0 1 2]
 
                     # assign predicted values to the corresponding patch location in the tomogram
                     current_patch = pred_tclass[z-bcrop:z+bcrop, y-bcrop:y+bcrop, x-bcrop:x+bcrop, :]
                     lowb = bwidth - bcrop
                     highb = bwidth + bcrop
                     casted_pred_vals = np.float16(pred_vals[0, lowb:highb, lowb:highb, lowb:highb, :])
+                    # print(casted_pred_vals.shape)  # (128, 128, 128, 3)
                     pred_tclass[z-bcrop:z+bcrop, y-bcrop:y+bcrop, x-bcrop:x+bcrop] = current_patch + casted_pred_vals
 
                     # one-hot-encoded for normalization (labels)
@@ -213,12 +266,14 @@ class EvaluationWindow(QMainWindow):
             pred_tclass[:, :, :, n] = pred_tclass[:, :, :, n] / pred_tvals
 
         # write_mrc(preds, os.path.join(self.output_path, "probabilities.mrc"))
-        # if self.patch_crop != 0:
-        pred_tclass = pred_tclass[self.patch_crop:-self.patch_crop, self.patch_crop:-self.patch_crop, self.patch_crop:-self.patch_crop, :]  # unpad
+        if self.patch_crop != 0:
+            pred_tclass = pred_tclass[self.patch_crop:-self.patch_crop, self.patch_crop:-self.patch_crop, self.patch_crop:-self.patch_crop, :]  # unpad
         print(np.unique(np.argmax(pred_tclass, 3)))
         return pred_tclass
 
     def save_result(self, scoremap_tomo, labelmap_tomo):
+        # scoremap_tomo = read_mrc('/mnt/Data/Cryo-ET/DeepET/data2/results/RealData/evaluation/segment/scoremap_tomo.mrc')
+        # labelmap_tomo = read_mrc('/mnt/Data/Cryo-ET/DeepET/data2/results/RealData/evaluation/segment/tomo_labelmap.mrc')
         binned_scoremap = self.bin_tomo(scoremap_tomo)
         binned_labelmap = np.int8(np.argmax(binned_scoremap, axis=-1))
 
@@ -423,7 +478,7 @@ class EvaluationWindow(QMainWindow):
         clean_objlist = read_xml2(clean_objlist_path)
         gt_ptls_path = os.path.join(self.output_path, "particle_locations_model.txt")
         res_ptls_path = os.path.join(self.output_path, 'particle_locations_tomo.txt')
-        hitbox_path = os.path.join(self.output_path, "hitbox_23_self.mrc")
+        hitbox_path = os.path.join(self.output_path, "hitbox_23.mrc")
 
         is_file(clean_objlist_path)
         is_file(hitbox_path)
