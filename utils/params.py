@@ -13,7 +13,7 @@ from sys import platform
 import sys
 from collections import OrderedDict
 from pycm import ConfusionMatrix
-
+# Fhsr5BuLa9JxRYE
 SOFTNAME = "DEEP ET"
 VERSION = 1.0
 ROOT_DIR = Path(__file__).parent.parent
@@ -39,17 +39,31 @@ else:
 #                                     "3d2f": 7, "3gl1": 8, "3h84": 9, "3qm1": 10, "4b4t": 11, "4d8q": 12})
 # class_radius = [0, 6, 6, 3, 6, 6, 7, 6, 4, 4, 3, 10, 8]
 
-# SHREC with 2 classes
-# class_radius = [0, 10, 8]
-# class_names_list = ["4b4t", "4d8q"]
-# class_names = {0: "bg", 1: "4b4t", 2: "4d8q"}
-# reversed_class_names = OrderedDict({"bg": 0, "4b4t": 1, "4d8q": 2})
+# ********************** SHREC19 Dataset **********************
+# SHREC19 with class 4D8Q
+class_radius = [0, 12]
+class_names_list = ["4d8q"]
+class_names = {0: "bg", 1: "4d8q"}
+reversed_class_names = OrderedDict({"bg": 0, "4d8q": 1})
 
+# SHREC19 with class 1BXN
+# class_radius = [0, 8]
+# class_names_list = ["1bxn"]
+# class_names = {0: "bg", 1: "1bxn"}
+# reversed_class_names = OrderedDict({"bg": 0, "1bxn": 1})
+
+# SHREC19 with class 3GL1
+# class_radius = [0, 1]
+# class_names_list = ["3gl1"]
+# class_names = {0: "bg", 1: "3gl1"}
+# reversed_class_names = OrderedDict({"bg": 0, "3gl1": 1})
+
+# ********************** Invitro Dataset **********************
 # Invitro with 2 classes
-class_radius = [0, 10, 13]
-class_names_list = ["pt", "rb"]
-class_names = {0: "bg", 1: "pt", 2: "rb"}
-reversed_class_names = OrderedDict({"bg": 0, "pt": 1, "rb": 2})
+# class_radius = [0, 10, 13]
+# class_names_list = ["pt", "rb"]
+# class_names = {0: "bg", 1: "pt", 2: "rb"}
+# reversed_class_names = OrderedDict({"bg": 0, "pt": 1, "rb": 2})
 
 # Invitro with class proteasome
 # class_radius = [0, 10]
@@ -59,7 +73,7 @@ reversed_class_names = OrderedDict({"bg": 0, "pt": 1, "rb": 2})
 
 
 # Invitro with class ribosome
-# class_radius = [0, 15]
+# class_radius = [0, 13]
 # class_names_list = ["rb"]
 # class_names = {0: "bg", 1: "rb"}
 # reversed_class_names = OrderedDict({"bg": 0, "rb": 1})

@@ -42,17 +42,20 @@ class EvaluationWindow(QMainWindow):
         self.generate_model_radio_btns(2)
 
         self.num_class = 2
-        self.patch_size = 153
+        self.patch_size = 128
         self.patch_crop = 0
-        self.patch_overlap = 1
+        self.patch_overlap = 25
         self.slide = None
         self.tomo = None
-        self.model_type = "3D UCAP"
-        # self.model_type = "3D UNet"
+        # self.model_type = "3D UCAP"
+        self.model_type = "3D UNet"
         self.model_path = None
         self.output_path = None
         self.model = None
         self.tomo_path = None
+
+        self.tomo_id = 23
+        self.class_id = "rb"
 
         # initialize the parameters
         self.set_params(True)
@@ -466,7 +469,7 @@ class EvaluationWindow(QMainWindow):
         # initialziation
         list_classes = class_names
         gtcoord_flag = True
-        gt_z_offset = 156
+        gt_z_offset = 0  # 156
         gt_z_offset = gtcoord_flag * gt_z_offset
         padding = 0
         total_num_hit = 0
@@ -476,9 +479,10 @@ class EvaluationWindow(QMainWindow):
         # set paths
         clean_objlist_path = os.path.join(self.output_path, 'cluster/tomo_objlist_thr.xml')
         clean_objlist = read_xml2(clean_objlist_path)
-        gt_ptls_path = os.path.join(self.output_path, "particle_locations_model.txt")
-        res_ptls_path = os.path.join(self.output_path, 'particle_locations_tomo.txt')
-        hitbox_path = os.path.join(self.output_path, "hitbox_23.mrc")
+
+        gt_ptls_path = os.path.join(self.output_path, "particle_locations_model_" + str(self.tomo_id) + "_" + str(self.class_id) + ".txt")
+        res_ptls_path = os.path.join(self.output_path, "particle_locations_tomo_" + str(self.tomo_id) + "_" + str(self.class_id) + ".txt")
+        hitbox_path = os.path.join(self.output_path, "hitbox_" + str(self.tomo_id) + "_" + str(self.class_id) + ".mrc")
 
         is_file(clean_objlist_path)
         is_file(hitbox_path)

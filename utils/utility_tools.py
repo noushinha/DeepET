@@ -423,6 +423,15 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
             y = int(content[row][2])
             x = int(content[row][3])
 
+            ##### for shrec ###############
+            the = np.float(content[row][4])
+            psi = np.float(content[row][5])
+            phi = np.float(content[row][6])
+
+            #### for real data #############
+            phi = np.float(content[row][4])
+            the = np.float(content[row][5])
+            psi = np.float(content[row][6])
             # z = int(content[row][1] / voxSize) - 1
             # y = int(content[row][2] / voxSize) - 1
             # x = int(content[row][3] / voxSize) - 1
@@ -431,9 +440,6 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
             # y = int(content[row][2] * voxSize)
             # x = int(content[row][3] * voxSize)
 
-            phi = np.float(content[row][4])
-            the = np.float(content[row][5])
-            psi = np.float(content[row][6])
 
 
             display('Annotating point ' + str(row + 1) + ' / ' + str(ann_num) +
@@ -461,12 +467,12 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
                 # check that after offset transfer the coords are in the boudnary of tomo
                 if 0 <= xVox < dim[2] and 0 <= yVox < dim[1] and 0 <= zVox < dim[0]:
                     target_mask[zVox, yVox, xVox] = cls_ann  # boxcolor[cls_ann-1]
-                    # if cls_ann == 2:
-                    #     target_mask[zVox, yVox, xVox] = 1  # boxcolor[cls_ann-1]
-                    # elif cls_ann == 12:
-                    #     target_mask[zVox, yVox, xVox] = 2  # boxcolor[cls_ann-1]
-                    # if cls_ann == 6:
-                    #     target_mask[zVox, yVox, xVox] = 1  # boxcolor[cls_ann-1]
+                    # if cls_ann == 12:
+                    #      target_mask[zVox, yVox, xVox] = 1  # boxcolor[cls_ann-1]
+                    # elif cls_ann == 1:
+                    #      target_mask[zVox, yVox, xVox] = 2  # boxcolor[cls_ann-1]
+                    # elif cls_ann == 8:
+                    #      target_mask[zVox, yVox, xVox] = 3  # boxcolor[cls_ann-1]
                     # else:
                     #     zbg = secrets.choice(zbglocs)
                     #     ybg = secrets.choice(ybglocs)

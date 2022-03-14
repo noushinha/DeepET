@@ -115,7 +115,7 @@ class UCaps3D(pl.LightningModule):
     def __init__(
         self,
         in_channels=2,
-        out_channels=3,
+        out_channels=4,
         lr_rate=2e-4,
         rec_loss_weight=0.1,
         margin_loss_weight=1.0,
@@ -123,7 +123,7 @@ class UCaps3D(pl.LightningModule):
         share_weight=False,
         sw_batch_size=128,
         cls_loss="CE",
-        val_patch_size=(64, 64, 64),
+        val_patch_size=(32, 32, 32),
         overlap=0.75,
         connection="skip",
         val_frequency=100,
@@ -140,12 +140,10 @@ class UCaps3D(pl.LightningModule):
         self.lr_rate = self.hparams.lr_rate
         self.weight_decay = self.hparams.weight_decay
 
-        # self.CEloss = []
         self.cls_loss = self.hparams.cls_loss
         self.margin_loss_weight = self.hparams.margin_loss_weight
         self.rec_loss_weight = self.hparams.rec_loss_weight
         self.class_weight = self.hparams.class_weight
-        print("class weights are:", self.class_weight)
 
         # Defining losses
         self.classification_loss1 = MarginLoss(class_weight=self.class_weight, margin=0.2)
@@ -158,7 +156,10 @@ class UCaps3D(pl.LightningModule):
             )
         elif self.cls_loss == "Dice":
             self.classification_loss2 = DiceCELoss(softmax=True, to_onehot_y=True, lambda_ce=0.0)
-        self.reconstruction_loss = nn.MSELoss(reduction="none")
+        # self.reconstruction_loss = nn.MSELoss(reduction="none")
+        # self.reconstruction_loss = nn.KLDivLoss(reduction="none")
+        # self.reconstruction_loss = nn.BCELoss()
+        self.reconstruction_loss = nn.BCEWithLogitsLoss(reduction="none")
 
         self.val_frequency = self.hparams.val_frequency
         self.val_patch_size = self.hparams.val_patch_size
@@ -166,9 +167,6 @@ class UCaps3D(pl.LightningModule):
         self.overlap = self.hparams.overlap
 
         # Building model
-        # feature extractor component of the architecture
-        # it has 3 dilated conv layers with dilation rates 1, 3, and 3
-        # kernel sizes are 5x5x5 and output is H x W x D x 64
         self.feature_extractor = nn.Sequential(
             OrderedDict(
                 [
@@ -218,7 +216,7 @@ class UCaps3D(pl.LightningModule):
         self.primary_caps = ConvSlimCapsule3D(
             kernel_size=3,
             input_dim=1,
-            output_dim=16,  # 16 capsules, each with 4 atoms
+            output_dim=16,
             input_atoms=64,
             output_atoms=4,
             stride=1,
@@ -243,20 +241,20 @@ class UCaps3D(pl.LightningModule):
         parser = parent_parser.add_argument_group("UCaps3D")
         # Architecture params
         parser.add_argument("--in_channels", type=int, default=1)
-        parser.add_argument("--out_channels", type=int, default=3)
+        parser.add_argument("--out_channels", type=int, default=2)
         parser.add_argument("--share_weight", type=int, default=1)
         parser.add_argument("--connection", type=str, default="skip")
 
         # Validation params
         parser.add_argument("--val_patch_size", nargs="+", type=int, default=[64, 64, 64])
-        parser.add_argument("--val_frequency", type=int, default=10)
+        parser.add_argument("--val_frequency", type=int, default=100)
         parser.add_argument("--sw_batch_size", type=int, default=1)
-        parser.add_argument("--overlap", type=float, default=0.5)
+        parser.add_argument("--overlap", type=float, default=0.75)
 
         # Loss params
         parser.add_argument("--margin_loss_weight", type=float, default=0.1)
         parser.add_argument("--rec_loss_weight", type=float, default=1e-1)
-        parser.add_argument("--cls_loss", type=str, default="CE")
+        parser.add_argument("--cls_loss", type=str, default="DiceCE")  # CE, Dice, DiceCE
 
         # Optimizer params
         parser.add_argument("--lr_rate", type=float, default=1e-4)
@@ -275,6 +273,11 @@ class UCaps3D(pl.LightningModule):
         x = self.encoder_conv_caps[2](conv_cap_2_1)
         conv_cap_3_1 = self.encoder_conv_caps[3](x)
 
+        x = self.encoder_conv_caps[4](conv_cap_3_1)
+        conv_cap_4_1 = self.encoder_conv_caps[5](x)
+
+        shape = conv_cap_4_1.size()
+        conv_cap_4_1 = conv_cap_4_1.view(shape[0], -1, shape[-3], shape[-2], shape[-1])
         shape = conv_cap_3_1.size()
         conv_cap_3_1 = conv_cap_3_1.view(shape[0], -1, shape[-3], shape[-2], shape[-1])
         shape = conv_cap_2_1.size()
@@ -284,14 +287,17 @@ class UCaps3D(pl.LightningModule):
 
         # Expanding
         if self.connection == "skip":
-            x = self.decoder_conv[0](conv_cap_3_1)
-            x = torch.cat((x, conv_cap_2_1), dim=1)
+            x = self.decoder_conv[0](conv_cap_4_1)
+            x = torch.cat((x, conv_cap_3_1), dim=1)
             x = self.decoder_conv[1](x)
             x = self.decoder_conv[2](x)
+            x = torch.cat((x, conv_cap_2_1), dim=1)
+            x = self.decoder_conv[3](x)
+            x = self.decoder_conv[4](x)
             x = torch.cat((x, conv_cap_1_1), dim=1)
 
-        # logits = self.decoder_conv[5](x)
-        logits = self.decoder_conv[3](x)
+        logits = self.decoder_conv[5](x)
+
         return logits
 
     def training_step(self, batch, batch_idx):
@@ -308,8 +314,14 @@ class UCaps3D(pl.LightningModule):
         x = self.encoder_conv_caps[2](conv_cap_2_1)
         conv_cap_3_1 = self.encoder_conv_caps[3](x)
 
-        norm = torch.linalg.norm(conv_cap_3_1, dim=2)
+        x = self.encoder_conv_caps[4](conv_cap_3_1)
+        conv_cap_4_1 = self.encoder_conv_caps[5](x)
 
+        # Downsampled predictions
+        norm = torch.linalg.norm(conv_cap_4_1, dim=2)
+
+        shape = conv_cap_4_1.size()
+        conv_cap_4_1 = conv_cap_4_1.view(shape[0], -1, shape[-3], shape[-2], shape[-1])
         shape = conv_cap_3_1.size()
         conv_cap_3_1 = conv_cap_3_1.view(shape[0], -1, shape[-3], shape[-2], shape[-1])
         shape = conv_cap_2_1.size()
@@ -319,21 +331,22 @@ class UCaps3D(pl.LightningModule):
 
         # Expanding
         if self.connection == "skip":
-            x = self.decoder_conv[0](conv_cap_3_1)
-            x = torch.cat((x, conv_cap_2_1), dim=1)
+            x = self.decoder_conv[0](conv_cap_4_1)
+            x = torch.cat((x, conv_cap_3_1), dim=1)
             x = self.decoder_conv[1](x)
             x = self.decoder_conv[2](x)
+            x = torch.cat((x, conv_cap_2_1), dim=1)
+            x = self.decoder_conv[3](x)
+            x = self.decoder_conv[4](x)
             x = torch.cat((x, conv_cap_1_1), dim=1)
 
-        logits = self.decoder_conv[3](x)
-        # print(logits.shape)
+        logits = self.decoder_conv[5](x)
 
         # Reconstructing
         reconstructions = self.reconstruct_branch(x)
 
         # Calculating losses
         loss, cls_loss, rec_loss = self.losses(images, labels, norm, logits, reconstructions)
-        # self.CEloss.append(loss)
 
         self.log("margin_loss", cls_loss[0], on_step=False, on_epoch=True, sync_dist=True)
         self.log(f"{self.cls_loss}_loss", cls_loss[1], on_step=False, on_epoch=True, sync_dist=True)
@@ -343,6 +356,7 @@ class UCaps3D(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         images, labels = batch["image"], batch["label"]
+
         val_outputs = sliding_window_inference(
             images,
             roi_size=self.val_patch_size,
@@ -375,28 +389,12 @@ class UCaps3D(pl.LightningModule):
     def validation_epoch_end(self, outputs):
         dice_scores = self.dice_metric.aggregate()
         mean_val_dice = torch.mean(dice_scores)
-        # self.log("val_dice", mean_val_dice, sync_dist=True)
-        self.log("val_dice", mean_val_dice, sync_dist=False)
+        self.log("val_dice", mean_val_dice, sync_dist=True)
         for i, dice_score in enumerate(dice_scores):
             self.log(f"val_dice_class {i + 1}", dice_score, sync_dist=True)
         self.dice_metric.reset()
 
     def predict_step(self, batch, batch_idx, dataloader_idx=None):
-        # print(batch_idx)
-        # print(batch["image"].shape)
-        images = batch["image"]
-        outputs = sliding_window_inference(
-            images,
-            roi_size=self.val_patch_size,
-            sw_batch_size=self.sw_batch_size,
-            predictor=self.forward,
-            overlap=self.overlap,
-        )
-        return outputs
-
-    def test_step(self, batch, batch_idx, dataloader_idx=None):
-        print(batch_idx)
-        print(batch["image"].shape)
         images = batch["image"]
         outputs = sliding_window_inference(
             images,
@@ -424,9 +422,8 @@ class UCaps3D(pl.LightningModule):
         rec_loss = torch.mean(rec_loss)
 
         downsample_labels = F.interpolate(
-            one_hot(labels, self.out_channels), scale_factor=0.25, mode="trilinear", align_corners=False
+            one_hot(labels, self.out_channels), scale_factor=0.125, mode="trilinear", align_corners=False
         )
-
         cls_loss1 = self.classification_loss1(norm, downsample_labels)
         cls_loss2 = self.classification_loss2(pred, labels)
 
@@ -439,8 +436,8 @@ class UCaps3D(pl.LightningModule):
     def _build_encoder(self):
         self.encoder_conv_caps = nn.ModuleList()
         self.encoder_kernel_size = 3
-        self.encoder_output_dim = [16, 8, 8, self.out_channels]
-        self.encoder_output_atoms = [8, 8, 16, 32]
+        self.encoder_output_dim = [16, 16, 8, 8, 8, self.out_channels]
+        self.encoder_output_atoms = [8, 8, 16, 16, 32, 64]
 
         for i in range(len(self.encoder_output_dim)):
             if i == 0:
@@ -470,11 +467,11 @@ class UCaps3D(pl.LightningModule):
     def _build_decoder(self):
         self.decoder_conv = nn.ModuleList()
         if self.connection == "skip":
-            self.decoder_in_channels = [self.out_channels * self.encoder_output_atoms[-1], 192, 64, 128]
-            self.decoder_out_channels = [128, 64, 64, self.out_channels]
+            self.decoder_in_channels = [self.out_channels * self.encoder_output_atoms[-1], 384, 128, 256, 64, 128]
+            self.decoder_out_channels = [256, 128, 128, 64, 64, self.out_channels]
 
-        for i in range(4):
-            if i == 3:
+        for i in range(6):
+            if i == 5:
                 self.decoder_conv.append(
                     Conv["conv", 3](self.decoder_in_channels[i], self.decoder_out_channels[i], kernel_size=1)
                 )
