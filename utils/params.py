@@ -47,16 +47,22 @@ class_names = {0: "bg", 1: "4d8q"}
 reversed_class_names = OrderedDict({"bg": 0, "4d8q": 1})
 
 # SHREC19 with class 1BXN
-# class_radius = [0, 8]
+# class_radius = [0, 6]
 # class_names_list = ["1bxn"]
 # class_names = {0: "bg", 1: "1bxn"}
 # reversed_class_names = OrderedDict({"bg": 0, "1bxn": 1})
 
 # SHREC19 with class 3GL1
-# class_radius = [0, 1]
+# class_radius = [0, 4]
 # class_names_list = ["3gl1"]
 # class_names = {0: "bg", 1: "3gl1"}
 # reversed_class_names = OrderedDict({"bg": 0, "3gl1": 1})
+
+# SHREC19 with class 3GL1
+# class_radius = [0, 6, 4, 8]
+# class_names_list = ["1bxn", "3gl1", "4d8q"]
+# class_names = {0: "bg", 1: "1bxn", 2: "3gl1", 3: "4d8q"}
+# reversed_class_names = OrderedDict({"bg": 0, "1bxn": 1, "3gl1": 2, "4d8q": 3})
 
 # ********************** Invitro Dataset **********************
 # Invitro with 2 classes
