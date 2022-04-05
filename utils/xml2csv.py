@@ -3,10 +3,13 @@ from lxml import etree
 import pandas as pd
 import os
 
-tomoid = 23
-base_dir = "/mnt/Data/Cryo-ET/DeepET/data/invitro_RibosomeAndProteasome/tomo_" + str(tomoid) + "/"
-base_dir2 = "/mnt/Data/Cryo-ET/DeepET/data2/images/"
+tomoid = 9
+# base_dir = "/mnt/Data/Cryo-ET/DeepET/data/invitro_RibosomeAndProteasome/tomo_" + str(tomoid) + "/"
+# base_dir2 = "/mnt/Data/Cryo-ET/DeepET/data2/images/"
 
+
+base_dir = "/mnt/Data/Cryo-ET/DeepET/data/SHREC/" + str(tomoid) + "/"
+base_dir2 = "/mnt/Data/Cryo-ET/DeepET/data/SHREC/" + str(tomoid) + "/"
 
 def read_xml2(filename, bdir, bdir2, tid):
     tree = etree.parse(filename)
@@ -26,16 +29,17 @@ def read_xml2(filename, bdir, bdir2, tid):
         phi = objl_xml[p].get('phi')
         the = objl_xml[p].get('the')
         psi = objl_xml[p].get('psi')
-        if lbl == '1':
-            cls = "pt"
+        # cls = ""
+        if lbl == '12':
+            cls = "4d8q"
             # content_pt.append([name, z, y, x, phi, the, psi, cls])
-        if lbl == '2':
-            cls = "rb"
+        # if lbl == '2':
+        #     cls = "rb"
             # content_rb.append([name, z, y, x, phi, the, psi, cls])
-        content.append([name, z, y, x, phi, the, psi, cls])
+            content.append([name, z, y, x, phi, the, psi, cls])
 
     df = pd.DataFrame(content, columns=column_names)
-    csv = base_dir + '/T' + str(tomoid) + '_PTRB.csv'
+    csv = base_dir + '/T' + str(tomoid) + '_4d8q.csv'
     df.to_csv(csv, index=False)
 
     # df_pt = pd.DataFrame(content_pt, columns=column_names)
@@ -47,5 +51,6 @@ def read_xml2(filename, bdir, bdir2, tid):
     # df_rb.to_csv(csv_rb, index=False)
 
     return obj_list
+
 
 object_list = read_xml2(os.path.join(base_dir, "objectlist" + str(tomoid) + ".xml"), base_dir, base_dir2, tomoid)

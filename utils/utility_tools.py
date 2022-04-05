@@ -429,9 +429,9 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
             phi = np.float(content[row][6])
 
             #### for real data #############
-            phi = np.float(content[row][4])
-            the = np.float(content[row][5])
-            psi = np.float(content[row][6])
+            # phi = np.float(content[row][4])
+            # the = np.float(content[row][5])
+            # psi = np.float(content[row][6])
             # z = int(content[row][1] / voxSize) - 1
             # y = int(content[row][2] / voxSize) - 1
             # x = int(content[row][3] / voxSize) - 1
@@ -439,8 +439,6 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
             # z = z - (offset * voxSize)
             # y = int(content[row][2] * voxSize)
             # x = int(content[row][3] * voxSize)
-
-
 
             display('Annotating point ' + str(row + 1) + ' / ' + str(ann_num) +
                     ' with class ' + str(content[row][-1]) +
@@ -450,9 +448,9 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
             ref = radi_ref[cls_ann - 1]
             cOffset = int(np.floor(ref.shape[0] / 2))
 
-            if phi is not None and psi is not None and the is not None:
-                ref = rotate_vol(ref, (phi, psi, the))
-                ref = np.int8(np.round(ref))
+            # if phi is not None and psi is not None and the is not None:
+            #     ref = rotate_vol(ref, (phi, psi, the))
+            #     ref = np.int8(np.round(ref))
 
             # identify coordinates of particle in mask
             obj_voxels = np.nonzero(ref == 1)
@@ -484,7 +482,6 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
                     # newy_coord.append(yVox)
                     # newz_coord.append(zVox)
                             # np.int(np.sum(modified_tomo[zVox:-1:zVox+1, yVox-1:yVox+1, xVox-1:xVox+1]) + new_intensity_val / 2)
-
             # print(modified_tomo.shape)
             # print(modified_tomo[newz_coord, newy_coord, newx_coord])
 

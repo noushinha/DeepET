@@ -68,11 +68,11 @@ def add_obj(obj_list, label, coord, obj_id=None, tomo_idx=None, c_size=None):
     return obj_list
 
 
-tomo_id = 23
-particle_type = ""  # "_pt", "_rb", ""
-base_dir = "/mnt/Data/Cryo-ET/DeepET/data2/0InvitroTargets/"
-output_dir = "/mnt/Data/Cryo-ET/DeepET/data/invitro_RibosomeAndProteasome/tomo_" + str(tomo_id) + "/"
-tomo_name = base_dir + str(tomo_id) + '_resampled.mrc'
+tomo_id = 9
+particle_type = "4d8q"
+base_dir = "/mnt/Data/Cryo-ET/DeepET/data/SHREC/" + str(tomo_id) + "/"
+output_dir = "/mnt/Data/Cryo-ET/DeepET/data/SHREC/" + str(tomo_id) + "/"
+tomo_name = base_dir + 'micrographs/reconstruction_model_0' + str(tomo_id) + '.mrc'
 tomo = read_mrc(tomo_name)
 hitbox_size = tomo - tomo
 print(tomo.shape)
@@ -80,16 +80,27 @@ print(tomo.shape)
 # you need xml files listing particles with following info:
 # <object tomo_idx="23" obj_id="0" class_label="1" x="209" y="243" z="106" phi="113.678" psi="85.385" the="232.794"/>
 # also name of file must be objectlist<tomo_id>>_<particle_type>.xml
-list_annotations = read_xml2(os.path.join(output_dir, "objectlist" + str(tomo_id) + particle_type + ".xml"))
+list_annotations = read_xml2(os.path.join(output_dir, "objectlist" + str(tomo_id) + ".xml"))
+# class_names_list = ["12"]  # 4D8Q
+# class_names_list = ["8"]  # 3GL1
+# class_names_list = ["1"]  # 1BXN
 
+my_class_radius = [0, 6, 6, 3, 6, 6, 7, 6, 4, 4, 3, 10, 8]
 # for each annotation
+cnt = 0
 for row in range(0, len(list_annotations)):
-    z = int(list_annotations[row]['z'])
-    y = int(list_annotations[row]['y'])
-    x = int(list_annotations[row]['x'])
+    lbl = int(list_annotations[row]['label'])
+    # if lbl == 12 or lbl == 8 or lbl == 1:
+    if lbl == 12:
+        z = int(list_annotations[row]['z'])
+        y = int(list_annotations[row]['y'])
+        x = int(list_annotations[row]['x'])
 
-    radi = class_radius[int(list_annotations[row]['label'])]
-    hitbox_size[z-radi:z+radi, y-radi:y+radi, x-radi:x+radi] = row  # 128.0
+        radi = my_class_radius[lbl]
+        hitbox_size[z-radi:z+radi, y-radi:y+radi, x-radi:x+radi] = cnt  # 128.0
+        cnt = cnt + 1
 
+
+print(cnt)
 print(np.unique(hitbox_size))
-write_mrc(np.float32(hitbox_size), os.path.join(output_dir, "hitbox_" + str(tomo_id) + particle_type + ".mrc"))
+write_mrc(np.float32(hitbox_size), os.path.join(output_dir, "hitbox_" + str(tomo_id) + "_" + particle_type + ".mrc"))

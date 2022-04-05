@@ -14,7 +14,7 @@ import numpy as np
 from copy import deepcopy
 from scipy.spatial import distance
 from contextlib import redirect_stdout
-
+import nibabel as nib
 from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtGui import QIcon
 from gui.evaluation import evaluation
@@ -41,7 +41,7 @@ class EvaluationWindow(QMainWindow):
         self.model_names = ["3D UNet", "3D UCAP"]  # "YOLOv3", "R-CNN", "Mask R-CNN"]
         self.generate_model_radio_btns(2)
 
-        self.num_class = 2
+        self.num_class = 3
         self.patch_size = 128
         self.patch_crop = 0
         self.patch_overlap = 25
@@ -55,7 +55,7 @@ class EvaluationWindow(QMainWindow):
         self.tomo_path = None
 
         self.tomo_id = 23
-        self.class_id = "rb"
+        self.class_id = "PTRB"
 
         # initialize the parameters
         self.set_params(True)
@@ -95,6 +95,8 @@ class EvaluationWindow(QMainWindow):
 
         self.tomo = read_mrc(self.tomo_path)
         # self.mask = read_mrc(self.mask_path)
+        # self.tomo = nib.load(self.tomo_path)
+        # self.tomo = self.tomo.get_fdata()
         self.cnn_model()
 
         if flag:
@@ -139,7 +141,7 @@ class EvaluationWindow(QMainWindow):
         self.save_result(scores_tomo, labels_tomo)
 
         # plot the label map
-        plot_vol(labels_tomo, self.output_path)
+        plot_vol(labels_tomo, self.output_path, '_tomo_0' + str(self.tomo_id) + '_' + str(self.class_id))
         print("Segmentation Finished")
         sys.exit()
 
@@ -153,13 +155,14 @@ class EvaluationWindow(QMainWindow):
         slide = int(2 * bwidth + 1 - self.patch_overlap)  # self.patch_size + 1
         # normalize and zero pad the tomogram values
         # tomo = self.tomo
+
         tomo = (self.tomo - np.mean(self.tomo)) / np.std(self.tomo)
         # write_mrc(tomo, '/mnt/Data/Cryo-ET/3D-UCaps (copy)/data/invitro/output/labelsTs/23_resamples_normalized.mrc')
         # tomo = np.pad(tomo, self.patch_crop, mode='constant', constant_values=0)
         # mask = self.mask
         # self.tomo = tomo
-
         # z_half_dim, y_half_dim, x_half_dim = (self.patch_size / 2, self.patch_size / 2, self.patch_size / 2)
+
         x_centers = list(range(bwidth, tomo.shape[2] - bwidth, slide))
         y_centers = list(range(bwidth, tomo.shape[1] - bwidth, slide))
         z_centers = list(range(bwidth, tomo.shape[0] - bwidth, slide))
@@ -281,9 +284,9 @@ class EvaluationWindow(QMainWindow):
         binned_labelmap = np.int8(np.argmax(binned_scoremap, axis=-1))
 
         # Save labelmaps:
-        scoremap_path = os.path.join(self.output_path, 'segment/scoremap_tomo.mrc')
-        labelmap_path = os.path.join(self.output_path, 'segment/tomo_labelmap.mrc')
-        binned_labelmap_path = os.path.join(self.output_path, 'segment/tomo_binned_labelmap.mrc')
+        scoremap_path = os.path.join(self.output_path, 'segment/scoremap_tomo_0' + str(self.tomo_id) + '_' + str(self.class_id) + '.mrc')
+        labelmap_path = os.path.join(self.output_path, 'segment/tomo_labelmap_0' + str(self.tomo_id) + '_' + str(self.class_id) + '.mrc')
+        binned_labelmap_path = os.path.join(self.output_path, 'segment/tomo_binned_labelmap_0' + str(self.tomo_id) + '_' + str(self.class_id) + '.mrc')
         write_mrc(scoremap_tomo, scoremap_path)
         write_mrc(labelmap_tomo, labelmap_path)
         write_mrc(binned_labelmap, binned_labelmap_path)
@@ -316,12 +319,12 @@ class EvaluationWindow(QMainWindow):
         :return: numpy array of scoremap predicted by the trained model
         """
         # inititalize some values
-        radi = 5
-        thr = 1
+        radi = 6
+        thr = 3
         s = 2
 
         # check the file exists
-        labelmap_path = os.path.join(self.output_path, "segment/tomo_binned_labelmap.mrc")
+        labelmap_path = os.path.join(self.output_path, 'segment/tomo_binned_labelmap_0' + str(self.tomo_id) + '_' + str(self.class_id) + '.mrc')
         is_file(labelmap_path)
 
         binned_labelmap = read_mrc(labelmap_path)
@@ -416,14 +419,17 @@ class EvaluationWindow(QMainWindow):
             new_objlist[i]['y'] = scale[1] * y
             new_objlist[i]['z'] = scale[0] * z
             new_objlist[i]['obj_id'] = i
-            new_objlist[i]['tomo_idx'] = 8
+            new_objlist[i]['tomo_idx'] = self.tomo_id
 
         # drop small particles based on threshold for each class
-        # labels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-        # thresholds = [50, 100, 20, 100, 50, 100, 100, 50, 50, 20, 300, 300]
+        # labels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        # thresholds = [0, 50, 100, 20, 100, 50, 100, 100, 50, 50, 20, 300, 300]
 
-        labels = [1, 2]
-        thresholds = [300, 100]
+        labels = [0, 1, 2, 3]
+        # thresholds = [300, 100] # 4d8q
+        # thresholds = [50, 100]  # 1bxn
+        # thresholds = [50, 100]  # 3gl1
+        thresholds = [300, 50, 50]  # 3gl1
 
         clean_objlist = []
         for l in labels:
@@ -454,8 +460,8 @@ class EvaluationWindow(QMainWindow):
             for p in range(len(objlist_class)):
                 clean_objlist.append(objlist_class[p])
 
-        raw_ploc_path = os.path.join(self.output_path, 'cluster/tomo_objlist_raw.xml')
-        scaled_ploc_path = os.path.join(self.output_path, 'cluster/tomo_objlist_thr.xml')
+        raw_ploc_path = os.path.join(self.output_path, 'cluster/objlist_raw_tomo_' + str(self.tomo_id) + '_' + str(self.class_id) + '.xml')
+        scaled_ploc_path = os.path.join(self.output_path, 'cluster/objlist_thr_tomo_' + str(self.tomo_id) + '_' + str(self.class_id) + '.xml')
 
         write_xml(objlist, raw_ploc_path)
         write_xml(clean_objlist, scaled_ploc_path)
@@ -469,7 +475,7 @@ class EvaluationWindow(QMainWindow):
         # initialziation
         list_classes = class_names
         gtcoord_flag = True
-        gt_z_offset = 0  # 156
+        gt_z_offset = 156
         gt_z_offset = gtcoord_flag * gt_z_offset
         padding = 0
         total_num_hit = 0
@@ -477,7 +483,7 @@ class EvaluationWindow(QMainWindow):
         clipped_ptls = 0
 
         # set paths
-        clean_objlist_path = os.path.join(self.output_path, 'cluster/tomo_objlist_thr.xml')
+        clean_objlist_path = os.path.join(self.output_path, 'cluster/objlist_thr_tomo_' + str(self.tomo_id) + '_' + str(self.class_id) + '.xml')
         clean_objlist = read_xml2(clean_objlist_path)
 
         gt_ptls_path = os.path.join(self.output_path, "particle_locations_model_" + str(self.tomo_id) + "_" + str(self.class_id) + ".txt")
@@ -525,6 +531,8 @@ class EvaluationWindow(QMainWindow):
                 gt_ptls.append((pcn_idx, int(z), int(y), int(x)))
         gt_ptls_cls = np.asarray([reversed_class_names[p[0]] for p in gt_ptls])
         hitbox = read_mrc(hitbox_path)
+
+        print("length of ground truth particles = ", len(gt_ptls))
 
         # variable definition
         pred_ptls_num_hits = np.zeros((len(gt_ptls),), dtype=int)
@@ -575,6 +583,8 @@ class EvaluationWindow(QMainWindow):
         unique_particles_not_found = sum([int(p == 0) for p in pred_ptls_num_hits])
         multiple_hits = sum([int(p > 1) for p in pred_ptls_num_hits])
 
+        print(len(gt_ptls_cls))
+        print(unique_particles_found)
         total_recall = unique_particles_found / len(gt_ptls_cls)
         total_precision = unique_particles_found / len(predicted_particles)
         total_f1 = 1 / ((1 / total_recall + 1 / total_precision) / 2)
@@ -591,7 +601,7 @@ class EvaluationWindow(QMainWindow):
         # cm.relabel(class_labels)
 
         # save results as a log file
-        log_path = os.path.join(self.output_path, 'evaluate/evaluation_log.txt')
+        log_path = os.path.join(self.output_path, 'evaluate/evaluation_log_tomo_0' + str(self.tomo_id) + '_' + str(self.class_id) + '.txt')
         with open(log_path, 'w') as f:
             with redirect_stdout(f):
                 print('EVALUATION results for localization')
@@ -605,27 +615,28 @@ class EvaluationWindow(QMainWindow):
                 if clipped_ptls:
                     print(f'Note: there were {clipped_ptls} results that were outside of tomo bounds ({hitbox.shape})')
                 print(f'Average euclidean distance from predicted center to ground truth center: {avg_distance:.5f}')
-                print(f'Total recall: {total_recall:.5f}')
-                print(f'Total precision: {total_precision:.5f}')
-                print(f'Total miss rate: {total_missrate:.5f}')
                 print(f'Total f1-score: {total_f1:.5f}')
+                print(f'Total precision: {total_precision:.5f}')
+                print(f'Total recall: {total_recall:.5f}')
+                print(f'Total miss rate: {total_missrate:.5f}')
                 print('\nEVALUATION results for classification')
                 print(cm)
 
-        cm.save_html(os.path.join(self.output_path, 'evaluate/classification_log'))
-        cm.save_csv(os.path.join(self.output_path, 'evaluate/classification_log'))
+        cm.save_html(os.path.join(self.output_path, 'evaluate/classification_log_tomo_0' + str(self.tomo_id) + '_' + str(self.class_id)))
+        cm.save_csv(os.path.join(self.output_path, 'evaluate/classification_log_tomo_0' + str(self.tomo_id) + '_' + str(self.class_id)))
         # save confusion matrix as a plot
         cnf_matrix = confusion_matrix(gt_ptls_cls, pred_ptls_cls)
-        cnf_matrix = cnf_matrix[1:cnf_matrix.shape[0], 1:cnf_matrix.shape[1]]  # remove background class
+        # cnf_matrix = cnf_matrix[1:cnf_matrix.shape[0], 1:cnf_matrix.shape[1]]  # remove background class
         class_lbls = np.transpose(list(class_names.values()))
-        class_lbls = class_lbls[1:len(class_lbls)]
+        # class_lbls = class_lbls[1:len(class_lbls)]
         # # plot normalized and non-normalized confusion matrix
         # plt.figure(num=1, figsize=(10, 10), dpi=150)
         # plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path)
-        #
         # plt.figure(num=2, figsize=(10, 10), dpi=150)
-        plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path, normalize=True, plot_num=1)
-        plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path, normalize=False, plot_num=2)
+        plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path,
+                              filename='_0' + str(self.tomo_id) + '_' + str(self.class_id), normalize=True, plot_num=1)
+        plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path,
+                              filename='_0' + str(self.tomo_id) + '_' + str(self.class_id), normalize=False, plot_num=2)
 
         # Plot all ROC curves
         # ROC curves are appropriate when the observations are balanced between each class ,

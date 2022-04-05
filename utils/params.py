@@ -41,10 +41,10 @@ else:
 
 # ********************** SHREC19 Dataset **********************
 # SHREC19 with class 4D8Q
-class_radius = [0, 12]
-class_names_list = ["4d8q"]
-class_names = {0: "bg", 1: "4d8q"}
-reversed_class_names = OrderedDict({"bg": 0, "4d8q": 1})
+# class_radius = [0, 8]
+# class_names_list = ["4d8q"]
+# class_names = {0: "bg", 1: "4d8q"}
+# reversed_class_names = OrderedDict({"bg": 0, "4d8q": 1})
 
 # SHREC19 with class 1BXN
 # class_radius = [0, 6]
@@ -59,17 +59,17 @@ reversed_class_names = OrderedDict({"bg": 0, "4d8q": 1})
 # reversed_class_names = OrderedDict({"bg": 0, "3gl1": 1})
 
 # SHREC19 with class 3GL1
-# class_radius = [0, 6, 4, 8]
-# class_names_list = ["1bxn", "3gl1", "4d8q"]
-# class_names = {0: "bg", 1: "1bxn", 2: "3gl1", 3: "4d8q"}
-# reversed_class_names = OrderedDict({"bg": 0, "1bxn": 1, "3gl1": 2, "4d8q": 3})
+# class_radius = [0, 8, 6, 4]
+# class_names_list = ["4d8q", "1bxn", "3gl1"]
+# class_names = {0: "bg", 1: "4d8q", 2: "1bxn", 3: "3gl1"}
+# reversed_class_names = OrderedDict({"bg": 0, "4d8q": 1, "1bxn": 2, "3gl1": 3})
 
 # ********************** Invitro Dataset **********************
 # Invitro with 2 classes
-# class_radius = [0, 10, 13]
-# class_names_list = ["pt", "rb"]
-# class_names = {0: "bg", 1: "pt", 2: "rb"}
-# reversed_class_names = OrderedDict({"bg": 0, "pt": 1, "rb": 2})
+class_radius = [0, 10, 13]
+class_names_list = ["pt", "rb"]
+class_names = {0: "bg", 1: "pt", 2: "rb"}
+reversed_class_names = OrderedDict({"bg": 0, "pt": 1, "rb": 2})
 
 # Invitro with class proteasome
 # class_radius = [0, 10]
@@ -78,7 +78,7 @@ reversed_class_names = OrderedDict({"bg": 0, "4d8q": 1})
 # reversed_class_names = OrderedDict({"bg": 0, "pt": 1})
 
 
-# Invitro with class ribosome
+# # Invitro with class ribosome
 # class_radius = [0, 13]
 # class_names_list = ["rb"]
 # class_names = {0: "bg", 1: "rb"}

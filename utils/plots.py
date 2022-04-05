@@ -16,6 +16,8 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import roc_curve, auc, precision_recall_curve
 from matplotlib.ticker import MaxNLocator
 from utils import params
+
+
 # Smoothing the plots
 def smooth_curve(points, factor=0.8):
     """ This function smooths the fluctuation of a plot by
@@ -32,9 +34,8 @@ def smooth_curve(points, factor=0.8):
 
 
 def plot_confusion_matrix(cm, classes,
-                          eps_dir,
+                          eps_dir, filename='',
                           normalize=False,
-                          title='Confusion matrix',
                           cmap=plt.cm.Blues,
                           plot_num=1):
     """
@@ -67,13 +68,13 @@ def plot_confusion_matrix(cm, classes,
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
     if not normalize:
-        cf_nonnormalized_filename1 = os.path.join(eps_dir, "evaluate/NonNormalized_ConfMtrx" + ".eps")
-        cf_nonnormalized_filename2 = os.path.join(eps_dir, "evaluate/NonNormalized_ConfMtrx" + ".png")
+        cf_nonnormalized_filename1 = os.path.join(eps_dir, "evaluate/NonNormalized_ConfMtrx" + filename + ".eps")
+        cf_nonnormalized_filename2 = os.path.join(eps_dir, "evaluate/NonNormalized_ConfMtrx" + filename + ".png")
         plt.savefig(cf_nonnormalized_filename1, format='eps', dpi=300, bbox_inches="tight")
         plt.savefig(cf_nonnormalized_filename2, format='png', dpi=300, bbox_inches="tight")
     else:
-        cf_normalized_filename1 = os.path.join(eps_dir, "evaluate/Normalized_ConfMtrx" + ".eps")
-        cf_normalized_filename2 = os.path.join(eps_dir, "evaluate/Normalized_ConfMtrx" + ".png")
+        cf_normalized_filename1 = os.path.join(eps_dir, "evaluate/Normalized_ConfMtrx" + filename + ".eps")
+        cf_normalized_filename2 = os.path.join(eps_dir, "evaluate/Normalized_ConfMtrx" + filename + ".png")
         plt.savefig(cf_normalized_filename1, format='eps', dpi=300, bbox_inches="tight")
         plt.savefig(cf_normalized_filename2, format='png', dpi=300, bbox_inches="tight")
 
@@ -108,7 +109,7 @@ def autolabel(ax, rects):
     """
     for rect in rects:
         h = rect.get_height()
-        ax.text(rect.get_x()+rect.get_width()/2., 1.05*h, '%d'%int(h),
+        ax.text(rect.get_x()+rect.get_width()/2., 1.05*h, '%d' % int(h),
                 ha='center', va='bottom')
 
 
@@ -124,7 +125,6 @@ def plot_roc(y_test, y_score, classes_num, eps_dir):
     fpr = dict()
     tpr = dict()
     roc_auc = dict()
-
 
     # y_test = y_test[1:y_test.shape[0], 1:y_test.shape[1]]
     # y_score = y_test[1:y_score.shape[0], 1:y_score.shape[1]]
@@ -175,7 +175,7 @@ def plot_roc(y_test, y_score, classes_num, eps_dir):
     for i, color in zip(range(classes_num), palette):
         plt.plot(fpr[i], tpr[i], color=color, lw=lw,
                  label='class {cls} ROC, (AUC = {arr})'
-                       ''.format(cls=params.class_names[i], arr=np.round(roc_auc[i],2)))
+                       ''.format(cls=params.class_names[i], arr=np.round(roc_auc[i], 2)))
 
     plt.plot([0, 1], [0, 1], color='silver', linestyle='--', linewidth=lw)
     plt.xlim([0.0, 1.0])
@@ -197,7 +197,7 @@ def plot_recall_precision(y_test, y_score, classes_num, eps_dir):
     """
 
     # variable definition
-    lw=1
+    lw = 1
     lr_recall = dict()
     lr_precision = dict()
     rp_auc = dict()
@@ -206,7 +206,6 @@ def plot_recall_precision(y_test, y_score, classes_num, eps_dir):
     for i in range(classes_num):
         lr_precision[i], lr_recall[i], _ = precision_recall_curve(y_test[:, i], y_score[:, i])
         rp_auc[i] = auc(lr_recall[i], lr_precision[i])
-
 
     # Compute micro-average ROC curve and ROC area
     lr_precision["micro"], lr_recall["micro"], _ = precision_recall_curve(y_test.ravel(), y_score.ravel())
@@ -265,6 +264,7 @@ def plot_recall_precision(y_test, y_score, classes_num, eps_dir):
     plt.savefig(filename1, format='eps', dpi=300, bbox_inches="tight")
     plt.savefig(filename2, format='png', dpi=300, bbox_inches="tight")
 
+
 # plotting learning rate
 def plot_lr(lr_points, eps_dir, epoch):
     """
@@ -303,7 +303,7 @@ def general_plot(data_points, eps_dir, axis_labels, class_names, epoch, plot_num
     plt.show()
 
 
-def plot_vol(vol_array, output_path):
+def plot_vol(vol_array, output_path, filename):
     """
         save a file from slices of a volume array.
         If volume is int8, the function plots labelmap in color scale.
@@ -339,11 +339,10 @@ def plot_vol(vol_array, output_path):
         fig3 = plt.figure(num=3, figsize=(5, 10))
         plt.imshow(zx_slice, cmap='gray', vmin=mu - 5 * std, vmax=mu + 5 * std)
 
-    fig1.savefig(os.path.join(output_path, "segment/labelmap_xy_plane.png"))
-    fig2.savefig(os.path.join(output_path, "segment/labelmap_zx_plane.png"))
-    fig3.savefig(os.path.join(output_path, "segment/labelmap_zy_plane.png"))
+    fig1.savefig(os.path.join(output_path, "segment/labelmap_xy_plane" + filename + ".png"))
+    fig2.savefig(os.path.join(output_path, "segment/labelmap_zx_plane" + filename + ".png"))
+    fig3.savefig(os.path.join(output_path, "segment/labelmap_zy_plane" + filename + ".png"))
     plt.show()
-
 
 
 # export PATH=/usr/local/cuda-11/bin${PATH:+:${PATH}}
