@@ -207,6 +207,7 @@ class TrainModel:
         elif self.obj.model_type == "3D UNet":
             self.net = cnnobj.unet3d((self.obj.patch_size, self.obj.patch_size, self.obj.patch_size), self.obj.classNum)
         print(self.net.summary())
+        print(cnnobj.get_model_memory_usage(24, self.net))
         # set the properties of the mdoel
         self.set_optimizer()
         self.set_compile()

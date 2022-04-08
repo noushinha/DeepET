@@ -42,7 +42,7 @@ class EvaluationWindow(QMainWindow):
         self.generate_model_radio_btns(2)
 
         self.num_class = 3
-        self.patch_size = 128
+        self.patch_size = 64
         self.patch_crop = 0
         self.patch_overlap = 25
         self.slide = None
@@ -54,7 +54,7 @@ class EvaluationWindow(QMainWindow):
         self.model = None
         self.tomo_path = None
 
-        self.tomo_id = 23
+        self.tomo_id = 19
         self.class_id = "PTRB"
 
         # initialize the parameters
