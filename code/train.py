@@ -33,11 +33,11 @@ class TrainingWindow(QMainWindow):
         white_color = QColor(255, 255, 255)
         self.ui.textEdit.setTextColor(white_color)
 
-        self.model_names = ["3D UNet", "3D UCaps"]
+        self.model_names = ["3D UNet", "3D UCaps", "TL 3D UNet"]
         self.loss_names = ["Dice", "Categorical", "Focal", "Focal tversky", "tversky"]
         self.opt_names = ["Adam", "SGD", "RMS Prop"]
 
-        self.generate_model_radio_btns(2)
+        self.generate_model_radio_btns(3)
         self.generate_optimizer_radio_btns(3)
         self.generate_loss_radio_btns(5)
 
@@ -123,6 +123,7 @@ class TrainingWindow(QMainWindow):
         self.batch_size = int(self.ui.batchsize.text())
         self.patch_size = int(self.ui.patchsize.text())
         self.base_path = ROOT_DIR.__str__() + self.ui.basePath.text()
+        self.weight_path = ROOT_DIR.__str__() + self.ui.weightPath.text()
         # self.output_path = ROOT_DIR.__str__() + str(self.ui.basePath.text()) + "results/RealData/"
         self.output_path = ROOT_DIR.__str__() + str(self.ui.basePath.text()) + "results/SyntheticData/"
         self.lr = float(self.ui.LR.text())

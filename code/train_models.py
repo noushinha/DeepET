@@ -66,6 +66,7 @@ class TrainModel:
         print(self.obj.loss)
         self.train_img_path = os.path.join(obj.base_path, "images/")
         self.train_target_path = os.path.join(obj.base_path, "targets/")
+        self.weight_path = os.path.join(obj.base_path, obj.weight_path)
         self.lr = obj.lr
         self.initial_lr = obj.lr
         self.width = obj.img_dim[0]
@@ -206,8 +207,14 @@ class TrainModel:
             self.net = cnnobj.unet2d((self.obj.patch_size, self.obj.patch_size), self.obj.classNum)
         elif self.obj.model_type == "3D UNet":
             self.net = cnnobj.unet3d((self.obj.patch_size, self.obj.patch_size, self.obj.patch_size), self.obj.classNum)
+        elif self.obj.model_type == "TL 3D UNet":
+            self.net = cnnobj.unet3d((self.obj.patch_size, self.obj.patch_size, self.obj.patch_size), self.obj.classNum)
+            self.net.load_weights(self.model_weight_path)
+            self.net.trainable = False
+            # x = self.model(x, training=False)
+
         print(self.net.summary())
-        print(cnnobj.get_model_memory_usage(24, self.net))
+        # print(cnnobj.get_model_memory_usage(24, self.net))
         # set the properties of the mdoel
         self.set_optimizer()
         self.set_compile()
