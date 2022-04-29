@@ -110,7 +110,7 @@ class TrainModel:
         # check if every tomo has a corresponding mask
         if len(self.list_tomos_IDs) != len(self.list_masks_IDs):
             display("Expected two" + str(len(self.list_tomos_IDs)) + ", received " +
-                   str(len(self.list_tomos_IDs)) + " and "+ str(len(self.list_masks_IDs)) +
+                   str(len(self.list_tomos_IDs)) + " and " + str(len(self.list_masks_IDs)) +
                     ". \n There is a missing pair of tomogram and target.")
             sys.exit()
 
@@ -209,16 +209,26 @@ class TrainModel:
             self.net = cnnobj.unet3d((self.obj.patch_size, self.obj.patch_size, self.obj.patch_size), self.obj.classNum)
         elif self.obj.model_type == "TL 3D UNet":
             self.net = cnnobj.unet3d((self.obj.patch_size, self.obj.patch_size, self.obj.patch_size), self.obj.classNum)
-            self.net.load_weights(self.model_weight_path)
-            self.net.trainable = False
-            # x = self.model(x, training=False)
+            self.net.load_weights(self.weight_path)
+            for layer in self.net.layers[:-1]:
+                # print(layer.name)
+                layer.trainable = False
+                # Create the model
+            from keras import models
+            model = models.Sequential()
+
+            # Add the 3d-UNet base model but this time without the classification layer
+            model.add(self.net)
+
+            # Add a new classification layer
+            model.add(layers.Conv3D(len(self.obj.class_names), (1, 1, 1),
+                                    padding='same', activation='softmax', name="cls_layer"))
 
         print(self.net.summary())
         # print(cnnobj.get_model_memory_usage(24, self.net))
         # set the properties of the mdoel
         self.set_optimizer()
         self.set_compile()
-
 
     def fit_model(self):
         label_list = []
@@ -364,7 +374,7 @@ class TrainModel:
         return class_idx
 
     def fetch_batch(self, e, b, bsize, flag_new_epoch, flag_new_batch):
-    # def fetch_batch(self, e, bsize):
+        # def fetch_batch(self, e, bsize):
         """
         this function fetches the patches from the current tomo based on the batch index
         """
@@ -376,7 +386,7 @@ class TrainModel:
         mid_dim = int(np.floor(self.obj.patch_size / 2))
         total_num_samples = len(self.list_annotations)
         # num_train_samples = int(np.round(len(self.list_annotations) * .9))
-        num_train_samples = int(np.round(len(self.list_annotations) * .8333))
+        num_train_samples = int(np.round(len(self.list_annotations) * .85))
         # num_valid_samples = len(self.list_annotations) - num_train_samples
         if flag_new_epoch:
             # shuffle list of all samples so in the new epoch we get different train and valid samples
@@ -566,7 +576,7 @@ class TrainModel:
             return self.lr_decay_step(epoch)
         elif self.lr_type == "exp_decay":
             LearningRateScheduler(self.lr_decay_exp(epoch))
-        elif self.lr_type== "poly_decay":
+        elif self.lr_type == "poly_decay":
             LearningRateScheduler(self.lr_decay_poly(epoch))
         elif self.lr_type == "cyclic":
             CyclicLR(base_lr=self.initial_lr, max_lr=6e-04, step_size=500., mode='exp_range', gamma=0.99994)
@@ -598,6 +608,7 @@ class TrainModel:
     def set_weight_callback(self, e):
         # checkpoint directory
         checkpoint_dir = os.path.join(self.output_path, 'weights-improvement-' + str(e) + '.h5')
+        #callbacklist=[TensorBoard(log_dir=log_folder)]
 
         self.net.save(checkpoint_dir)
 

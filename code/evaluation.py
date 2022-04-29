@@ -42,7 +42,7 @@ class EvaluationWindow(QMainWindow):
         self.generate_model_radio_btns(2)
 
         self.num_class = 3
-        self.patch_size = 64
+        self.patch_size = 100
         self.patch_crop = 0
         self.patch_overlap = 25
         self.slide = None
@@ -54,7 +54,7 @@ class EvaluationWindow(QMainWindow):
         self.model = None
         self.tomo_path = None
 
-        self.tomo_id = 19
+        self.tomo_id = 23
         self.class_id = "PTRB"
 
         # initialize the parameters
@@ -425,11 +425,11 @@ class EvaluationWindow(QMainWindow):
         # labels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
         # thresholds = [0, 50, 100, 20, 100, 50, 100, 100, 50, 50, 20, 300, 300]
 
-        labels = [0, 1, 2, 3]
+        labels = [0, 1, 2]
         # thresholds = [300, 100] # 4d8q
         # thresholds = [50, 100]  # 1bxn
         # thresholds = [50, 100]  # 3gl1
-        thresholds = [300, 50, 50]  # 3gl1
+        thresholds = [300, 100]  # 3gl1
 
         clean_objlist = []
         for l in labels:
@@ -460,8 +460,8 @@ class EvaluationWindow(QMainWindow):
             for p in range(len(objlist_class)):
                 clean_objlist.append(objlist_class[p])
 
-        raw_ploc_path = os.path.join(self.output_path, 'cluster/objlist_raw_tomo_' + str(self.tomo_id) + '_' + str(self.class_id) + '.xml')
-        scaled_ploc_path = os.path.join(self.output_path, 'cluster/objlist_thr_tomo_' + str(self.tomo_id) + '_' + str(self.class_id) + '.xml')
+        raw_ploc_path = os.path.join(self.output_path, 'cluster/objlist_raw_tomo_' + str(self.tomo_id) + '_' + str.lower(self.class_id) + '.xml')
+        scaled_ploc_path = os.path.join(self.output_path, 'cluster/objlist_thr_tomo_' + str(self.tomo_id) + '_' + str.lower(self.class_id) + '.xml')
 
         write_xml(objlist, raw_ploc_path)
         write_xml(clean_objlist, scaled_ploc_path)
@@ -483,12 +483,12 @@ class EvaluationWindow(QMainWindow):
         clipped_ptls = 0
 
         # set paths
-        clean_objlist_path = os.path.join(self.output_path, 'cluster/objlist_thr_tomo_' + str(self.tomo_id) + '_' + str(self.class_id) + '.xml')
+        clean_objlist_path = os.path.join(self.output_path, 'cluster/objlist_thr_tomo_' + str(self.tomo_id) + '_' + str.lower(self.class_id) + '.xml')
         clean_objlist = read_xml2(clean_objlist_path)
 
-        gt_ptls_path = os.path.join(self.output_path, "particle_locations_model_" + str(self.tomo_id) + "_" + str(self.class_id) + ".txt")
-        res_ptls_path = os.path.join(self.output_path, "particle_locations_tomo_" + str(self.tomo_id) + "_" + str(self.class_id) + ".txt")
-        hitbox_path = os.path.join(self.output_path, "hitbox_" + str(self.tomo_id) + "_" + str(self.class_id) + ".mrc")
+        gt_ptls_path = os.path.join(self.output_path, "particle_locations_model_" + str(self.tomo_id) + "_" + str.lower(self.class_id) + ".txt")
+        res_ptls_path = os.path.join(self.output_path, "particle_locations_tomo_" + str(self.tomo_id) + "_" + str.lower(self.class_id) + ".txt")
+        hitbox_path = os.path.join(self.output_path, "hitbox_" + str(self.tomo_id) + "_" + str.lower(self.class_id) + ".mrc")
 
         is_file(clean_objlist_path)
         is_file(hitbox_path)

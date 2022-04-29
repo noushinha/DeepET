@@ -104,7 +104,7 @@ class CNNModels:
         x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(x)
         x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(x)
 
-        output = layers.Conv3D(class_num, (1, 1, 1), padding='same', activation='softmax')(x)
+        output = layers.Conv3D(class_num, (1, 1, 1), padding='same', activation='softmax', name="cls_layer")(x)
 
         model = Model(input_img, output)
         return model

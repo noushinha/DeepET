@@ -142,7 +142,7 @@ class Ui_MainWindow(object):
         self.depthL.setText(_translate("MainWindow", "Depth:"))
         self.width.setText(_translate("MainWindow", "409"))
         self.height.setText(_translate("MainWindow", "409"))
-        self.depth.setText(_translate("MainWindow", "103"))
+        self.depth.setText(_translate("MainWindow", "154"))
         # self.classnames.setText(_translate("MainWindow", "1bxn, 1qvr, 1s3x, 1u6g, 2cg9, 3cf3, 3d2f, 3gl1, 3h84, 3qm1, 4b4t, 4d8q"))
         # self.classnames.setText(_translate("MainWindow", "4d8q"))
         # self.classnames.setText(_translate("MainWindow", "1bxn"))
@@ -150,4 +150,4 @@ class Ui_MainWindow(object):
         # self.classnames.setText(_translate("MainWindow", "4d8q, 1bxn, 3gl1"))
         self.classnames.setText(_translate("MainWindow", "pt, rb"))  # invitro
         self.basePath.setText(_translate("MainWindow", "/data2/"))
-        self.weightPath.setText(_translate("MainWindow", "results/RealData/evaluation/model_final_weights_PTRB_Simulated_Data.h5"))
+        self.weightPath.setText(_translate("MainWindow", "/data2/results/RealData/evaluation/model_final_weights_PTRB_Simulated_Data.h5"))

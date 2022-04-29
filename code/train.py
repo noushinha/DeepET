@@ -124,8 +124,8 @@ class TrainingWindow(QMainWindow):
         self.patch_size = int(self.ui.patchsize.text())
         self.base_path = ROOT_DIR.__str__() + self.ui.basePath.text()
         self.weight_path = ROOT_DIR.__str__() + self.ui.weightPath.text()
-        # self.output_path = ROOT_DIR.__str__() + str(self.ui.basePath.text()) + "results/RealData/"
-        self.output_path = ROOT_DIR.__str__() + str(self.ui.basePath.text()) + "results/SyntheticData/"
+        self.output_path = ROOT_DIR.__str__() + str(self.ui.basePath.text()) + "results/RealData/"
+        # self.output_path = ROOT_DIR.__str__() + str(self.ui.basePath.text()) + "results/SyntheticData/"
         self.lr = float(self.ui.LR.text())
         self.class_names = self.ui.classnames.text()
         self.classNum = len(self.class_names.split(","))+1
