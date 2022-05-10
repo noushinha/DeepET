@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from itertools import cycle, product
 
 # Amira Arithmetic: (a==0)*(b==0)*0+(a>0)*(b>0)*(a==b)*1+(a!=b)*(a==0)*(b>0)*2+(a>0)*(b==0)*3
+# TN -> 0, TP -> 1, FP -> 2, FN -> 3
 # def overlap_count_improved(gr_th, prd, num_label):
 #     dims = gr_th.shape
 #     TP_cls = np.zeros((1, num_label))

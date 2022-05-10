@@ -19,6 +19,7 @@ from gui import theme_style
 from lxml import etree
 import mrcfile as mrc
 from utils.params import *
+import nrrd
 
 
 def display(message):
@@ -410,6 +411,7 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
 
     ann_num = content.shape[0]  # number of available annotation we have
     dim = target_mask.shape  # image shape (mask shape is same as image shape)
+    patch_num = 0
     # for each annotation
     for row in range(ann_num):
         # print(content[row][-1])
@@ -424,9 +426,9 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
             x = int(content[row][3])
 
             ##### for shrec ###############
-            the = np.float(content[row][4])
-            psi = np.float(content[row][5])
-            phi = np.float(content[row][6])
+            # the = np.float(content[row][4])
+            # psi = np.float(content[row][5])
+            # phi = np.float(content[row][6])
 
             #### for real data #############
             # phi = np.float(content[row][4])
@@ -457,7 +459,7 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
             x_coord = obj_voxels[2] + x - cOffset
             y_coord = obj_voxels[1] + y - cOffset
             z_coord = obj_voxels[0] + z - cOffset
-
+            target_mask = np.zeros(tomo.shape, dtype=np.uint16)
             for idx in range(x_coord.size):
                 xVox = x_coord[idx]
                 yVox = y_coord[idx]
@@ -465,6 +467,23 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
                 # check that after offset transfer the coords are in the boudnary of tomo
                 if 0 <= xVox < dim[2] and 0 <= yVox < dim[1] and 0 <= zVox < dim[0]:
                     target_mask[zVox, yVox, xVox] = cls_ann  # boxcolor[cls_ann-1]
+            # checking upon boundaries
+            z_lb = z - 25
+            z_ub = z + 25
+            y_lb = y - 25
+            y_ub = y + 25
+            x_lb = x - 25
+            x_ub = x + 25
+            if(z_lb > 0 and z_ub < tomo.shape[0]):
+                if (y_lb > 0 and y_ub < tomo.shape[1]):
+                    if (x_lb > 0 and x_ub < tomo.shape[2]):
+                        nrrd_mask = target_mask[z_lb:z_ub, y_lb:y_ub, x_lb:x_ub]
+                        nrrd_image = tomo[z_lb:z_ub, y_lb:y_ub, x_lb:x_ub]
+                        nrrd_path_to = "/mnt/Data/Cryo-ET/DeepET/data2/nifti/real/images/patch_t" + str(patch_num) + ".nrrd"
+                        nrrd.write(nrrd_path_to, nrrd_image)
+                        nrrd_path_to = "/mnt/Data/Cryo-ET/DeepET/data2/nifti/real/masks/patch_m" + str(patch_num) + ".nrrd"
+                        nrrd.write(nrrd_path_to, nrrd_mask)
+                        patch_num = patch_num + 1
                     # if cls_ann == 12:
                     #      target_mask[zVox, yVox, xVox] = 1  # boxcolor[cls_ann-1]
                     # elif cls_ann == 1:

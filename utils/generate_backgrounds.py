@@ -37,6 +37,7 @@ for indx in label_indices:
     # if mask[tuple(indx)] != 6 and mask[tuple(indx)] != 11 and mask[tuple(indx)] != 12:
     if mask[tuple(indx)] != 6:
         tomo[tuple(indx)] = tomo[tuple(bg_indx[cnt])]
+        # tomo[tuple(indx)] = tomo[tuple(bg_indx[cnt])]
         cnt = cnt + 1
 
 write_mrc(tomo, os.path.join(output, "reconstruction_model_" + str(tomo_id) + ".mrc"))
