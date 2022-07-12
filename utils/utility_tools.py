@@ -451,15 +451,15 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
             ref = radi_ref[cls_ann - 1]
             cOffset = int(np.floor(ref.shape[0] / 2))
 
-            # if phi is not None and psi is not None and the is not None:
-            #     ref = rotate_vol(ref, (phi, psi, the))
-            #     ref = np.int8(np.round(ref))
+            if phi is not None and psi is not None and the is not None:
+                ref = rotate_vol(ref, (phi, psi, the))
+                ref = np.int8(np.round(ref))
 
             # identify coordinates of particle in mask
             obj_voxels = np.nonzero(ref == 1)
-            x_coord = obj_voxels[2] + x - cOffset
+            x_coord = obj_voxels[0] + x - cOffset
             y_coord = obj_voxels[1] + y - cOffset
-            z_coord = obj_voxels[0] + z - cOffset
+            z_coord = obj_voxels[2] + z - cOffset
             # target_mask = np.zeros(tomo.shape, dtype=np.uint16)
             for idx in range(x_coord.size):
                 xVox = x_coord[idx]
@@ -509,49 +509,49 @@ def generate_masks(content, target_mask, tomo, radi_ref, class_radilist):
             # if cls_ann != 11:
             #     if cls_ann != 12:
             #         modified_tomo[newz_coord, newy_coord, newx_coord] = np.mean(modified_tomo[newz_coord, newy_coord, newx_coord], dtype=np.float)
-    save_csv(anns, "/mnt/Data/Cryo-ET/DeepET/data2/nifti/real/")
+    # save_csv(anns, "/mnt/Data/Cryo-ET/DeepET/data2/nifti/real/")
     return np.uint16(target_mask)  # , modified_tomo
 
 
-def check_lbl(cls, gt):
-    # 1bxn -> 1, 1qvr -> 6, 1s3x -> 3, 1u6g -> 4, 2cg9 -> 5, 3cf3 -> 6
-    # 3d2f -> 7, 3gl1 -> 8, 3h84 -> 9, 3qm1 -> 10, 4b4t -> 10, 4d8q -> 12
-    if gt == "1bxn" and cls == 1:
-        print("class label 1")
-        return True
-    elif gt == "1qvr" and cls == 2:
-        print("class label 2")
-        return True
-    elif gt == "1s3x" and cls == 3:
-        print("class label 3")
-        return True
-    elif gt == "1u6g" and cls == 4:
-        print("class label 4")
-        return True
-    elif gt == "2cg9" and cls == 5:
-        print("class label 5")
-        return True
-    elif gt == "3cf3" and cls == 6:
-        print("class label 6")
-        return True
-    elif gt == "3d2f" and cls == 7:
-        print("class label 7")
-        return True
-    elif gt == "3gl1" and cls == 8:
-        print("class label 8")
-        return True
-    elif gt == "3h84" and cls == 9:
-        print("class label 9")
-        return True
-    elif gt == "3qm1" and cls == 10:
-        print("class label 10")
-        return True
-    elif gt == "4b4t" and cls == 11:
-        print("class label 11")
-        return True
-    elif gt == "4d8q" and cls == 12:
-        print("class label 12")
-        return True
+# def check_lbl(cls, gt):
+#     # 1bxn -> 1, 1qvr -> 6, 1s3x -> 3, 1u6g -> 4, 2cg9 -> 5, 3cf3 -> 6
+#     # 3d2f -> 7, 3gl1 -> 8, 3h84 -> 9, 3qm1 -> 10, 4b4t -> 10, 4d8q -> 12
+#     if gt == "1bxn" and cls == 1:
+#         print("class label 1")
+#         return True
+#     elif gt == "1qvr" and cls == 2:
+#         print("class label 2")
+#         return True
+#     elif gt == "1s3x" and cls == 3:
+#         print("class label 3")
+#         return True
+#     elif gt == "1u6g" and cls == 4:
+#         print("class label 4")
+#         return True
+#     elif gt == "2cg9" and cls == 5:
+#         print("class label 5")
+#         return True
+#     elif gt == "3cf3" and cls == 6:
+#         print("class label 6")
+#         return True
+#     elif gt == "3d2f" and cls == 7:
+#         print("class label 7")
+#         return True
+#     elif gt == "3gl1" and cls == 8:
+#         print("class label 8")
+#         return True
+#     elif gt == "3h84" and cls == 9:
+#         print("class label 9")
+#         return True
+#     elif gt == "3qm1" and cls == 10:
+#         print("class label 10")
+#         return True
+#     elif gt == "4b4t" and cls == 11:
+#         print("class label 11")
+#         return True
+#     elif gt == "4d8q" and cls == 12:
+#         print("class label 12")
+#         return True
 
 
 def rotate_vol(vol, oriensi):

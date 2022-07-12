@@ -127,11 +127,11 @@ class Ui_MainWindow(object):
         self.basePathL.setText(_translate("MainWindow", "root directory:"))
         self.weightPathL.setText(_translate("MainWindow", "model weight directory:"))
         self.LRL.setText(_translate("MainWindow", "learning rate:"))
-        self.LR.setText(_translate("MainWindow", "0.0001"))
+        self.LR.setText(_translate("MainWindow", "0.00001"))
         self.epochL.setText(_translate("MainWindow", "epochs:"))
-        self.epochs.setText(_translate("MainWindow", "300"))
+        self.epochs.setText(_translate("MainWindow", "50"))
         self.batchL.setText(_translate("MainWindow", "batch size:"))
-        self.batchsize.setText(_translate("MainWindow", "24"))
+        self.batchsize.setText(_translate("MainWindow", "12"))
         self.patchL.setText(_translate("MainWindow", "patch size:"))
         self.patchsize.setText(_translate("MainWindow", "64"))
         self.trainBtn.setText(_translate("MainWindow", "train"))
@@ -140,9 +140,9 @@ class Ui_MainWindow(object):
         self.widthL.setText(_translate("MainWindow", "Width:"))
         self.heightL.setText(_translate("MainWindow", "Height:"))
         self.depthL.setText(_translate("MainWindow", "Depth:"))
-        self.width.setText(_translate("MainWindow", "409"))
-        self.height.setText(_translate("MainWindow", "409"))
-        self.depth.setText(_translate("MainWindow", "154"))
+        self.width.setText(_translate("MainWindow", "409"))  # 451
+        self.height.setText(_translate("MainWindow", "409"))  # 451
+        self.depth.setText(_translate("MainWindow", "154"))  # 146
         # self.classnames.setText(_translate("MainWindow", "1bxn, 1qvr, 1s3x, 1u6g, 2cg9, 3cf3, 3d2f, 3gl1, 3h84, 3qm1, 4b4t, 4d8q"))
         # self.classnames.setText(_translate("MainWindow", "4d8q"))
         # self.classnames.setText(_translate("MainWindow", "1bxn"))
@@ -150,4 +150,7 @@ class Ui_MainWindow(object):
         # self.classnames.setText(_translate("MainWindow", "4d8q, 1bxn, 3gl1"))
         self.classnames.setText(_translate("MainWindow", "pt, rb"))  # invitro
         self.basePath.setText(_translate("MainWindow", "/data2/"))
-        self.weightPath.setText(_translate("MainWindow", "/data2/results/RealData/evaluation/model_final_weights_PTRB_Simulated_Data.h5"))
+        self.weightPath.setText(_translate("MainWindow", "/data2/results/RealData/evaluation/model_final_weights_PTRB_Simulated_Data_V2.h5"))
+        # self.weightPath.setText(_translate("MainWindow", "/data2/results/RealData/evaluation/model_final_weights_PTRB_No3.h5"))
+        # self.weightPath.setText(_translate("MainWindow", "/data2/results/RealData/evaluation/model_final_weights_TL_decoder.h5"))
+

@@ -83,3 +83,8 @@ reversed_class_names = OrderedDict({"bg": 0, "pt": 1, "rb": 2})
 # class_names_list = ["rb"]
 # class_names = {0: "bg", 1: "rb"}
 # reversed_class_names = OrderedDict({"bg": 0, "rb": 1})
+
+# class_radius = [0, 10, 13, 10, 13]
+# class_names_list = ["pt", "rb", "ptsu", "rbsu"]
+# class_names = {0: "bg", 1: "pt", 2: "rb", 3: "ptsu", 4: "rbsu"}
+# reversed_class_names = OrderedDict({"bg": 0, "pt": 1, "rb": 2, "ptsu": 1, "rbsu": 2})

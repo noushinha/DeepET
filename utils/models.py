@@ -15,8 +15,8 @@ from monai.networks.layers.factories import Conv
 from monai.transforms import AsDiscrete, Compose, EnsureType
 from monai.visualize.img2tensorboard import plot_2d_or_3d_image
 from torch import nn
-
 from keras import Model, layers
+
 
 class CNNModels:
     def unet2d(self, input_shape, class_num):

@@ -31,7 +31,7 @@ class MaskGenerationwindow(QMainWindow):
 
         self.extension = 'mrc'
         self.class_radilist = []
-        self.class_names = []
+        self.class_names = class_names_list
         self.class_num = len(self.class_names)
         self.input_image = np.array([])
         self.modified_tomo = np.array([])

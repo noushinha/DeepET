@@ -8,22 +8,23 @@
 # Team Leader: Daniel Baum
 # License: GPL v3.0. See <https://www.gnu.org/licenses/>
 # ============================================================================================
+
 import re
 import time
 import math
 import shutil
-import random
+# import random
 import string
 # os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-import numpy as np
-from sklearn.model_selection import train_test_split
-import tensorflow.keras.optimizers.schedules
+# import numpy as np
+# from sklearn.model_selection import train_test_split
+# from tensorflow.python.keras import optimizers
 from sklearn.metrics import precision_recall_fscore_support
 
-from utils.params import *
+# from utils.params import *
 from utils.plots import *
 from utils.utility_tools import *
-from utils.CyclicLR.clr_callback import CyclicLR
+# from utils.CyclicLR.clr_callback import CyclicLR
 from utils.losses import *
 from utils.models import *
 
@@ -31,7 +32,7 @@ from keras.optimizers import *
 from keras import metrics
 from keras.utils import to_categorical
 from keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
-import keras.backend as K
+import keras.backend as k
 
 
 class TrainModel:
@@ -46,6 +47,14 @@ class TrainModel:
         self.list_masks_IDs = None
         self.list_annotations = None
         self.lr_type = None  # "exp_decay"
+
+        self.train_acc = 0
+        self.vald_acc = 0
+        self.train_loss = 0
+        self.vald_loss = 0
+        self.f1_score = 0
+        self.precision = 0
+        self.recall = 0
 
         # values to collect outputs
         self.model_history = []
@@ -110,7 +119,7 @@ class TrainModel:
         # check if every tomo has a corresponding mask
         if len(self.list_tomos_IDs) != len(self.list_masks_IDs):
             display("Expected two" + str(len(self.list_tomos_IDs)) + ", received " +
-                   str(len(self.list_tomos_IDs)) + " and " + str(len(self.list_masks_IDs)) +
+                    str(len(self.list_tomos_IDs)) + " and " + str(len(self.list_masks_IDs)) +
                     ". \n There is a missing pair of tomogram and target.")
             sys.exit()
 
@@ -128,7 +137,7 @@ class TrainModel:
                 patches_masks: patches generated from all masks in order
         """
         display("fetching tomograms...")
-        start = time.clock()
+        start = time.perf_counter()
         for t in range(len(self.list_tomos_IDs)):
             display("********** Fetch Tomo {tnum} **********".format(tnum=self.list_tomos_IDs[t]))
             tomo = read_mrc(self.list_tomos_IDs[t])
@@ -144,7 +153,7 @@ class TrainModel:
             self.patches_masks.append(mask)
 
         self.list_annotations = read_xml2(os.path.join(self.train_img_path, "object_list_train.xml"))
-        # # preparation of tomogram as a tensor that can be used with tensorflow API
+        # preparation of tomogram as a tensor that can be used with tensorflow API
         # self.tomo = np.swapaxes(self.tomo, 0, 2)  # changing dimension order from (z, y, x) to (x, y, z)
         # self.tomo = np.expand_dims(self.tomo, axis=0)  # expanding dimensions for tensorflow input
         # self.tomo = np.expand_dims(self.tomo, axis=4)  # expanding dimensions for tensorflow input
@@ -187,7 +196,7 @@ class TrainModel:
         #     self.patches_masks = np.concatenate((self.patches_masks, patch_mask))
         # display("********** END Fetch Tomo {tnum} **********".format(tnum=self.list_tomos_IDs[t]))
 
-        end = time.clock()
+        end = time.perf_counter()
         process_time = (end - start)
         display("tomograms and annotations fetched in {:.2f} seconds.".format(round(process_time, 2)))
 
@@ -210,42 +219,35 @@ class TrainModel:
         elif self.obj.model_type == "TL 3D UNet":
             self.net = cnnobj.unet3d((self.obj.patch_size, self.obj.patch_size, self.obj.patch_size), self.obj.classNum)
             self.net.load_weights(self.weight_path)
-            for layer in self.net.layers[:-1]:
-                # print(layer.name)
+            for layer in self.net.layers[:11]:
                 layer.trainable = False
-                # Create the model
-            from keras import models
-            model = models.Sequential()
+            # Create the model again
+            # from keras import models
+            # model = models.Sequential()
+            # # Add the 3d-UNet base model but this time without the classification layer
+            # model.add(self.net)
+            # # Add a new classification layer
+            # model.add(layers.Conv3D(len(self.obj.class_names), (1, 1, 1),
+            #                         padding='same', activation='softmax', name="cls_layer"))
 
-            # Add the 3d-UNet base model but this time without the classification layer
-            model.add(self.net)
+        print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
+        # print(self.net.summary())  # TF_ENABLE_ONEDNN_OPTS=0
+        print(cnnobj.get_model_memory_usage(24, self.net))
 
-            # Add a new classification layer
-            model.add(layers.Conv3D(len(self.obj.class_names), (1, 1, 1),
-                                    padding='same', activation='softmax', name="cls_layer"))
-
-        print(self.net.summary())
-        # print(cnnobj.get_model_memory_usage(24, self.net))
         # set the properties of the mdoel
         self.set_optimizer()
         self.set_compile()
 
     def fit_model(self):
         label_list = []
-        for l in range(self.obj.classNum):
-            label_list.append(l)
-        start = time.clock()
+        for l_list in range(self.obj.classNum):
+            label_list.append(l_list)
+        start = time.perf_counter()
 
         # if you use size of generated tensor it would be more accurate and it will never throw error
         # len(int(np.round(len(.9 * self.list_annotations)))/self.obj.batch_size) - 1
-
-        # for shrec data
-        # steps_per_epoch = (int(np.round(.83 * len(self.list_annotations))/self.obj.batch_size) - 1)  # 717
-        # vald_steps_per_epoch = int(np.round(.17 * len(self.list_annotations)) / self.obj.batch_size) - 1  # 79
-
-        # for real data
-        steps_per_epoch = int(np.round(.8333 * len(self.list_annotations)) / self.obj.batch_size)  # 809
-        vald_steps_per_epoch = int(np.round(.1667 * len(self.list_annotations)) / self.obj.batch_size) - 1  # 164
+        steps_per_epoch = int(np.round(.80 * len(self.list_annotations)) / self.obj.batch_size)  # 809
+        vald_steps_per_epoch = int(np.round(.20 * len(self.list_annotations)) / self.obj.batch_size) - 1  # 164
         counter = 0
 
         print("Train - Steps per epoch: ", steps_per_epoch)
@@ -253,7 +255,7 @@ class TrainModel:
 
         for e in range(self.obj.epochs):
             flag_new_epoch = True
-            print("################################################################################\n")
+            print("########## New Epoch ##########\n")
             self.lr = self.initial_lr
             list_train_loss = []
             list_train_acc = []
@@ -269,7 +271,7 @@ class TrainModel:
                 # fetch the current batch of patches
                 if b != 0:
                     flag_new_epoch = False
-                batch_tomo, batch_mask = self.fetch_batch(e, b, self.obj.batch_size, flag_new_epoch, "Train")
+
                 # batch_tomo, batch_mask = self.fetch_batch(e, bsize=self.obj.batch_size)
                 # Split the data to train and validation (it shuffles the data so the order of patches is not the same )
                 # x_train, x_vald, y_train, y_vald = train_test_split(batch_tomo, batch_mask,
@@ -283,44 +285,47 @@ class TrainModel:
                 # x_vald = np.expand_dims(x_vald, axis=4)
                 # y_train = np.array(y_train)
                 # y_vald = np.array(y_vald)
-
-                # train model on each batch
-                # set learning schedule
-
-                # set the learning rate function
-
-                # without LR decay
-                current_learning_rate = K.eval(self.net.optimizer.lr)
-
                 # with LR decay
                 # self.lr_type = "step_decay"
                 # current_learning_rate = self.set_lr(counter)
-                # K.set_value(self.net.optimizer.lr, current_learning_rate)
+                # k.set_value(self.net.optimizer.lr, current_learning_rate)
+
+                batch_tomo, batch_mask = self.fetch_batch(b, self.obj.batch_size, flag_new_epoch, "Train")
+                current_learning_rate = k.eval(self.net.optimizer.lr)
 
                 # collecting current LR
                 list_lr.append(current_learning_rate)
 
-                loss_train = self.net.train_on_batch(batch_tomo, batch_mask, class_weight=self.model_weight)
+                # for layer in self.net.layers:
+                #     if 'conv' not in layer.name:
+                #         continue
+                #     self.save_layer_output(batch_tomo, layer_name=layer.name)
+                #     filters, biases = layer.get_weights()
 
-                # ['loss', 'acc', 'precision', 'recall', 'auc']
-                display('epoch %d/%d - b %d/%d - loss: %.3f - acc: %.3f - lr: %.12f' % (e + 1, self.obj.epochs,
-                                                                                        b + 1, steps_per_epoch,
-                                                                                        loss_train[0], loss_train[1],
-                                                                                        current_learning_rate))
+                list_layers = ["conv3d_3", "conv3d_13", "cls_layer"]
+                if b == 0 and e == 0:
+                    for layer in self.net.layers:
+                        if layer.name in list_layers:
+                            self.save_layer_output(batch_tomo, layer_name=layer.name)
+                            self.save_layer_filter(layer, layer_name=layer.name)
+
+                # for layer in self.net.layers:
+                #     print(layer.trainable)
+
+                loss_train = self.net.train_on_batch(batch_tomo, batch_mask, class_weight=self.model_weight)
+                display('epoch %d/%d - b %d/%d - loss: %.3f - acc: %.3f - lr: %.4f' % (e + 1, self.obj.epochs,
+                                                                                       b + 1, steps_per_epoch,
+                                                                                       loss_train[0], loss_train[1],
+                                                                                       current_learning_rate))
                 list_train_loss.append(loss_train[0])
                 list_train_acc.append(loss_train[1])
                 counter = counter + 1
             for d in range(vald_steps_per_epoch):
-                batch_tomo_vald, batch_mask_vald = self.fetch_batch(e, d, self.obj.batch_size, False, "Validation")
-                # batch_tomo_vald, batch_mask_vald = self.fetch_batch(e, bsize=self.obj.batch_size)
+                batch_tomo_vald, batch_mask_vald = self.fetch_batch(d, self.obj.batch_size, False, "Validation")
 
                 # evaluate trained model on the validation set
                 loss_val = self.net.evaluate(batch_tomo_vald, batch_mask_vald, verbose=0)
                 batch_pred = self.net.predict(batch_tomo_vald)
-                print("--------------------------------------------------------")
-                print(np.unique(np.argmax(batch_mask_vald, 4)))
-                print(np.unique(np.argmax(batch_pred, 4)))
-                print("--------------------------------------------------------")
                 scores = precision_recall_fscore_support(batch_mask_vald.argmax(axis=-1).flatten(),
                                                          batch_pred.argmax(axis=-1).flatten(), average=None,
                                                          labels=label_list, zero_division=0)
@@ -329,6 +334,8 @@ class TrainModel:
                 print("F1 Score : {f1s}, \n Recall: {res}, \n Precision: {prs}".format(f1s=np.round(scores[2], 2),
                                                                                        res=np.round(scores[1], 2),
                                                                                        prs=np.round(scores[0], 2)))
+                print(np.unique(np.argmax(batch_pred, 4)))
+
                 list_vald_loss.append(loss_val[0])
                 list_vald_acc.append(loss_val[1])
                 list_f1_score.append(scores[2])
@@ -347,67 +354,65 @@ class TrainModel:
             print("################################################################################\n")
             if (e + 1) % 40 == 0:
                 self.set_weight_callback(e + 1)
-        self.save_history()
+
+        self.save_history(batch_tomo)
         self.net.save(self.output_path + '/model_final_weights.h5')
-        end = time.clock()
+        end = time.perf_counter()
         self.process_time = (end - start)
         display(self.process_time)
 
-    def get_balance_data(self, annotated_list, bsize):
-        # list of all particles and class labels that we collected when we fetched the dataset
-        num_objs = len(annotated_list)
-        list_class_labels = []
-        for i in range(0, num_objs):
-            list_class_labels.append(annotated_list[i]['label'])
+    # def get_balance_data(self, annotated_list, bsize):
+    #     # list of all particles and class labels that we collected when we fetched the dataset
+    #     num_objs = len(annotated_list)
+    #     list_class_labels = []
+    #     for i in range(0, num_objs):
+    #         list_class_labels.append(annotated_list[i]['label'])
+    #
+    #     # a unique list of all possible labels
+    #     unique_labels = np.unique(list_class_labels)
+    #
+    #     # imbalanced data affects the performance, we sample equally through all classes
+    #     class_idx = []
+    #     num_sample_class = int(np.floor((bsize / len(unique_labels))))
+    #     for lbl in unique_labels:
+    #         class_idx.append(np.random.choice(np.array(np.nonzero(np.array(list_class_labels) == lbl))[0],
+    #                                           num_sample_class))
+    #
+    #     class_idx = np.concatenate(class_idx)
+    #     return class_idx
 
-        # a unique list of all possible labels
-        unique_labels = np.unique(list_class_labels)
-
-        # imbalanced data affects the performance, we sample equally through all classes
-        class_idx = []
-        num_sample_class = int(np.floor((bsize / len(unique_labels))))
-        for lbl in unique_labels:
-            class_idx.append(np.random.choice(np.array(np.nonzero(np.array(list_class_labels) == lbl))[0],
-                                              num_sample_class))
-
-        class_idx = np.concatenate(class_idx)
-        return class_idx
-
-    def fetch_batch(self, e, b, bsize, flag_new_epoch, flag_new_batch):
-        # def fetch_batch(self, e, bsize):
+    def fetch_batch(self, b, bsize, flag_new_epoch, flag_new_batch):
         """
         this function fetches the patches from the current tomo based on the batch index
         """
         bstart = b * self.obj.batch_size
         bend = (b * self.obj.batch_size) + self.obj.batch_size
-        print("**********************" + flag_new_batch + "***************************")
-        print("start indx: {strt}, end indx: {stpt}".format(strt=bstart, stpt=bend))
-        print("**********************" + flag_new_batch + "***************************")
+        if b == 0:
+            print("********** " + flag_new_batch + " **********")
+
         mid_dim = int(np.floor(self.obj.patch_size / 2))
-        total_num_samples = len(self.list_annotations)
-        # num_train_samples = int(np.round(len(self.list_annotations) * .9))
-        num_train_samples = int(np.round(len(self.list_annotations) * .85))
+        # total_num_samples = len(self.list_annotations)
+        num_train_samples = int(np.round(len(self.list_annotations) * .80))
         # num_valid_samples = len(self.list_annotations) - num_train_samples
         if flag_new_epoch:
             # shuffle list of all samples so in the new epoch we get different train and valid samples
             random.shuffle(self.list_annotations)
             self.train_samples = self.list_annotations[0:num_train_samples]
             self.valid_samples = self.list_annotations[num_train_samples:-1]
-            # print(self.valid_samples)
 
         batch_tomo = np.zeros((bsize, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, 1))
         batch_mask = np.zeros((bsize, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, self.obj.classNum))
 
-        balanced_data_flag = False
-        flag_save = False
-
+        # balanced_data_flag = False
+        # flag_save = False
         # if balanced_data_flag:
         #     obj_list = self.get_balance_data(self.list_annotations, bsize)
         # else:
         #     obj_list = range(0, len(self.list_annotations))
         cnt = 0
-        # for i in range(bstart, bend):
+        batch_tomo_cls = []
         # list_of_val_samples = []
+
         for i in range(bstart, bend):
             # if balanced_data_flag:
             #     idx = i
@@ -415,35 +420,30 @@ class TrainModel:
             #     # choose random sample in training set:
             # idx = np.random.choice(obj_list)
             if flag_new_batch == "Train":
-                list = self.train_samples
+                samples_list = self.train_samples
             else:
-                list = self.valid_samples
-                # list_of_val_samples.append(list[i]['obj_id'])
+                samples_list = self.valid_samples
+                # list_of_val_samples.append(samples_list[i]['obj_id'])
 
-            # print(tomo_idx)
-            tomo_idx = int(list[i]['tomo_idx'])
             # tomo_idx = int(self.list_annotations[idx]['tomo_idx'])
+            tomo_idx = int(samples_list[i]['tomo_idx'])
+            batch_tomo_cls.append(int(samples_list[i]['label']))
+
             sample_tomo = self.patches_tomos[tomo_idx]
             sample_mask = self.patches_masks[tomo_idx]
 
             # Get patch position:
-            # x, y, z = get_patch_position(self.patches_tomos[tomo_idx].shape, mid_dim, self.list_annotations[idx], 13)
-            x, y, z = get_patch_position(self.patches_tomos[tomo_idx].shape, mid_dim, list[i], 0)
+            x, y, z = get_patch_position(self.patches_tomos[tomo_idx].shape, mid_dim, samples_list[i], 0)
 
             # extract the patch:
             patch_tomo = sample_tomo[z - mid_dim:z + mid_dim, y - mid_dim:y + mid_dim, x - mid_dim:x + mid_dim]
-            # if e == 1 and b < 5 and flag_new_batch == "Train":
-            #      write_mrc(patch_tomo, os.path.join(self.output_path, "tomo_train_" + str(i) + ".mrc"))
             patch_tomo = (patch_tomo - np.mean(patch_tomo)) / np.std(patch_tomo)
 
             patch_mask = sample_mask[z - mid_dim:z + mid_dim, y - mid_dim:y + mid_dim, x - mid_dim:x + mid_dim]
-            # print(np.unique(patch_mask))
-            # if e == 1 and b < 5 and flag_new_batch == "Train":
-            #      write_mrc(patch_mask, os.path.join(self.output_path, "mask_" + str(i) + ".mrc"))
+            save_npy(patch_mask, self.output_path, "ground", "truth")
 
             # convert to categorical labels
             patch_mask_onehot = to_categorical(patch_mask, self.obj.classNum)
-            # print(np.unique(np.argmax(patch_mask_onehot, 3)))
             batch_tomo[cnt, :, :, :, 0] = patch_tomo
             batch_mask[cnt] = patch_mask_onehot
 
@@ -451,11 +451,7 @@ class TrainModel:
                 batch_tomo[cnt] = np.rot90(batch_tomo[cnt], k=2, axes=(0, 2))
                 batch_mask[cnt] = np.rot90(batch_mask[cnt], k=2, axes=(0, 2))
             cnt = cnt + 1
-
-        # if flag_new_batch != "Train":
-            # print("$$$$$$$$$$$$$$$$$$$$$$List of Indices for Valdiation Samples$$$$$$$$$$$$$$$$$$$$$$$")
-            # print(list_of_val_samples)
-            # print("$$$$$$$$$$$$$$$$$$$$$$List of Indices for Valdiation Samples$$$$$$$$$$$$$$$$$$$$$$$")
+        save_csv(batch_tomo_cls, self.output_path, "Train", "Labels")
         return batch_tomo, batch_mask
 
     # def realtime_output(self, newstr):
@@ -473,11 +469,13 @@ class TrainModel:
 
         return printstr
 
-    def save_history(self):
+    def save_history(self, batch_tomo):
         # serialize model to JSON
         model_json = self.net.to_json()
         with open(os.path.join(self.output_path, "model.json"), "w") as json_file:
             json_file.write(model_json)
+
+        self.save_layer_output(batch_tomo, layer_name="cls_layer")
 
         save_csv(self.history_train_acc, self.output_path, "Train", "Accuracy_Details")
         save_csv(self.history_vald_acc, self.output_path, "Validation", "Accuracy_Details")
@@ -520,9 +518,12 @@ class TrainModel:
         plt.figure(num=3, figsize=(8, 6), dpi=100)
         plot_lr(self.history_lr[start_point:], self.output_path, self.obj.epochs)
 
-        general_plot(self.f1_score, self.output_path, ('F1 Score', 'epochs'), self.obj.class_names, self.obj.epochs, 4)
-        general_plot(self.precision, self.output_path, ('Precision', 'epochs'), self.obj.class_names, self.obj.epochs, 5)
-        general_plot(self.recall, self.output_path, ('Recall', 'epochs'), self.obj.class_names, self.obj.epochs, 6)
+        general_plot(self.f1_score, self.output_path, ('F1 Score', 'epochs'),
+                     self.obj.class_names, self.obj.epochs, 4)
+        general_plot(self.precision, self.output_path, ('Precision', 'epochs'),
+                     self.obj.class_names, self.obj.epochs, 5)
+        general_plot(self.recall, self.output_path, ('Recall', 'epochs'),
+                     self.obj.class_names, self.obj.epochs, 6)
 
     def save(self):
         hyperparameter_setting = self.collect_results()
@@ -554,7 +555,7 @@ class TrainModel:
         lr = self.initial_lr * math.pow(.9, math.floor((1 + epoch) / 5))
         return float(lr)
 
-    def lr_decay_exp(self, epoch, lr):
+    def lr_decay_exp(self, epoch):
         # compute the learning rate for the current epoch
         exp = np.floor((1 + epoch) / 2)
         self.lr = self.initial_lr * (.25 ** exp)
@@ -578,8 +579,8 @@ class TrainModel:
             LearningRateScheduler(self.lr_decay_exp(epoch))
         elif self.lr_type == "poly_decay":
             LearningRateScheduler(self.lr_decay_poly(epoch))
-        elif self.lr_type == "cyclic":
-            CyclicLR(base_lr=self.initial_lr, max_lr=6e-04, step_size=500., mode='exp_range', gamma=0.99994)
+        # elif self.lr_type == "cyclic":
+        #     CyclicLR(base_lr=self.initial_lr, max_lr=6e-04, step_size=500., mode='exp_range', gamma=0.99994)
         else:
             ReduceLROnPlateau(monitor='val_loss', factor=0.25, patience=1, min_lr=1e-07, mode='min', verbose=1)
 
@@ -608,15 +609,9 @@ class TrainModel:
     def set_weight_callback(self, e):
         # checkpoint directory
         checkpoint_dir = os.path.join(self.output_path, 'weights-improvement-' + str(e) + '.h5')
-        #callbacklist=[TensorBoard(log_dir=log_folder)]
+        # callbacklist=[TensorBoard(log_dir=log_folder)]
 
         self.net.save(checkpoint_dir)
-
-    # def save_layer_output(self, x, name="Train"):
-    #     intermediate_layer_model = Model(inputs=self.net.input, outputs=self.net.get_layer(self.layer_name).output)
-    #     intermediate_output = intermediate_layer_model.predict(x)
-    #     filename = name + "_fc6_Layer_Features"
-    #     np.save(os.path.join(self.output_path, filename), intermediate_output)
 
     def collect_results(self):
         # TODO: add calculation of union of interest in plots file.
@@ -636,3 +631,15 @@ class TrainModel:
         setting_info = setting_info + "\nDecay Function = " + str(self.lr_type)
         setting_info = setting_info + "\nProcess Time in seconds = " + str(self.process_time)
         return setting_info
+
+    def save_layer_output(self, xinput, layer_name="cls_layer"):
+        intermediate_layer_model = Model(inputs=self.net.input, outputs=self.net.get_layer(layer_name).output)
+        intermediate_output = intermediate_layer_model.predict(xinput)
+        filename = str(layer_name) + "_Features"
+        np.save(os.path.join(self.output_path, filename), intermediate_output)
+
+    def save_layer_filter(self, ith_layer, layer_name="cls_layer"):
+        filters, biases = ith_layer.get_weights()
+        # print(ith_layer.name, filters.shape)
+        filename = str(layer_name) + "_Filters"
+        np.save(os.path.join(self.output_path, filename), filters)
