@@ -42,8 +42,8 @@ def plot_confusion_matrix(cm, classes,
     This function prints and plots the confusion matrix.
     Normalization can be applied by setting `normalize=True`.
     """
-    if normalize:
-        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+    # if normalize:
+    #     cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
         # print("Normalized confusion matrix")
     # else:
         # print('Confusion matrix, without normalization')
@@ -266,16 +266,19 @@ def plot_recall_precision(y_test, y_score, classes_num, eps_dir):
 
 
 # plotting learning rate
-def plot_lr(lr_points, eps_dir, epoch):
+def plot_lr(lr_points, iter_points, eps_dir, epoch):
+
     """
     This function plots learning rate versus number of epochs.
     """
-    epochs = range(1, len(lr_points) + 1)
 
-    lines1 = plt.plot(epochs, lr_points, label='learning rate')
-    plt.setp(lines1, color='black', linewidth=1.0)
+    lines1 = plt.plot(lr_points, iter_points)
+    # epochs = range(1, len(lr_points) + 1)
+    #
+    # lines1 = plt.plot(epochs, lr_points, label='learning rate')
+    plt.setp(lines1, color='salmon', linewidth=1.0)
 
-    plt.xlabel('Epochs')
+    plt.xlabel('Training Iterations')
     plt.ylabel('Learning Rate')
     plt.legend(['Learning Rate'])
     filename = os.path.join(eps_dir, "Learning_Rate_" + str(epoch) + "_Epochs.eps")

@@ -109,41 +109,62 @@ class CNNModels:
         model = Model(input_img, output)
         return model
 
-    def get_model_memory_usage(self, batch_size, model):
-        import numpy as np
-        try:
-            from keras import backend as K
-        except:
-            from tensorflow.keras import backend as K
+    # def get_model_memory_usage(self, batch_size, model):
+    #     import numpy as np
+    #     try:
+    #         from keras import backend as K
+    #     except:
+    #         from tensorflow.keras import backend as K
+    #
+    #     shapes_mem_count = 0
+    #     internal_model_mem_count = 0
+    #     for l in model.layers:
+    #         layer_type = l.__class__.__name__
+    #         if layer_type == 'Model':
+    #             internal_model_mem_count += self.get_model_memory_usage(batch_size, l)
+    #         single_layer_mem = 1
+    #         out_shape = l.output_shape
+    #         if type(out_shape) is list:
+    #             out_shape = out_shape[0]
+    #         for s in out_shape:
+    #             if s is None:
+    #                 continue
+    #             single_layer_mem *= s
+    #         shapes_mem_count += single_layer_mem
+    #
+    #     trainable_count = np.sum([K.count_params(p) for p in model.trainable_weights])
+    #     non_trainable_count = np.sum([K.count_params(p) for p in model.non_trainable_weights])
+    #
+    #     number_size = 4.0
+    #     if K.floatx() == 'float16':
+    #         number_size = 2.0
+    #     if K.floatx() == 'float64':
+    #         number_size = 8.0
+    #
+    #     total_memory = number_size * (batch_size * shapes_mem_count + trainable_count + non_trainable_count)
+    #     gbytes = np.round(total_memory / (1024.0 ** 3), 3) + internal_model_mem_count
+    #     return gbytes
 
-        shapes_mem_count = 0
-        internal_model_mem_count = 0
-        for l in model.layers:
-            layer_type = l.__class__.__name__
-            if layer_type == 'Model':
-                internal_model_mem_count += self.get_model_memory_usage(batch_size, l)
-            single_layer_mem = 1
-            out_shape = l.output_shape
-            if type(out_shape) is list:
-                out_shape = out_shape[0]
-            for s in out_shape:
-                if s is None:
-                    continue
-                single_layer_mem *= s
-            shapes_mem_count += single_layer_mem
 
-        trainable_count = np.sum([K.count_params(p) for p in model.trainable_weights])
-        non_trainable_count = np.sum([K.count_params(p) for p in model.non_trainable_weights])
+# Pytorch Lightning module
+# from __future__ import absolute_import, division, print_function
 
-        number_size = 4.0
-        if K.floatx() == 'float16':
-            number_size = 2.0
-        if K.floatx() == 'float64':
-            number_size = 8.0
+from collections import OrderedDict
 
-        total_memory = number_size * (batch_size * shapes_mem_count + trainable_count + non_trainable_count)
-        gbytes = np.round(total_memory / (1024.0 ** 3), 3) + internal_model_mem_count
-        return gbytes
+import pytorch_lightning as pl
+import torch
+import torch.nn.functional as F
+from ucap_layers import ConvSlimCapsule3D, MarginLoss
+from monai.data import decollate_batch
+from monai.inferers import sliding_window_inference
+from monai.losses import DiceCELoss
+from monai.metrics import DiceMetric
+from monai.networks import one_hot
+from monai.networks.blocks import Convolution, UpSample
+from monai.networks.layers.factories import Conv
+from monai.transforms import AsDiscrete, Compose, EnsureType
+from monai.visualize.img2tensorboard import plot_2d_or_3d_image
+from torch import nn
 
 
 # Pytorch Lightning module
@@ -203,6 +224,7 @@ class UCaps3D(pl.LightningModule):
         self.overlap = self.hparams.overlap
 
         # Building model
+        # to remove dilations you just deactivate them then change the padding to 2
         self.feature_extractor = nn.Sequential(
             OrderedDict(
                 [
@@ -226,8 +248,8 @@ class UCaps3D(pl.LightningModule):
                             out_channels=32,
                             kernel_size=5,
                             strides=1,
-                            dilation=2,
-                            padding=4,
+                            # dilation=2,
+                            padding=2,  # 4
                             bias=False,
                         ),
                     ),
@@ -239,8 +261,8 @@ class UCaps3D(pl.LightningModule):
                             out_channels=64,
                             kernel_size=5,
                             strides=1,
-                            padding=4,
-                            dilation=2,
+                            padding=2,  # 2
+                            # dilation=2,
                             bias=False,
                             act="tanh",
                         ),
@@ -270,19 +292,23 @@ class UCaps3D(pl.LightningModule):
 
         self.dice_metric = DiceMetric(include_background=False, reduction="mean_batch", get_not_nans=False)
 
-        self.example_input_array = torch.rand(1, self.in_channels, 64, 64, 64)
+        # self.example_input_array = torch.rand(1, self.in_channels, 64, 64, 64)
+        # self.example_input_array = torch.rand(1, self.in_channels, 32, 32, 32)
+        # self.example_input_array = torch.rand(1, self.in_channels, 16, 16, 16)
 
     @staticmethod
     def add_model_specific_args(parent_parser):
         parser = parent_parser.add_argument_group("UCaps3D")
         # Architecture params
         parser.add_argument("--in_channels", type=int, default=1)
-        parser.add_argument("--out_channels", type=int, default=2)
+        parser.add_argument("--out_channels", type=int, default=3)
         parser.add_argument("--share_weight", type=int, default=1)
         parser.add_argument("--connection", type=str, default="skip")
 
         # Validation params
         parser.add_argument("--val_patch_size", nargs="+", type=int, default=[64, 64, 64])
+        # parser.add_argument("--val_patch_size", nargs="+", type=int, default=[32, 32, 32])
+        # parser.add_argument("--val_patch_size", nargs="+", type=int, default=[16, 16, 16])
         parser.add_argument("--val_frequency", type=int, default=100)
         parser.add_argument("--sw_batch_size", type=int, default=1)
         parser.add_argument("--overlap", type=float, default=0.75)
@@ -542,3 +568,4 @@ class UCaps3D(pl.LightningModule):
             nn.Conv3d(128, self.in_channels, 1),
             nn.Sigmoid(),
         )
+

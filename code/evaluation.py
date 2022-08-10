@@ -278,16 +278,17 @@ class EvaluationWindow(QMainWindow):
         return pred_tclass
 
     def save_result(self, scoremap_tomo, labelmap_tomo):
-        # scoremap_tomo = read_mrc('/mnt/Data/Cryo-ET/DeepET/data2/results/RealData/evaluation/segment/scoremap_tomo.mrc')
-        # labelmap_tomo = read_mrc('/mnt/Data/Cryo-ET/DeepET/data2/results/RealData/evaluation/segment/tomo_labelmap.mrc')
         binned_scoremap = self.bin_tomo(scoremap_tomo)
         binned_labelmap = np.int8(np.argmax(binned_scoremap, axis=-1))
 
         # Save labelmaps:
         scoremap_path = os.path.join(self.output_path, 'segment/scoremap_tomo_0' + str(self.tomo_id) + '_' + str(self.class_id) + '.mrc')
+        # pred_scores_path = os.path.join(self.output_path, 'segment/pred_scores_0' + str(self.tomo_id) + '_' + str(self.class_id) + '.mrc')
+
         labelmap_path = os.path.join(self.output_path, 'segment/tomo_labelmap_0' + str(self.tomo_id) + '_' + str(self.class_id) + '.mrc')
         binned_labelmap_path = os.path.join(self.output_path, 'segment/tomo_binned_labelmap_0' + str(self.tomo_id) + '_' + str(self.class_id) + '.mrc')
-        write_mrc(scoremap_tomo, scoremap_path)
+        write_mrc2(scoremap_tomo, scoremap_path)
+        # write_mrc(scoremap_tomo, pred_scores_path)
         write_mrc(labelmap_tomo, labelmap_path)
         write_mrc(binned_labelmap, binned_labelmap_path)
         display_message("Results of labelmap and binned labelmap are saved as mrc files "
@@ -633,8 +634,8 @@ class EvaluationWindow(QMainWindow):
         # plt.figure(num=1, figsize=(10, 10), dpi=150)
         # plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path)
         # plt.figure(num=2, figsize=(10, 10), dpi=150)
-        plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path,
-                              filename='_0' + str(self.tomo_id) + '_' + str(self.class_id), normalize=True, plot_num=1)
+        # plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path,
+        #                       filename='_0' + str(self.tomo_id) + '_' + str(self.class_id), normalize=True, plot_num=1)
         plot_confusion_matrix(cnf_matrix, classes=class_lbls, eps_dir=self.output_path,
                               filename='_0' + str(self.tomo_id) + '_' + str(self.class_id), normalize=False, plot_num=2)
 

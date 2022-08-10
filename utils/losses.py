@@ -1,6 +1,8 @@
 import tensorflow as tf
 import keras.backend as K
 from keras.losses import binary_crossentropy
+import numpy as np
+
 
 beta = 0.25
 alpha = 0.25
@@ -135,3 +137,52 @@ class Semantic_loss_functions(object):
     def log_cosh_dice_loss(self, y_true, y_pred):
         x = self.dice_loss(y_true, y_pred)
         return tf.math.log((tf.exp(x) + tf.exp(-x)) / 2.0)
+
+    def weighted_log_loss(self, y_true, y_pred):
+        # scale predictions so that the class probas of each sample sum to 1
+        y_pred /= K.sum(y_pred, axis=-1, keepdims=True)
+        # clip to prevent NaN's and Inf's
+        y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
+        # weights are assigned in this order : normal,necrotic,edema,enhancing
+        weights = np.array([0.01361341, 0.37459406, 0.61179253])
+        loss = y_true * K.log(y_pred) * weights
+        loss = K.mean(-K.sum(loss, -1))
+        return loss
+
+    # def gen_dice_loss(self, y_true, y_pred):
+    #     '''
+    #     computes the sum of two losses : generalised dice loss and weighted cross entropy
+    #     '''
+    #
+    #     # generalised dice score is calculated as in this paper : https://arxiv.org/pdf/1707.03237
+    #     y_true_f = K.reshape(y_true, shape=(-1, 4))
+    #     y_pred_f = K.reshape(y_pred, shape=(-1, 4))
+    #     sum_p = K.sum(y_pred_f, axis=-2)
+    #     sum_r = K.sum(y_true_f, axis=-2)
+    #     sum_pr = K.sum(y_true_f * y_pred_f, axis=-2)
+    #     weights = K.pow(K.square(sum_r) + K.epsilon(), -1)
+    #     generalised_dice_numerator = 2 * K.sum(weights * sum_pr)
+    #     generalised_dice_denominator = K.sum(weights * (sum_r + sum_p))
+    #     generalised_dice_score = generalised_dice_numerator / generalised_dice_denominator
+    #     GDL = 1 - generalised_dice_score
+    #     del sum_p, sum_r, sum_pr, weights
+    #
+    #     return GDL + self.weighted_log_loss(y_true, y_pred)
+
+    # def Combo_loss(self, targets, inputs, eps=1e-9):
+    #     ALPHA = 0.5  # < 0.5 penalises FP more, > 0.5 penalises FN more
+    #     CE_RATIO = 0.5  # weighted contribution of modified CE loss compared to Dice loss
+    #
+    #     targets = K.flatten(targets)
+    #     inputs = K.flatten(inputs)
+    #
+    #     intersection = K.sum(targets * inputs)
+    #     dice = (2. * intersection + smooth) / (K.sum(targets) + K.sum(inputs) + smooth)
+    #     inputs = K.clip(inputs, eps, 1.0 - eps)
+    #     out = - (ALPHA * ((targets * K.log(inputs)) + ((1 - ALPHA) * (1.0 - targets) * K.log(1.0 - inputs))))
+    #     weighted_ce = K.mean(out, axis=-1)
+    #     combo = (CE_RATIO * weighted_ce) - ((1 - CE_RATIO) * dice)
+    #
+    #     return combo
+
+

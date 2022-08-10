@@ -34,12 +34,14 @@ class TrainingWindow(QMainWindow):
         self.ui.textEdit.setTextColor(white_color)
 
         self.model_names = ["3D UNet", "3D UCaps", "TL 3D UNet"]
-        self.loss_names = ["Dice", "Categorical", "Focal", "Focal tversky", "tversky"]
+        self.loss_names = ["Dice", "BCE Dice", "Categorical", "Focal", "Focal tversky", "tversky"]
         self.opt_names = ["Adam", "SGD", "RMS Prop"]
+        self.lr_names = ["Fixed", "Step", "Exponential", "Polynomial", "Cyclic"]
 
         self.generate_model_radio_btns(3)
         self.generate_optimizer_radio_btns(3)
-        self.generate_loss_radio_btns(5)
+        self.generate_loss_radio_btns(6)
+        self.generate_lr_radio_btns(5)
 
         self.ui.trainBtn.clicked.connect(self.start_train)
 
@@ -53,11 +55,15 @@ class TrainingWindow(QMainWindow):
         self.opt = None
         self.loss = None
         self.model_type = None
+        self.lr_type = None
         self.dim_num = None
         self.img_dim = None
         self.class_names = None
         self.metrics = ["accuracy"]
         self.set_params(True)
+        self.classNum = 0
+        self.vald_prc = .2
+        self.augm_prc = .3
         # self.get_model()
 
     def generate_model_radio_btns(self, number):
@@ -77,26 +83,7 @@ class TrainingWindow(QMainWindow):
             if btn_num == 0:
                 model_rbtn.setChecked(True)
 
-        self.ui.gridLayout_2.addLayout(horizontalLayoutModel, 3, 1, 1, 1)
-
-    def generate_loss_radio_btns(self, number):
-        horizontalLayoutLoss = QHBoxLayout()
-        horizontalBox = QGridLayout()
-
-        horizontalLayoutLoss.addLayout(horizontalBox)
-
-        modelgroup_btns = QButtonGroup(self)
-        modelgroup_btns.buttonClicked.connect(lambda btn: self.set_loss(btn.text()))
-
-        for btn_num in range(number):
-            model_rbtn = QRadioButton()
-            modelgroup_btns.addButton(model_rbtn)
-            horizontalBox.addWidget(model_rbtn, 1, btn_num, 1, 1)
-            model_rbtn.setText(self.loss_names[btn_num])
-            if btn_num == 1:
-                model_rbtn.setChecked(True)
-
-        self.ui.gridLayout_2.addLayout(horizontalLayoutLoss, 7, 1, 1, 1)
+        self.ui.gridLayout_2.addLayout(horizontalLayoutModel, 8, 1, 1, 1)
 
     def generate_optimizer_radio_btns(self, number):
         horizontalLayoutOpt = QHBoxLayout()
@@ -115,7 +102,46 @@ class TrainingWindow(QMainWindow):
             if btn_num == 0:
                 model_rbtn.setChecked(True)
 
-        self.ui.gridLayout_2.addLayout(horizontalLayoutOpt, 5, 1, 1, 1)
+        self.ui.gridLayout_2.addLayout(horizontalLayoutOpt, 9, 1, 1, 1)
+
+    def generate_loss_radio_btns(self, number):
+        horizontalLayoutLoss = QHBoxLayout()
+        horizontalBox = QGridLayout()
+
+        horizontalLayoutLoss.addLayout(horizontalBox)
+
+        modelgroup_btns = QButtonGroup(self)
+        modelgroup_btns.buttonClicked.connect(lambda btn: self.set_loss(btn.text()))
+
+        for btn_num in range(number):
+            model_rbtn = QRadioButton()
+            modelgroup_btns.addButton(model_rbtn)
+            horizontalBox.addWidget(model_rbtn, 1, btn_num, 1, 1)
+            model_rbtn.setText(self.loss_names[btn_num])
+            if btn_num == 2:
+                model_rbtn.setChecked(True)
+
+        self.ui.gridLayout_2.addLayout(horizontalLayoutLoss, 10, 1, 1, 1)
+
+    def generate_lr_radio_btns(self, number):
+        horizontalLayoutLR = QHBoxLayout()
+        horizontalBox = QGridLayout()
+
+        horizontalLayoutLR.addLayout(horizontalBox)
+
+        lrgroup_btns = QButtonGroup(self)
+        lrgroup_btns.buttonClicked.connect(lambda btn: self.set_lr(btn.text()))
+
+        for btn_num in range(number):
+            lr_rbtn = QRadioButton()
+            lrgroup_btns.addButton(lr_rbtn)
+            horizontalBox.addWidget(lr_rbtn, 1, btn_num, 1, 1)
+            lr_rbtn.setText(self.lr_names[btn_num])
+            if btn_num == 0:
+                lr_rbtn.setChecked(True)
+
+        self.ui.gridLayout_2.addLayout(horizontalLayoutLR, 11, 1, 1, 1)
+
 
     def set_params(self, flag=True):
         # (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
@@ -124,11 +150,12 @@ class TrainingWindow(QMainWindow):
         self.patch_size = int(self.ui.patchsize.text())
         self.base_path = ROOT_DIR.__str__() + self.ui.basePath.text()
         self.weight_path = ROOT_DIR.__str__() + self.ui.weightPath.text()
-        self.output_path = ROOT_DIR.__str__() + str(self.ui.basePath.text()) + "results/RealData/"
-        # self.output_path = ROOT_DIR.__str__() + str(self.ui.basePath.text()) + "results/SyntheticData/"
+        self.output_path = ROOT_DIR.__str__() + str(self.ui.outputPath.text())
         self.lr = float(self.ui.LR.text())
         self.class_names = self.ui.classnames.text()
         self.classNum = len(self.class_names.split(","))+1
+        self.vald_prc = float(self.ui.validation.text())
+        self.augm_prc = float(self.ui.augment.text())
 
         if self.ui.depth == 0:
             self.dim_num = 2
@@ -140,11 +167,15 @@ class TrainingWindow(QMainWindow):
         # ToDo: if you want to have particular learning rates
         if flag:
             self.set_model(self.model_names[0])
-            self.set_loss(self.loss_names[1])
+            self.set_loss(self.loss_names[2])
             self.set_opt(self.opt_names[0])
+            self.set_lr(self.lr_names[0])
 
     def set_model(self, radio_text):
         self.model_type = radio_text
+
+    def set_lr(self, radio_text):
+        self.lr_type = radio_text
 
     def set_opt(self, radio_text):
         self.opt = radio_text
@@ -152,6 +183,8 @@ class TrainingWindow(QMainWindow):
     def set_loss(self, radio_text):
         if radio_text == "Dice":
             self.loss = "dice_loss"
+        elif radio_text == "BCE Dice":
+            self.loss = "bce_dice_loss"
         elif radio_text == "Categorical":
             self.loss = "categorical_crossentropy"
         elif radio_text == "Focal":

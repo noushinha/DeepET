@@ -248,18 +248,27 @@ def read_mrc(filename):
     return mrc_tomo
 
 
-def write_mrc(array, filename):
+def write_mrc2(arr, filename):
     """ This function writes an mrc file
         Args: filename: /saving/path
               array: nd array
     """
-    mc = mrc.new_mmap(filename, shape=array.shape, mrc_mode=0, overwrite=True)
+    with mrc.new(filename, overwrite=True) as mc:
+        mc.set_data(np.array(arr, dtype=np.float32))
+
+
+def write_mrc(arr, filename):
+    """ This function writes an mrc file
+        Args: filename: /saving/path
+              array: nd array
+    """
+    mc = mrc.new_mmap(filename, shape=arr.shape, mrc_mode=0, overwrite=True)
     for val in range(len(mc.data)):
-        mc.data[val] = array[val]
+        mc.data[val] = arr[val]
     read_mrc(filename)
 
     # with mrc.new(filename, overwrite=True) as mc:
-    #     mc.set_data(array)
+    #     mc.set_data(np.array(arr, dtype=np.float32))
     #     # mc.update_header_from_data()
     #     # print("########## 111111 ############")
     #     # mc.print_header()
