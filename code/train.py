@@ -15,7 +15,7 @@ from PyQt5.QtGui import QIcon, QColor
 from gui.train import train
 from gui.theme_style import *
 
-from PyQt5.QtWidgets import QRadioButton, QHBoxLayout, QGridLayout, QButtonGroup
+from PyQt5.QtWidgets import QRadioButton, QHBoxLayout, QGridLayout, QButtonGroup, QCheckBox
 # from PyQt5.QtCore import pyqtSignal, QObject
 
 class TrainingWindow(QMainWindow):
@@ -37,11 +37,13 @@ class TrainingWindow(QMainWindow):
         self.loss_names = ["Dice", "BCE Dice", "Categorical", "Focal", "Focal tversky", "tversky"]
         self.opt_names = ["Adam", "SGD", "RMS Prop"]
         self.lr_names = ["Fixed", "Step", "Exponential", "Polynomial", "Cyclic"]
+        self.aug_name = ["None", "Horizontal Rotation", "Vertical Rotation", "Brightness", "Noise", "Contrast", "Elastic Deformation"]
 
         self.generate_model_radio_btns(3)
         self.generate_optimizer_radio_btns(3)
         self.generate_loss_radio_btns(6)
         self.generate_lr_radio_btns(5)
+        self.generate_aug_check_btns(6)
 
         self.ui.trainBtn.clicked.connect(self.start_train)
 
@@ -64,6 +66,7 @@ class TrainingWindow(QMainWindow):
         self.classNum = 0
         self.vald_prc = .2
         self.augm_prc = .3
+        self.aug_type = 'No DA'
         # self.get_model()
 
     def generate_model_radio_btns(self, number):
@@ -118,7 +121,7 @@ class TrainingWindow(QMainWindow):
             modelgroup_btns.addButton(model_rbtn)
             horizontalBox.addWidget(model_rbtn, 1, btn_num, 1, 1)
             model_rbtn.setText(self.loss_names[btn_num])
-            if btn_num == 2:
+            if btn_num == 1:
                 model_rbtn.setChecked(True)
 
         self.ui.gridLayout_2.addLayout(horizontalLayoutLoss, 10, 1, 1, 1)
@@ -137,11 +140,29 @@ class TrainingWindow(QMainWindow):
             lrgroup_btns.addButton(lr_rbtn)
             horizontalBox.addWidget(lr_rbtn, 1, btn_num, 1, 1)
             lr_rbtn.setText(self.lr_names[btn_num])
-            if btn_num == 0:
+            if btn_num == 4:
                 lr_rbtn.setChecked(True)
 
         self.ui.gridLayout_2.addLayout(horizontalLayoutLR, 11, 1, 1, 1)
 
+    def generate_aug_check_btns(self, number):
+        horizontalLayoutAUG = QHBoxLayout()
+        horizontalBox = QGridLayout()
+
+        horizontalLayoutAUG.addLayout(horizontalBox)
+
+        auggroup_btns = QButtonGroup(self)
+        auggroup_btns.buttonClicked.connect(lambda btn: self.set_aug(btn.text()))
+
+        for btn_num in range(number):
+            aug_cbtn = QCheckBox()
+            auggroup_btns.addButton(aug_cbtn)
+            horizontalBox.addWidget(aug_cbtn, 1, btn_num, 1, 1)
+            aug_cbtn.setText(self.aug_name[btn_num])
+            if btn_num == 0:
+                aug_cbtn.setChecked(True)
+
+        self.ui.gridLayout_2.addLayout(horizontalLayoutAUG, 12, 1, 1, 1)
 
     def set_params(self, flag=True):
         # (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()
@@ -167,18 +188,22 @@ class TrainingWindow(QMainWindow):
         # ToDo: if you want to have particular learning rates
         if flag:
             self.set_model(self.model_names[0])
-            self.set_loss(self.loss_names[2])
+            self.set_loss(self.loss_names[1])
             self.set_opt(self.opt_names[0])
-            self.set_lr(self.lr_names[0])
+            self.set_lr(self.lr_names[4])
+            self.set_aug(self.aug_name[0])
 
     def set_model(self, radio_text):
         self.model_type = radio_text
 
+    def set_opt(self, radio_text):
+        self.opt = radio_text
+
     def set_lr(self, radio_text):
         self.lr_type = radio_text
 
-    def set_opt(self, radio_text):
-        self.opt = radio_text
+    def set_aug(self, check_text):
+        self.aug_type = check_text
 
     def set_loss(self, radio_text):
         if radio_text == "Dice":

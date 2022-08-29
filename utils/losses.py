@@ -1,5 +1,5 @@
 import tensorflow as tf
-import keras.backend as K
+import keras.backend as bk
 from keras.losses import binary_crossentropy
 import numpy as np
 
@@ -16,22 +16,22 @@ class Semantic_loss_functions(object):
         print ("semantic loss functions initialized")
 
     def dice_coef(self, y_true, y_pred):
-        y_true_f = K.flatten(y_true)
-        y_pred_f = K.flatten(y_pred)
-        intersection = K.sum(y_true_f * y_pred_f)
-        return (2. * intersection + K.epsilon()) / (
-                    K.sum(y_true_f) + K.sum(y_pred_f) + K.epsilon())
+        y_true_f = bk.flatten(y_true)
+        y_pred_f = bk.flatten(y_pred)
+        intersection = bk.sum(y_true_f * y_pred_f)
+        return (2. * intersection + bk.epsilon()) / (
+                    bk.sum(y_true_f) + bk.sum(y_pred_f) + bk.epsilon())
 
     def sensitivity(self, y_true, y_pred):
-        true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
-        possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
-        return true_positives / (possible_positives + K.epsilon())
+        true_positives = bk.sum(bk.round(bk.clip(y_true * y_pred, 0, 1)))
+        possible_positives = bk.sum(bk.round(bk.clip(y_true, 0, 1)))
+        return true_positives / (possible_positives + bk.epsilon())
 
     def specificity(self, y_true, y_pred):
-        true_negatives = K.sum(
-            K.round(K.clip((1 - y_true) * (1 - y_pred), 0, 1)))
-        possible_negatives = K.sum(K.round(K.clip(1 - y_true, 0, 1)))
-        return true_negatives / (possible_negatives + K.epsilon())
+        true_negatives = bk.sum(
+            bk.round(bk.clip((1 - y_true) * (1 - y_pred), 0, 1)))
+        possible_negatives = bk.sum(bk.round(bk.clip(1 - y_true, 0, 1)))
+        return true_negatives / (possible_negatives + bk.epsilon())
 
     def convert_to_logits(self, y_pred):
         y_pred = tf.clip_by_value(y_pred, tf.keras.backend.epsilon(),
@@ -64,18 +64,18 @@ class Semantic_loss_functions(object):
         return tf.reduce_mean(loss)
 
     def depth_softmax(self, matrix):
-        sigmoid = lambda x: 1 / (1 + K.exp(-x))
+        sigmoid = lambda x: 1 / (1 + bk.exp(-x))
         sigmoided_matrix = sigmoid(matrix)
-        softmax_matrix = sigmoided_matrix / K.sum(sigmoided_matrix, axis=0)
+        softmax_matrix = sigmoided_matrix / bk.sum(sigmoided_matrix, axis=0)
         return softmax_matrix
 
     def generalized_dice_coefficient(self, y_true, y_pred):
         smooth = 1.
-        y_true_f = K.flatten(y_true)
-        y_pred_f = K.flatten(y_pred)
-        intersection = K.sum(y_true_f * y_pred_f)
+        y_true_f = bk.flatten(y_true)
+        y_pred_f = bk.flatten(y_pred)
+        intersection = bk.sum(y_true_f * y_pred_f)
         score = (2. * intersection + smooth) / (
-                    K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
+                    bk.sum(y_true_f) + bk.sum(y_pred_f) + smooth)
         return score
 
     def dice_loss(self, y_true, y_pred):
@@ -89,39 +89,39 @@ class Semantic_loss_functions(object):
 
     def confusion(self, y_true, y_pred):
         smooth = 1
-        y_pred_pos = K.clip(y_pred, 0, 1)
+        y_pred_pos = bk.clip(y_pred, 0, 1)
         y_pred_neg = 1 - y_pred_pos
-        y_pos = K.clip(y_true, 0, 1)
+        y_pos = bk.clip(y_true, 0, 1)
         y_neg = 1 - y_pos
-        tp = K.sum(y_pos * y_pred_pos)
-        fp = K.sum(y_neg * y_pred_pos)
-        fn = K.sum(y_pos * y_pred_neg)
+        tp = bk.sum(y_pos * y_pred_pos)
+        fp = bk.sum(y_neg * y_pred_pos)
+        fn = bk.sum(y_pos * y_pred_neg)
         prec = (tp + smooth) / (tp + fp + smooth)
         recall = (tp + smooth) / (tp + fn + smooth)
         return prec, recall
 
     def true_positive(self, y_true, y_pred):
         smooth = 1
-        y_pred_pos = K.round(K.clip(y_pred, 0, 1))
-        y_pos = K.round(K.clip(y_true, 0, 1))
-        tp = (K.sum(y_pos * y_pred_pos) + smooth) / (K.sum(y_pos) + smooth)
+        y_pred_pos = bk.round(bk.clip(y_pred, 0, 1))
+        y_pos = bk.round(bk.clip(y_true, 0, 1))
+        tp = (bk.sum(y_pos * y_pred_pos) + smooth) / (bk.sum(y_pos) + smooth)
         return tp
 
     def true_negative(self, y_true, y_pred):
         smooth = 1
-        y_pred_pos = K.round(K.clip(y_pred, 0, 1))
+        y_pred_pos = bk.round(bk.clip(y_pred, 0, 1))
         y_pred_neg = 1 - y_pred_pos
-        y_pos = K.round(K.clip(y_true, 0, 1))
+        y_pos = bk.round(bk.clip(y_true, 0, 1))
         y_neg = 1 - y_pos
-        tn = (K.sum(y_neg * y_pred_neg) + smooth) / (K.sum(y_neg) + smooth)
+        tn = (bk.sum(y_neg * y_pred_neg) + smooth) / (bk.sum(y_neg) + smooth)
         return tn
 
     def tversky_index(self, y_true, y_pred):
-        y_true_pos = K.flatten(y_true)
-        y_pred_pos = K.flatten(y_pred)
-        true_pos = K.sum(y_true_pos * y_pred_pos)
-        false_neg = K.sum(y_true_pos * (1 - y_pred_pos))
-        false_pos = K.sum((1 - y_true_pos) * y_pred_pos)
+        y_true_pos = bk.flatten(y_true)
+        y_pred_pos = bk.flatten(y_pred)
+        true_pos = bk.sum(y_true_pos * y_pred_pos)
+        false_neg = bk.sum(y_true_pos * (1 - y_pred_pos))
+        false_pos = bk.sum((1 - y_true_pos) * y_pred_pos)
         alpha = 0.5
         return (true_pos + smooth) / (true_pos + alpha * false_neg + (
                     1 - alpha) * false_pos + smooth)
@@ -132,7 +132,7 @@ class Semantic_loss_functions(object):
     def focal_tversky(self, y_true, y_pred):
         pt_1 = self.tversky_index(y_true, y_pred)
         gamma = 0.75
-        return K.pow((1 - pt_1), gamma)
+        return bk.pow((1 - pt_1), gamma)
 
     def log_cosh_dice_loss(self, y_true, y_pred):
         x = self.dice_loss(y_true, y_pred)
@@ -140,13 +140,13 @@ class Semantic_loss_functions(object):
 
     def weighted_log_loss(self, y_true, y_pred):
         # scale predictions so that the class probas of each sample sum to 1
-        y_pred /= K.sum(y_pred, axis=-1, keepdims=True)
+        y_pred /= bk.sum(y_pred, axis=-1, keepdims=True)
         # clip to prevent NaN's and Inf's
-        y_pred = K.clip(y_pred, K.epsilon(), 1 - K.epsilon())
+        y_pred = bk.clip(y_pred, bk.epsilon(), 1 - bk.epsilon())
         # weights are assigned in this order : normal,necrotic,edema,enhancing
-        weights = np.array([0.01361341, 0.37459406, 0.61179253])
-        loss = y_true * K.log(y_pred) * weights
-        loss = K.mean(-K.sum(loss, -1))
+        weights = np.array([0.001361341, 0.37459406, 0.61179253])
+        loss = y_true * bk.log(y_pred) * weights
+        loss = bk.mean(-bk.sum(loss, -1))
         return loss
 
     # def gen_dice_loss(self, y_true, y_pred):
@@ -155,14 +155,14 @@ class Semantic_loss_functions(object):
     #     '''
     #
     #     # generalised dice score is calculated as in this paper : https://arxiv.org/pdf/1707.03237
-    #     y_true_f = K.reshape(y_true, shape=(-1, 4))
-    #     y_pred_f = K.reshape(y_pred, shape=(-1, 4))
-    #     sum_p = K.sum(y_pred_f, axis=-2)
-    #     sum_r = K.sum(y_true_f, axis=-2)
-    #     sum_pr = K.sum(y_true_f * y_pred_f, axis=-2)
-    #     weights = K.pow(K.square(sum_r) + K.epsilon(), -1)
-    #     generalised_dice_numerator = 2 * K.sum(weights * sum_pr)
-    #     generalised_dice_denominator = K.sum(weights * (sum_r + sum_p))
+    #     y_true_f = bk.reshape(y_true, shape=(-1, 4))
+    #     y_pred_f = bk.reshape(y_pred, shape=(-1, 4))
+    #     sum_p = bk.sum(y_pred_f, axis=-2)
+    #     sum_r = bk.sum(y_true_f, axis=-2)
+    #     sum_pr = bk.sum(y_true_f * y_pred_f, axis=-2)
+    #     weights = bk.pow(bk.square(sum_r) + bk.epsilon(), -1)
+    #     generalised_dice_numerator = 2 * bk.sum(weights * sum_pr)
+    #     generalised_dice_denominator = bk.sum(weights * (sum_r + sum_p))
     #     generalised_dice_score = generalised_dice_numerator / generalised_dice_denominator
     #     GDL = 1 - generalised_dice_score
     #     del sum_p, sum_r, sum_pr, weights
@@ -173,14 +173,14 @@ class Semantic_loss_functions(object):
     #     ALPHA = 0.5  # < 0.5 penalises FP more, > 0.5 penalises FN more
     #     CE_RATIO = 0.5  # weighted contribution of modified CE loss compared to Dice loss
     #
-    #     targets = K.flatten(targets)
-    #     inputs = K.flatten(inputs)
+    #     targets = bk.flatten(targets)
+    #     inputs = bk.flatten(inputs)
     #
-    #     intersection = K.sum(targets * inputs)
-    #     dice = (2. * intersection + smooth) / (K.sum(targets) + K.sum(inputs) + smooth)
-    #     inputs = K.clip(inputs, eps, 1.0 - eps)
-    #     out = - (ALPHA * ((targets * K.log(inputs)) + ((1 - ALPHA) * (1.0 - targets) * K.log(1.0 - inputs))))
-    #     weighted_ce = K.mean(out, axis=-1)
+    #     intersection = bk.sum(targets * inputs)
+    #     dice = (2. * intersection + smooth) / (bk.sum(targets) + bk.sum(inputs) + smooth)
+    #     inputs = bk.clip(inputs, eps, 1.0 - eps)
+    #     out = - (ALPHA * ((targets * bk.log(inputs)) + ((1 - ALPHA) * (1.0 - targets) * bk.log(1.0 - inputs))))
+    #     weighted_ce = bk.mean(out, axis=-1)
     #     combo = (CE_RATIO * weighted_ce) - ((1 - CE_RATIO) * dice)
     #
     #     return combo

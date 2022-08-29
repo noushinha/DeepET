@@ -14,6 +14,7 @@ import time
 import math
 import shutil
 # import random
+from skimage.util import random_noise
 import string
 # os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 # import numpy as np
@@ -334,13 +335,13 @@ class TrainModel:
                         if layer.name in list_layers:
                             self.save_layer_output(batch_tomo, layer_name=layer.name)
                             self.save_layer_filter(layer, layer_name=layer.name)
-
+                    print(batch_tomo.shape)
                 # for layer in self.net.layers:
                 #     print(layer.trainable)
                 # self.class_weights = class_weight.compute_class_weight(class_weight='balanced',
                 #                                                        classes=np.array([0, 1]),
                 #                                                        y=batch_mask.ravel())
-                if e == 0: print(batch_tomo.shape)
+
                 loss_train = self.net.train_on_batch(batch_tomo, batch_mask, class_weight=self.class_weights)
                 display('epoch %d/%d - b %d/%d - loss: %.3f - acc: %.3f - lr: %.7f' % (e + 1, self.obj.epochs,
                                                                                        b + 1, steps_per_epoch,
@@ -385,7 +386,7 @@ class TrainModel:
             self.history_precision.append(list_precision)
 
             print("################################################################################\n")
-            if (e + 1) % 40 == 0:
+            if (e + 1) % 50 == 0:
                 self.set_weight_callback(e + 1)
 
         self.save_history(batch_tomo)
@@ -484,18 +485,24 @@ class TrainModel:
         save_csv(batch_tomo_cls, self.output_path, "Train", "Labels")
         if self.obj.augm_prc > 0:
             augmented_percentage = int(bsize * self.obj.augm_prc)
-            batch_tomo_augmented = np.zeros((augmented_percentage * 3, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, 1))
-            batch_mask_augmented = np.zeros((augmented_percentage * 3, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, self.obj.classNum))
+            batch_tomo_augmented = np.zeros((augmented_percentage, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, 1))
+            batch_mask_augmented = np.zeros((augmented_percentage, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, self.obj.classNum))
 
             batch_tomo = np.vstack((batch_tomo, batch_tomo_augmented))
             batch_mask = np.vstack((batch_mask, batch_mask_augmented))
             augmented_cnt = 0
             for i in range(0, augmented_percentage):
                 selected_patch = random.randint(0, bsize - 1)
+                selected_tomo = batch_tomo[selected_patch]
+                selected_mask = batch_mask[selected_patch]
 
-                # rotating by 180 degree
-                batch_tomo[cnt] = np.rot90(batch_tomo[selected_patch], k=2, axes=(0, 2))
-                batch_mask[cnt] = np.rot90(batch_mask[selected_patch], k=2, axes=(0, 2))
+                # rotating by 180 degree horizontally
+                # batch_tomo[cnt] = np.rot90(selected_tomo, k=2, axes=(0, 2))
+                # batch_mask[cnt] = np.rot90(selected_mask, k=2, axes=(0, 2))
+
+                # rotating by 180 degree vertically
+                # batch_tomo[cnt+1] = np.rot90(selected_tomo, k=2, axes=(0, 1))
+                # batch_mask[cnt+1] = np.rot90(selected_mask, k=2, axes=(0, 1))
 
                 # changing brightness
                 """
@@ -508,29 +515,40 @@ class TrainModel:
                 new_im = gain * im^gamma
                 """
 
-                tomo_new = np.zeros(batch_tomo[selected_patch].shape)
-                for c in range(tomo_new.shape[-1]):
-                    selected_tomo = im = batch_tomo[selected_patch]
-                    im = selected_tomo[:, :, :, c]
-                    gain, gamma = (1.2 - 0.8) * np.random.random_sample(2, ) + 0.8
-                    im_new = np.sign(im) * gain * (np.abs(im) ** gamma)
-                    tomo_new[:, :, :, c] = im_new
-
-                    batch_tomo[cnt+1] = tomo_new
-                    batch_mask[cnt+1] = batch_mask[selected_patch]
+                # tomo_new = np.zeros(batch_tomo[selected_patch].shape)
+                # for c in range(tomo_new.shape[-1]):
+                #     im = selected_tomo[:, :, :, c]
+                #     gain, gamma = (1.2 - 0.8) * np.random.random_sample(2, ) + 0.8
+                #     im_new = np.sign(im) * gain * (np.abs(im) ** gamma)
+                #     tomo_new[:, :, :, c] = im_new
+                #     tomo_new = (tomo_new - np.mean(tomo_new)) / np.std(tomo_new)
+                #     batch_tomo[cnt] = tomo_new
+                #     batch_mask[cnt] = selected_mask
 
                 # elastic deformation augmentation
-                selected_tomo = batch_tomo[selected_patch]
-                selected_mask = batch_mask[selected_patch]
-                [tomo_new, mask_new] = elasticdeform.deform_random_grid([selected_tomo, selected_mask],
-                                                              sigma=2, axis=[(0, 1, 2), (0, 1, 2)],
-                                                              order=[1, 0], mode='constant')
+                # [tomo_new, mask_new] = elasticdeform.deform_random_grid([selected_tomo, selected_mask],
+                #                                               sigma=2, axis=[(0, 1, 2), (0, 1, 2)],
+                #                                               order=[1, 0], mode='constant')
+                # tomo_new = (tomo_new - np.mean(tomo_new)) / np.std(tomo_new)
+                # batch_tomo[cnt] = tomo_new
+                # batch_mask[cnt] = mask_new
 
-                batch_tomo[cnt+2] = tomo_new
-                batch_mask[cnt+2] = mask_new
-                augmented_cnt = augmented_cnt + 3
-                cnt = cnt + 3
+                # Noise Injection
+                # tomo_new = random_noise(selected_tomo, mode='gaussian', mean=0, var=1, clip=True)
+                # batch_tomo[cnt] = tomo_new
+                # batch_mask[cnt] = selected_mask
 
+                # Contrast
+                brightness = 10
+                contrast = random.randint(40, 100)
+                tomo_new = selected_tomo
+                tomo_new = tomo_new * (contrast / 127 + 1) - contrast + brightness
+                tomo_new = (tomo_new - np.mean(tomo_new)) / np.std(tomo_new)
+                batch_tomo[cnt] = tomo_new
+                batch_mask[cnt] = selected_mask
+
+                augmented_cnt = augmented_cnt + 1
+                cnt = cnt + 1
         return batch_tomo, batch_mask
 
     def realtime_output(self, newstr):
@@ -780,8 +798,9 @@ class TrainModel:
         setting_info = setting_info + "\nAverage F1 Score = " + str(np.mean(self.f1_score))
         setting_info = setting_info + "\nLoss Function = " + str(self.obj.loss)
         setting_info = setting_info + "\nOptimizer = " + str(self.obj.opt)
-        setting_info = setting_info + "\nDecay Function = " + str(self.lr_type)
+        setting_info = setting_info + "\nLearning rate Function = " + str(self.lr_type)
         setting_info = setting_info + "\nAugmentation Percentage = " + str(self.obj.augm_prc)
+        # setting_info = setting_info + "\nAugmentation Type = " + str(self.obj.augm_type)
         setting_info = setting_info + "\nValdiation Percentage = " + str(self.obj.vald_prc)
         setting_info = setting_info + "\nProcess Time in seconds = " + str(self.process_time)
         return setting_info
