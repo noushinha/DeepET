@@ -21,9 +21,9 @@ import string
 # from sklearn.model_selection import train_test_split
 # from tensorflow.python.keras import optimizers
 # import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from sklearn.metrics import precision_recall_fscore_support
-from utils.cyclicR import CyclicLR
+# from utils.cyclicR import CyclicLR
 # from utils.params import *
 from utils.plots import *
 from utils.utility_tools import *
@@ -34,11 +34,11 @@ from utils.models import *
 from keras.optimizers import *
 from keras import metrics
 from keras.utils import to_categorical
-from keras.callbacks import LearningRateScheduler, ReduceLROnPlateau
+from keras.callbacks import ReduceLROnPlateau  # LearningRateScheduler
 import keras.backend as k
 from glob import glob
 import elasticdeform
-from sklearn.utils import class_weight
+# from sklearn.utils import class_weight
 
 
 class TrainModel:
@@ -268,8 +268,8 @@ class TrainModel:
 
         # if you use size of generated tensor it would be more accurate and it will never throw error
         # len(int(np.round(len(.9 * self.list_annotations)))/self.obj.batch_size) - 1
-        steps_per_epoch = int(np.round((1-self.obj.vald_prc) * len(self.list_annotations)) / self.obj.batch_size)  # 809
-        vald_steps_per_epoch = int(np.round(self.obj.vald_prc * len(self.list_annotations)) / self.obj.batch_size) - 1  # 164
+        steps_per_epoch = int(np.round((1-self.obj.vald_prc) * len(self.list_annotations)) / self.obj.batch_size)
+        vald_steps_per_epoch = int(np.round(self.obj.vald_prc * len(self.list_annotations)) / self.obj.batch_size) - 1
         counter = 0
 
         print("Train - Steps per epoch: ", steps_per_epoch)
@@ -352,7 +352,6 @@ class TrainModel:
                 if self.lr_type == "Cyclic":
                     self.on_batch_end()
                 counter = counter + 1
-
 
             for d in range(vald_steps_per_epoch):
                 batch_tomo_vald, batch_mask_vald = self.fetch_batch(d, self.obj.batch_size, False, "Validation")
@@ -474,7 +473,10 @@ class TrainModel:
             patch_tomo = (patch_tomo - np.mean(patch_tomo)) / np.std(patch_tomo)
 
             patch_mask = sample_mask[z - mid_dim:z + mid_dim, y - mid_dim:y + mid_dim, x - mid_dim:x + mid_dim]
-            save_npy(patch_mask, self.output_path, "ground", "truth")
+            # if i == 9:
+            #     write_mrc2(patch_mask,
+            #     '/media/noushin/Data/Cryo-ET/DeepET/data2/results/Metrics/Augmentation/mask_Original.mrc')
+            # save_npy(patch_mask, self.output_path, "ground", "truth")
 
             # convert to categorical labels
             patch_mask_onehot = to_categorical(patch_mask, self.obj.classNum)
@@ -485,8 +487,10 @@ class TrainModel:
         save_csv(batch_tomo_cls, self.output_path, "Train", "Labels")
         if self.obj.augm_prc > 0:
             augmented_percentage = int(bsize * self.obj.augm_prc)
-            batch_tomo_augmented = np.zeros((augmented_percentage, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, 1))
-            batch_mask_augmented = np.zeros((augmented_percentage, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, self.obj.classNum))
+            batch_tomo_augmented = np.zeros((augmented_percentage*2, self.obj.patch_size,
+                                             self.obj.patch_size, self.obj.patch_size, 1))
+            batch_mask_augmented = np.zeros((augmented_percentage*2, self.obj.patch_size,
+                                             self.obj.patch_size, self.obj.patch_size, self.obj.classNum))
 
             batch_tomo = np.vstack((batch_tomo, batch_tomo_augmented))
             batch_mask = np.vstack((batch_mask, batch_mask_augmented))
@@ -495,14 +499,32 @@ class TrainModel:
                 selected_patch = random.randint(0, bsize - 1)
                 selected_tomo = batch_tomo[selected_patch]
                 selected_mask = batch_mask[selected_patch]
+                # write_mrc2(selected_tomo[:, :, :, 0],
+                # '/media/noushin/Data/Cryo-ET/DeepET/data2/results/Metrics/Augmentation/tomo_Original.mrc')
 
                 # rotating by 180 degree horizontally
                 # batch_tomo[cnt] = np.rot90(selected_tomo, k=2, axes=(0, 2))
                 # batch_mask[cnt] = np.rot90(selected_mask, k=2, axes=(0, 2))
+                # pt_tensor = batch_mask[cnt][:, :, :, 1]
+                # rb_tensor = batch_mask[cnt][:, :, :, 2]
+                # rb_tensor[rb_tensor == 1] = 2
+                # mask_tensor = pt_tensor + rb_tensor
+                # write_mrc2(batch_tomo[cnt][:, :, :, 0],
+                # '/media/noushin/Data/Cryo-ET/DeepET/data2/results/Metrics/Augmentation/Augmented_tomo_HR.mrc')
+                # write_mrc2(mask_tensor,
+                # '/media/noushin/Data/Cryo-ET/DeepET/data2/results/Metrics/Augmentation/Augmented_mask_HR.mrc')
 
-                # rotating by 180 degree vertically
+                # # rotating by 180 degree vertically
                 # batch_tomo[cnt+1] = np.rot90(selected_tomo, k=2, axes=(0, 1))
                 # batch_mask[cnt+1] = np.rot90(selected_mask, k=2, axes=(0, 1))
+                # pt_tensor = batch_mask[cnt+1][:, :, :, 1]
+                # rb_tensor = batch_mask[cnt+1][:, :, :, 2]
+                # rb_tensor[rb_tensor == 1] = 2
+                # mask_tensor = pt_tensor + rb_tensor
+                # write_mrc2(batch_tomo[cnt+1][:, :, :, 0],
+                # '/media/noushin/Data/Cryo-ET/DeepET/data2/results/Metrics/Augmentation/Augmented_tomo_VR.mrc')
+                # write_mrc2(mask_tensor,
+                # '/media/noushin/Data/Cryo-ET/DeepET/data2/results/Metrics/Augmentation/Augmented_mask_VR.mrc')
 
                 # changing brightness
                 """
@@ -514,29 +536,40 @@ class TrainModel:
 
                 new_im = gain * im^gamma
                 """
-
-                # tomo_new = np.zeros(batch_tomo[selected_patch].shape)
-                # for c in range(tomo_new.shape[-1]):
-                #     im = selected_tomo[:, :, :, c]
-                #     gain, gamma = (1.2 - 0.8) * np.random.random_sample(2, ) + 0.8
-                #     im_new = np.sign(im) * gain * (np.abs(im) ** gamma)
-                #     tomo_new[:, :, :, c] = im_new
-                #     tomo_new = (tomo_new - np.mean(tomo_new)) / np.std(tomo_new)
-                #     batch_tomo[cnt] = tomo_new
-                #     batch_mask[cnt] = selected_mask
+                tomo_new = np.zeros(batch_tomo[selected_patch].shape)
+                for c in range(tomo_new.shape[-1]):
+                    im = selected_tomo[:, :, :, c]
+                    gain, gamma = (1.2 - 0.8) * np.random.random_sample(2, ) + 0.8
+                    im_new = np.sign(im) * gain * (np.abs(im) ** gamma)
+                    tomo_new[:, :, :, c] = im_new
+                    tomo_new = (tomo_new - np.mean(tomo_new)) / np.std(tomo_new)
+                    batch_tomo[cnt] = tomo_new
+                    batch_mask[cnt] = selected_mask
+                    # write_mrc2(batch_tomo[cnt+2][:, :, :, 0],
+                    # '/media/noushin/Data/Cryo-ET/DeepET/data2/results/Metrics/Augmentation/Augmented_tomo_Brightness.mrc')
 
                 # elastic deformation augmentation
                 # [tomo_new, mask_new] = elasticdeform.deform_random_grid([selected_tomo, selected_mask],
-                #                                               sigma=2, axis=[(0, 1, 2), (0, 1, 2)],
-                #                                               order=[1, 0], mode='constant')
+                #                                                         sigma=2, axis=[(0, 1, 2), (0, 1, 2)],
+                #                                                         order=[1, 0], mode='constant')
                 # tomo_new = (tomo_new - np.mean(tomo_new)) / np.std(tomo_new)
-                # batch_tomo[cnt] = tomo_new
-                # batch_mask[cnt] = mask_new
+                # batch_tomo[cnt+3] = tomo_new
+                # batch_mask[cnt+3] = mask_new
+                # pt_tensor = mask_new[:, :, :, 1]
+                # rb_tensor = mask_new[:, :, :, 2]
+                # rb_tensor[rb_tensor == 1] = 2
+                # mask_tensor = pt_tensor + rb_tensor
+                # write_mrc2(batch_tomo[cnt + 3][:, :, :, 0],
+                # '/media/noushin/Data/Cryo-ET/DeepET/data2/results/Metrics/Augmentation/Augmented_tomo_Elastic.mrc')
+                # write_mrc2(mask_tensor,
+                # '/media/noushin/Data/Cryo-ET/DeepET/data2/results/Metrics/Augmentation/Augmented_mask_Elastic.mrc')
 
                 # Noise Injection
                 # tomo_new = random_noise(selected_tomo, mode='gaussian', mean=0, var=1, clip=True)
-                # batch_tomo[cnt] = tomo_new
-                # batch_mask[cnt] = selected_mask
+                # batch_tomo[cnt+4] = tomo_new
+                # batch_mask[cnt+4] = selected_mask
+                # write_mrc2(batch_tomo[cnt + 4][:, :, :, 0],
+                # '/media/noushin/Data/Cryo-ET/DeepET/data2/results/Metrics/Augmentation/Augmented_tomo_Noise.mrc')
 
                 # Contrast
                 brightness = 10
@@ -544,11 +577,13 @@ class TrainModel:
                 tomo_new = selected_tomo
                 tomo_new = tomo_new * (contrast / 127 + 1) - contrast + brightness
                 tomo_new = (tomo_new - np.mean(tomo_new)) / np.std(tomo_new)
-                batch_tomo[cnt] = tomo_new
-                batch_mask[cnt] = selected_mask
+                batch_tomo[cnt+1] = tomo_new
+                batch_mask[cnt+1] = selected_mask
+                # write_mrc2(batch_tomo[cnt + 5][:, :, :, 0],
+                # '/media/noushin/Data/Cryo-ET/DeepET/data2/results/Metrics/Augmentation/Augmented_tomo_Contrast.mrc')
 
-                augmented_cnt = augmented_cnt + 1
-                cnt = cnt + 1
+                augmented_cnt = augmented_cnt + 2
+                cnt = cnt + 2
         return batch_tomo, batch_mask
 
     def realtime_output(self, newstr):
@@ -666,7 +701,7 @@ class TrainModel:
         return float(lr)
 
     def lr_cyclic(self, base_lr=0.0001, max_lr=0.0003, step_size=48., mode='triangular',
-                 gamma=1., scale_fn=None, scale_mode='cycle'):
+                  gamma=1., scale_fn=None, scale_mode='cycle'):
         self.base_lr = base_lr
         self.max_lr = max_lr
         self.step_size = step_size
@@ -709,22 +744,22 @@ class TrainModel:
 
     def on_train_begin(self):
         if self.clr_iterations == 0:
-            K.set_value(self.net.optimizer.lr, self.base_lr)
+            bk.set_value(self.net.optimizer.lr, self.base_lr)
         else:
-            K.set_value(self.net.optimizer.lr, self.clr())
+            bk.set_value(self.net.optimizer.lr, self.clr())
 
     def on_batch_end(self, logs=None):
         logs = logs or {}
         self.trn_iterations += 1
         self.clr_iterations += 1
 
-        self.lr_history.setdefault('lr', []).append(K.get_value(self.net.optimizer.lr))
+        self.lr_history.setdefault('lr', []).append(bk.get_value(self.net.optimizer.lr))
         self.lr_history.setdefault('iterations', []).append(self.trn_iterations)
 
         for kkey, vval in logs.items():
             self.lr_history.setdefault(kkey, []).append(vval)
 
-        K.set_value(self.net.optimizer.lr, self.clr())
+        bk.set_value(self.net.optimizer.lr, self.clr())
 
     def set_lr(self, epoch):
         """schedule learning rate decay using different methods

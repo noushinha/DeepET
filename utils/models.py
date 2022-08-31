@@ -1,21 +1,22 @@
 from __future__ import absolute_import, division, print_function
 
-from collections import OrderedDict
-import pytorch_lightning as pl
-import torch
-import torch.nn.functional as F
-from utils.ucap_layers import ConvSlimCapsule3D, MarginLoss
-from monai.data import decollate_batch
-from monai.inferers import sliding_window_inference
-from monai.losses import DiceCELoss
-from monai.metrics import DiceMetric
-from monai.networks import one_hot
-from monai.networks.blocks import Convolution, UpSample
-from monai.networks.layers.factories import Conv
-from monai.transforms import AsDiscrete, Compose, EnsureType
-from monai.visualize.img2tensorboard import plot_2d_or_3d_image
-from torch import nn
+# from collections import OrderedDict
+# import pytorch_lightning as pl
+# import torch
+# import torch.nn.functional as F
+# from utils.ucap_layers import ConvSlimCapsule3D, MarginLoss
+# from monai.data import decollate_batch
+# from monai.inferers import sliding_window_inference
+# from monai.losses import DiceCELoss
+# from monai.metrics import DiceMetric
+# from monai.networks import one_hot
+# from monai.networks.blocks import Convolution, UpSample
+# from monai.networks.layers.factories import Conv
+# from monai.transforms import AsDiscrete, Compose, EnsureType
+# from monai.visualize.img2tensorboard import plot_2d_or_3d_image
+# from torch import nn
 from keras import Model, layers
+from utils.layers import *
 
 
 class CNNModels:
@@ -76,6 +77,7 @@ class CNNModels:
         input_img = layers.Input(shape=(input_shape[0], input_shape[1], input_shape[2], 1))
 
         x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(input_img)
+        # x = layers.Lambda(dropout(x))
         high = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(x)
 
         x = layers.MaxPooling3D((2, 2, 2), strides=None)(high)
