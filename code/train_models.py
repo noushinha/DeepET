@@ -218,14 +218,20 @@ class TrainModel:
         """This function starts the training procedure by calling
            different built-in functions of the class CNNModel
         """
+        # training_type = "classification"
         self.get_model()  # build the CNN model
-        self.fit_model()  # fit the data to the model and train the model
-        self.plots()  # plot the results
-        self.save()  # save the results as txt
+        if self.obj.model_type != "classification":
+            self.fit_model()  # fit the data to the model and train the model
+            self.plots()  # plot the results
+            self.save()  # save the results as txt
+        else:
+            self.fit_model2()
+
         plt.show(block=True)
 
     def get_model(self):
         cnnobj = CNNModels()
+        # self.obj.model_type = "classification"
         if self.obj.model_type == "2D UNet":
             self.net = cnnobj.unet2d((self.obj.patch_size, self.obj.patch_size), self.obj.classNum)
         elif self.obj.model_type == "3D UNet":
@@ -252,14 +258,109 @@ class TrainModel:
             # # Add a new classification layer
             # model.add(layers.Conv3D(len(self.obj.class_names), (1, 1, 1),
             #                         padding='same', activation='softmax', name="cls_layer"))
+        # elif self.obj.model_type == "classification":
+        #     self.net = cnnobj.cnn3d((self.obj.patch_size, self.obj.patch_size, self.obj.patch_size))
 
-        print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
+        print("NUM GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
         print(self.net.summary())  # TF_ENABLE_ONEDNN_OPTS=0
         # print(cnnobj.get_model_memory_usage(24, self.net))
 
         # set the properties of the mdoel
         self.set_optimizer()
         self.set_compile()
+
+    # def fit_model2(self):
+    #     label_list = []
+    #     for l_list in range(self.obj.classNum):
+    #         label_list.append(l_list)
+    #     start = time.perf_counter()
+    #
+    #     # if you use size of generated tensor it would be more accurate and it will never throw error
+    #     # len(int(np.round(len(.9 * self.list_annotations)))/self.obj.batch_size) - 1
+    #     steps_per_epoch = int(np.round((1 - self.obj.vald_prc) * len(self.list_annotations)) / self.obj.batch_size)
+    #     vald_steps_per_epoch = int(np.round(self.obj.vald_prc * len(self.list_annotations)) / self.obj.batch_size) - 1
+    #     counter = 0
+    #
+    #     print("Train - Steps per epoch: ", steps_per_epoch)
+    #     print("Validation - Steps per epoch: ", vald_steps_per_epoch)
+    #
+    #     for e in range(self.obj.epochs):
+    #         flag_new_epoch = True
+    #         print("########## New Epoch ##########\n")
+    #         self.lr = self.initial_lr
+    #         list_train_loss = []
+    #         list_train_acc = []
+    #         list_vald_acc = []
+    #         list_vald_loss = []
+    #         list_f1_score = []
+    #         list_recall = []
+    #         list_precision = []
+    #         list_lr = []
+    #
+    #         # self.lr_type = "cyclic"
+    #         self.set_lr(counter)
+    #
+    #         for b in range(steps_per_epoch):
+    #             # fetch the current batch of patches
+    #             if b != 0:
+    #                 flag_new_epoch = False
+    #
+    #             list_lr.append(k.eval(self.net.optimizer.lr))
+    #             batch_tomo, batch_mask = self.fetch_batch2(b, self.obj.batch_size, flag_new_epoch, "Train")
+    #
+    #
+    #
+    #             loss_train = self.net.train_on_batch(batch_tomo, batch_mask)
+    #             display('epoch %d/%d - b %d/%d - loss: %.3f - acc: %.3f - lr: %.7f' % (e + 1, self.obj.epochs,
+    #                                                                                    b + 1, steps_per_epoch,
+    #                                                                                    loss_train[0], loss_train[1],
+    #                                                                                    k.eval(self.net.optimizer.lr)))
+    #             list_train_loss.append(loss_train[0])
+    #             list_train_acc.append(loss_train[1])
+    #
+    #             counter = counter + 1
+    #
+    #         for d in range(vald_steps_per_epoch):
+    #             batch_tomo_vald, batch_mask_vald = self.fetch_batch(d, self.obj.batch_size, False, "Validation")
+    #
+    #             # evaluate trained model on the validation set
+    #             loss_val = self.net.evaluate(batch_tomo_vald, batch_mask_vald, verbose=0)
+    #             batch_pred = self.net.predict(batch_tomo_vald)
+    #             scores = precision_recall_fscore_support(batch_mask_vald.argmax(axis=-1).flatten(),
+    #                                                      batch_pred.argmax(axis=-1).flatten(), average=None,
+    #                                                      labels=label_list, zero_division=0)
+    #             print("val. loss: {vl}, \n val acc: {va}".format(vl=np.round(loss_val[0], 2),
+    #                                                              va=np.round(loss_val[1], 2)))
+    #             print("F1 Score : {f1s}, \n Recall: {res}, \n Precision: {prs}".format(f1s=np.round(scores[2], 2),
+    #                                                                                    res=np.round(scores[1], 2),
+    #                                                                                    prs=np.round(scores[0], 2)))
+    #             print(np.unique(np.argmax(batch_pred, 4)))
+    #
+    #             list_vald_loss.append(loss_val[0])
+    #             list_vald_acc.append(loss_val[1])
+    #             list_f1_score.append(scores[2])
+    #             list_recall.append(scores[1])
+    #             list_precision.append(scores[0])
+    #
+    #         self.history_train_loss.append(list_train_loss)
+    #         self.history_lr.append(list_lr)
+    #         self.history_train_acc.append(list_train_acc)
+    #         self.history_vald_loss.append(list_vald_loss)
+    #         self.history_vald_acc.append(list_vald_acc)
+    #         self.history_f1_score.append(list_f1_score)
+    #         self.history_recall.append(list_recall)
+    #         self.history_precision.append(list_precision)
+    #
+    #         print("################################################################################\n")
+    #         if (e + 1) % 50 == 0:
+    #             self.set_weight_callback(e + 1)
+    #
+    #     self.save_history(batch_tomo)
+    #     self.net.save(self.output_path + '/model_final_weights.h5')
+    #     end = time.perf_counter()
+    #     self.process_time = (end - start)
+    #     display(self.process_time)
+
 
     def fit_model(self):
         label_list = []
@@ -416,6 +517,88 @@ class TrainModel:
         class_idx = np.concatenate(class_idx)
         return class_idx
 
+    # def fetch_batch2(self, b, bsize, flag_new_epoch, flag_new_batch):
+    #     bstart = b * self.obj.batch_size
+    #     bend = (b * self.obj.batch_size) + self.obj.batch_size
+    #
+    #     if b == 0:
+    #         print("********** " + flag_new_batch + " **********")
+    #
+    #     mid_dim = int(np.floor(self.obj.patch_size / 2))
+    #     num_train_samples = int(np.round(len(self.list_annotations) * (1-self.obj.vald_prc)))
+    #
+    #     if flag_new_epoch:
+    #         random.shuffle(self.list_annotations)
+    #         self.train_samples = self.list_annotations[0:num_train_samples]
+    #         self.valid_samples = self.list_annotations[num_train_samples:-1]
+    #
+    #     batch_tomo = np.zeros((bsize, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, 1))
+    #     batch_mask = np.zeros((bsize, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, self.obj.classNum))
+    #
+    #     cnt = 0
+    #     batch_tomo_cls = []
+    #
+    #     for i in range(bstart, bend/2):
+    #         if flag_new_batch == "Train":
+    #             samples_list = self.train_samples
+    #         else:
+    #             samples_list = self.valid_samples
+    #
+    #         tomo_idx = int(samples_list[i]['tomo_idx'])
+    #         batch_tomo_cls.append(int(samples_list[i]['label']))
+    #
+    #         sample_tomo = self.patches_tomos[tomo_idx]
+    #         sample_mask = self.patches_masks[tomo_idx]
+    #
+    #
+    #         # Get patch position:
+    #         x, y, z = get_patch_position(self.patches_tomos[tomo_idx].shape, mid_dim, samples_list[i], 0)
+    #
+    #         # extract the patch:
+    #         patch_tomo = sample_tomo[z - mid_dim:z + mid_dim, y - mid_dim:y + mid_dim, x - mid_dim:x + mid_dim]
+    #         patch_tomo = (patch_tomo - np.mean(patch_tomo)) / np.std(patch_tomo)
+    #
+    #
+    #         batch_tomo[cnt, :, :, :, 0] = patch_tomo
+    #
+    #         cnt = cnt + 1
+    #
+    #
+    #
+    #     for i in range(bend/2, bend):
+    #         if flag_new_batch == "Train":
+    #             samples_list = self.train_samples
+    #         else:
+    #             samples_list = self.valid_samples
+    #
+    #         tomo_idx = int(samples_list[i]['tomo_idx'])
+    #         batch_tomo_cls.append(int(samples_list[i]['label']))
+    #
+    #         sample_tomo = self.patches_tomos[tomo_idx]
+    #         sample_mask = self.patches_masks[tomo_idx]
+    #
+    #         bg_tomo = self.generate_background(sample_tomo, sample_mask)
+    #
+    #         # Get patch position:
+    #         x, y, z = get_patch_position(self.patches_tomos[tomo_idx].shape, mid_dim, samples_list[i], 0)
+    #
+    #
+    #         patch_tomo = bg_tomo[z - mid_dim:z + mid_dim, y - mid_dim:y + mid_dim, x - mid_dim:x + mid_dim]
+    #         patch_tomo = (patch_tomo - np.mean(patch_tomo)) / np.std(patch_tomo)
+    #         batch_tomo[cnt, :, :, :, 0] = patch_tomo
+    #
+    #         cnt = cnt + 1
+    #
+    #     particle_labels = np.array([1 for _ in range(self.obj.batch_size/2)])
+    #     bg_labels = np.array([0 for _ in range(self.obj.batch_size/2)])
+    #
+    #     batch_mask[cnt] = np.concatenate((particle_labels, bg_labels), axis=0)
+    #
+    #     save_csv(batch_tomo_cls, self.output_path, "Train", "Labels")
+    #     return batch_tomo, batch_mask
+
+
+
     def fetch_batch(self, b, bsize, flag_new_epoch, flag_new_batch):
         """
         this function fetches the patches from the current tomo based on the batch index
@@ -467,6 +650,7 @@ class TrainModel:
             sample_tomo = self.patches_tomos[tomo_idx]
             sample_mask = self.patches_masks[tomo_idx]
 
+
             # Get patch position:
             x, y, z = get_patch_position(self.patches_tomos[tomo_idx].shape, mid_dim, samples_list[i], 0)
 
@@ -474,9 +658,14 @@ class TrainModel:
             patch_tomo = sample_tomo[z - mid_dim:z + mid_dim, y - mid_dim:y + mid_dim, x - mid_dim:x + mid_dim]
             patch_tomo = (patch_tomo - np.mean(patch_tomo)) / np.std(patch_tomo)
 
+            # if int(samples_list[i]['label']) == 1:
+            #     patch_mask = read_mrc('/media/noushin/Data/Cryo-ET/DeepET/data2/Invitro/PTMask.mrc')
+            # else:
+            #     patch_mask = read_mrc('/media/noushin/Data/Cryo-ET/DeepET/data2/Invitro/RBMask.mrc')
+
             patch_mask = sample_mask[z - mid_dim:z + mid_dim, y - mid_dim:y + mid_dim, x - mid_dim:x + mid_dim]
-            if i == 9:
-                write_mrc2(patch_mask,'/media/noushin/Data/Cryo-ET/DeepET/data2/results/Metrics/Augmentation/mask_Original.mrc')
+            # if i == 9:
+            #     write_mrc2(patch_mask,'/media/noushin/Data/Cryo-ET/DeepET/data2/results/Metrics/Augmentation/mask_Original.mrc')
             # save_npy(patch_mask, self.output_path, "ground", "truth")
 
             # convert to categorical labels
@@ -497,14 +686,14 @@ class TrainModel:
             batch_mask = np.vstack((batch_mask, batch_mask_augmented))
             augmented_cnt = 0
             for i in range(0, augmented_percentage):
-                selected_patch = 9 # random.randint(0, bsize - 1)
+                selected_patch = random.randint(0, bsize - 1)
                 selected_tomo = batch_tomo[selected_patch]
                 selected_mask = batch_mask[selected_patch]
-                write_mrc2(selected_tomo[:, :, :, 0], '/media/noushin/Data/Cryo-ET/DeepET/data2/results/Metrics/Augmentation/tomo_Original.mrc')
+                # write_mrc2(selected_tomo[:, :, :, 0], '/media/noushin/Data/Cryo-ET/DeepET/data2/results/Metrics/Augmentation/tomo_Original.mrc')
 
                 # rotating by 180 degree horizontally
-                # batch_tomo[cnt] = np.rot90(selected_tomo, k=2, axes=(0, 2))
-                # batch_mask[cnt] = np.rot90(selected_mask, k=2, axes=(0, 2))
+                batch_tomo[cnt] = np.rot90(selected_tomo, k=2, axes=(0, 2))
+                batch_mask[cnt] = np.rot90(selected_mask, k=2, axes=(0, 2))
                 # pt_tensor = batch_mask[cnt][:, :, :, 1]
                 # rb_tensor = batch_mask[cnt][:, :, :, 2]
                 # rb_tensor[rb_tensor == 1] = 2
@@ -555,18 +744,18 @@ class TrainModel:
                 #     write_mrc2(batch_tomo[cnt+3][:, :, :, 0], '/media/noushin/Data/Cryo-ET/DeepET/data2/results/Metrics/Augmentation/Augmented_tomo_Brightness.mrc')
 
                 # elastic deformation augmentation
-                [tomo_new, mask_new] = elasticdeform.deform_random_grid([selected_tomo, selected_mask],
-                                                                        sigma=2, axis=[(0, 1, 2), (0, 1, 2)],
-                                                                        order=[1, 0], mode='constant')
-                tomo_new = (tomo_new - np.mean(tomo_new)) / np.std(tomo_new)
-                batch_tomo[cnt] = tomo_new
-                batch_mask[cnt] = mask_new
-                pt_tensor = mask_new[:, :, :, 1]
-                rb_tensor = mask_new[:, :, :, 2]
-                rb_tensor[rb_tensor == 1] = 2
-                mask_tensor = pt_tensor + rb_tensor
-                write_mrc2(batch_tomo[cnt][:, :, :, 0], '/media/noushin/Data/Cryo-ET/DeepET/data2/results/Metrics/Augmentation/Augmented_tomo_Elastic.mrc')
-                write_mrc2(mask_tensor, '/media/noushin/Data/Cryo-ET/DeepET/data2/results/Metrics/Augmentation/Augmented_mask_Elastic.mrc')
+                # [tomo_new, mask_new] = elasticdeform.deform_random_grid([selected_tomo, selected_mask],
+                #                                                         sigma=2, axis=[(0, 1, 2), (0, 1, 2)],
+                #                                                         order=[1, 0], mode='constant')
+                # tomo_new = (tomo_new - np.mean(tomo_new)) / np.std(tomo_new)
+                # batch_tomo[cnt] = tomo_new
+                # batch_mask[cnt] = mask_new
+                # pt_tensor = mask_new[:, :, :, 1]
+                # rb_tensor = mask_new[:, :, :, 2]
+                # rb_tensor[rb_tensor == 1] = 2
+                # mask_tensor = pt_tensor + rb_tensor
+                # write_mrc2(batch_tomo[cnt][:, :, :, 0], '/media/noushin/Data/Cryo-ET/DeepET/data2/results/Metrics/Augmentation/Augmented_tomo_Elastic.mrc')
+                # write_mrc2(mask_tensor, '/media/noushin/Data/Cryo-ET/DeepET/data2/results/Metrics/Augmentation/Augmented_mask_Elastic.mrc')
 
                 # Noise Injection
                 # tomo_new = random_noise(selected_tomo, mode='gaussian', mean=0, var=1, clip=True)
@@ -594,6 +783,16 @@ class TrainModel:
                 augmented_cnt = augmented_cnt + 1
                 cnt = cnt + 1
         return batch_tomo, batch_mask
+
+    def generate_background(self, thistomo, thismask):
+        label_indices = np.argwhere(thismask != 0)
+        bg_indx = np.argwhere(thismask == 0)
+        cnt = 0
+
+        for indx in label_indices:
+            thistomo[tuple(indx)] = thistomo[tuple(bg_indx[cnt])]
+            cnt = cnt + 1
+        return thistomo
 
     def realtime_output(self, newstr):
         self.printstr = self.printstr + newstr
@@ -678,20 +877,20 @@ class TrainModel:
                         os.path.join(self.output_path, "train_models.txt"))
 
     def set_optimizer(self):
-        self.optimizer = Adam(lr=self.lr, beta_1=.9, beta_2=.999, epsilon=1e-08, decay=0.0)
+        self.optimizer = Adam(learning_rate=self.lr, beta_1=.9, beta_2=.999, epsilon=1e-08, decay=0.0)
 
         if self.obj.opt == "SGD":
-            self.optimizer = SGD(lr=self.lr, decay=0.0, momentum=0.9, nesterov=True)
+            self.optimizer = SGD(learning_rate=self.lr, decay=0.0, momentum=0.9, nesterov=True)
         elif self.obj.opt == "Adagrad":
-            self.obj.optimizer = Adagrad(lr=self.lr, epsilon=1e-08, decay=0.0)
+            self.obj.optimizer = Adagrad(learning_rate=self.lr, epsilon=1e-08, decay=0.0)
         elif self.obj.opt == "Adadelta":
-            self.optimizer = Adadelta(lr=self.lr, rho=0.95, epsilon=1e-08, decay=0.0)
+            self.optimizer = Adadelta(learning_rate=self.lr, rho=0.95, epsilon=1e-08, decay=0.0)
         elif self.obj.opt == "Adamax":
-            self.optimizer = Adamax(lr=self.lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
+            self.optimizer = Adamax(learning_rate=self.lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08, decay=0.0)
         elif self.obj.opt == "Nadam":
-            self.optimizer = Nadam(lr=self.lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08, schedule_decay=0.004)
+            self.optimizer = Nadam(learning_rate=self.lr, beta_1=0.9, beta_2=0.999, epsilon=1e-08, schedule_decay=0.004)
         elif self.obj.opt == "RMSprop":
-            self.optimizer = RMSprop(lr=self.lr, rho=0.9, epsilon=1e-08, decay=0.0)
+            self.optimizer = RMSprop(learning_rate=self.lr, rho=0.9, epsilon=1e-08, decay=0.0)
 
     # learning rate schedule
     def lr_decay_step(self, epoch):

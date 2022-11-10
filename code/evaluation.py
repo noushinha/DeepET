@@ -55,7 +55,7 @@ class EvaluationWindow(QMainWindow):
         self.tomo_path = None
 
         self.tomo_id = 23
-        self.class_id = "PTRB"
+        self.class_id = "PTRB_V3R_FewShotL_TL_ShapedMask"
 
         # initialize the parameters
         self.set_params(True)

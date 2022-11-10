@@ -159,7 +159,7 @@ class Ui_MainWindow(object):
         self.LRL.setText(_translate("MainWindow", "learning rate:"))
         self.LR.setText(_translate("MainWindow", "0.0001"))
         self.epochL.setText(_translate("MainWindow", "epochs:"))
-        self.epochs.setText(_translate("MainWindow", "50"))
+        self.epochs.setText(_translate("MainWindow", "200"))
         self.batchL.setText(_translate("MainWindow", "batch size:"))
         self.batchsize.setText(_translate("MainWindow", "12"))
         self.patchL.setText(_translate("MainWindow", "patch size:"))
@@ -170,13 +170,13 @@ class Ui_MainWindow(object):
         self.widthL.setText(_translate("MainWindow", "Width:"))
         self.heightL.setText(_translate("MainWindow", "Height:"))
         self.depthL.setText(_translate("MainWindow", "Depth:"))
-        self.width.setText(_translate("MainWindow", "409"))  # 451, 409
-        self.height.setText(_translate("MainWindow", "409"))  # 451, 409
-        self.depth.setText(_translate("MainWindow", "154"))  # 146, 154
+        self.width.setText(_translate("MainWindow", "409"))  # R 409, V2 451, V3 409
+        self.height.setText(_translate("MainWindow", "409"))  # R 409, V2 451, V3 409
+        self.depth.setText(_translate("MainWindow", "154"))  # R 154, V2 146, V3 102
         self.AugmentL.setText(_translate("MainWindow", "Augmentation (%):"))
         self.ValidationL.setText(_translate("MainWindow", "Validation (%):"))
-        self.augment.setText(_translate("MainWindow", "0.3"))
-        self.validation.setText(_translate("MainWindow", ".2"))
+        self.augment.setText(_translate("MainWindow", "0.0"))
+        self.validation.setText(_translate("MainWindow", ".1"))
         # self.classnames.setText(_translate("MainWindow", "1bxn, 1qvr, 1s3x, 1u6g, 2cg9, 3cf3, 3d2f, 3gl1, 3h84, 3qm1, 4b4t, 4d8q"))
         # self.classnames.setText(_translate("MainWindow", "4d8q"))
         # self.classnames.setText(_translate("MainWindow", "1bxn"))
@@ -185,7 +185,13 @@ class Ui_MainWindow(object):
         self.classnames.setText(_translate("MainWindow", "pt, rb"))  # invitro
         self.basePath.setText(_translate("MainWindow", "/data2/"))
         self.outputPath.setText(_translate("MainWindow", "/data2/results/RealData/"))
-        self.weightPath.setText(_translate("MainWindow", "/data2/results/SyntheticData/FreshTrainOnV2LowDose/model_final_weights.h5"))
+        # self.outputPath.setText(_translate("MainWindow", "/data2/results/SyntheticData/"))
+        # self.weightPath.setText(_translate("MainWindow", "/data2/results/RealData/SOnR150EV3BottleNeckFreezedCyclicShapeMask/model_final_weights.h5"))
+        # self.weightPath.setText(_translate("MainWindow", "/data2/results/RealData/SOnR150EV2HLBottleNeckFreezedCyclicShapeMask/model_final_weights.h5"))
+        self.weightPath.setText(_translate("MainWindow", "/data2/results/SyntheticData/FewShotLearningV3R/model_final_weights.h5"))
+        # self.weightPath.setText(_translate("MainWindow", "/data2/results/SyntheticData/FreshTrainOnV3/model_final_weights.h5"))
+        # self.weightPath.setText(_translate("MainWindow", "/data2/results/SyntheticData/FreshTrainOnV3ShapedMask/model_final_weights.h5"))
+        # self.weightPath.setText(_translate("MainWindow", "/data2/results/SyntheticData/FreshTrainOnV2HighDoseLowDoseShapedMask/model_final_weights.h5"))
         self.textEdit.setText(_translate("MainWindow", "Training iterations..."))
         # self.weightPath.setText(_translate("MainWindow", "/data2/results/RealData/evaluation/model_final_weights_PTRB_No3.h5"))
         # self.weightPath.setText(_translate("MainWindow", "/data2/results/RealData/evaluation/model_final_weights_TL_decoder.h5"))
