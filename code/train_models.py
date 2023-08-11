@@ -87,7 +87,7 @@ class TrainModel:
 
         # initialize values
         self.obj = obj
-        print(self.obj.loss)
+        print(self.obj.train_type)
         self.train_img_path = os.path.join(obj.base_path, "images/")
         self.train_target_path = os.path.join(obj.base_path, "targets/")
         self.weight_path = os.path.join(obj.base_path, obj.weight_path)
@@ -231,7 +231,7 @@ class TrainModel:
         plt.show(block=True)
 
     def get_model(self):
-        cnnobj = CNNModels()
+        cnnobj = CNNModels(self.obj.train_type)
         # self.obj.model_type = "classification"
         if self.obj.model_type == "2D UNet":
             self.net = cnnobj.unet2d((self.obj.patch_size, self.obj.patch_size), self.obj.classNum)

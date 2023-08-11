@@ -1,6 +1,6 @@
 import tensorflow as tf
 import keras.backend as bk
-from keras.losses import binary_crossentropy
+from keras.losses import binary_crossentropy, MeanSquaredError, MeanAbsoluteError, Huber
 import numpy as np
 
 
@@ -148,6 +148,19 @@ class Semantic_loss_functions(object):
         loss = y_true * bk.log(y_pred) * weights
         loss = bk.mean(-bk.sum(loss, -1))
         return loss
+
+    def mse(self, y_true, y_pred):
+        mse = MeanSquaredError(reduction="auto")
+        return mse(y_true, y_pred).numpy()
+
+
+    def mae(self, y_true, y_pred):
+        mae = MeanAbsoluteError(reduction="auto")
+        return mae(y_true, y_pred).numpy()
+
+    def huber(self, y_true, y_pred):
+        huber= Huber(reduction="auto", delta=1.0)
+        return huber(y_true, y_pred).numpy()
 
     # def gen_dice_loss(self, y_true, y_pred):
     #     '''

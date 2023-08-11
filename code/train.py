@@ -36,7 +36,7 @@ class TrainingWindow(QMainWindow):
 
         self.train_names = ["segmentation", "regression"]
         self.model_names = ["3D UNet", "3D UCaps", "TL 3D UNet"]
-        self.loss_names = ["Dice", "BCE Dice", "Categorical", "Focal", "Focal tversky", "tversky"]
+        self.loss_names = ["Dice", "BCE Dice", "MSE", "Huber"]  # "Categorical", "Focal", "Focal tversky", "tversky"
         self.opt_names = ["Adam", "SGD", "RMS Prop"]
         self.lr_names = ["Fixed", "Step", "Exponential", "Polynomial", "Cyclic"]
         self.aug_name = ["None", "Horizontal Rotation", "Vertical Rotation", "Brightness",
@@ -45,7 +45,7 @@ class TrainingWindow(QMainWindow):
         self.generate_train_type_radio_btns(2)
         self.generate_model_radio_btns(3)
         self.generate_optimizer_radio_btns(3)
-        self.generate_loss_radio_btns(6)
+        self.generate_loss_radio_btns(4)
         self.generate_lr_radio_btns(5)
         self.generate_aug_check_btns(6)
 
@@ -81,7 +81,7 @@ class TrainingWindow(QMainWindow):
         horizontalLayoutTrain.addLayout(horizontalBox)
 
         traingroup_btns = QButtonGroup(self)
-        traingroup_btns.buttonClicked.connect(lambda btn: self.set_model(btn.text()))
+        traingroup_btns.buttonClicked.connect(lambda btn: self.set_train(btn.text()))
 
         for btn_num in range(number):
             train_rbtn = QRadioButton()
@@ -210,8 +210,9 @@ class TrainingWindow(QMainWindow):
 
         # ToDo: if you want to have particular learning rates
         if flag:
+            self.set_train(self.train_names[1])
             self.set_model(self.model_names[0])
-            self.set_loss(self.loss_names[1])
+            self.set_loss(self.loss_names[2])
             self.set_opt(self.opt_names[0])
             self.set_lr(self.lr_names[4])
             self.set_aug(self.aug_name[0])
@@ -236,14 +237,18 @@ class TrainingWindow(QMainWindow):
             self.loss = "dice_loss"
         elif radio_text == "BCE Dice":
             self.loss = "bce_dice_loss"
-        elif radio_text == "Categorical":
-            self.loss = "categorical_crossentropy"
-        elif radio_text == "Focal":
-            self.loss = "focal_loss"
-        elif radio_text == "Focal tversky":
-            self.loss = "focal_tversky"
-        elif radio_text == "tversky":
-            self.loss = "tversky"
+        elif radio_text == "MSE":
+            self.loss = "mse"
+        elif radio_text == "huber":
+            self.loss = "huber"
+        # elif radio_text == "Categorical":
+        #     self.loss = "categorical_crossentropy"
+        # elif radio_text == "Focal":
+        #     self.loss = "focal_loss"
+        # elif radio_text == "Focal tversky":
+        #     self.loss = "focal_tversky"
+        # elif radio_text == "tversky":
+        #     self.loss = "tversky"
 
     def start_train(self):
         self.set_params(False)

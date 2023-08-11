@@ -16,7 +16,7 @@ from pycm import ConfusionMatrix
 SOFTNAME = "DEEP ET"
 VERSION = 2.0
 ROOT_DIR = Path(__file__).parent.parent
-print(ROOT_DIR)
+# print(ROOT_DIR)
 print(SOFTNAME, " ", VERSION)
 
 OS = "Linux"
