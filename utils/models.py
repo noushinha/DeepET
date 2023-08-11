@@ -20,6 +20,8 @@ from utils.layers import *
 
 
 class CNNModels:
+    def __int__(self, clssification_or_regression):
+        self.cls_reg = clssification_or_regression
     def unet2d(self, input_shape, class_num):
         # The original 2D UNET mdoel
         input_img = layers.Input(shape=(input_shape[0], input_shape[1], 1))
@@ -74,45 +76,50 @@ class CNNModels:
 
     def unet3d(self, input_shape, class_num):
         # The UNET model from DeepFinder
-        input_img = layers.Input(shape=(input_shape[0], input_shape[1], input_shape[2], 1))
+        input_img = layers.Input(shape=(input_shape[0], input_shape[1], input_shape[2], 1), name='input_1')
 
-        x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(input_img)
+        x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu', name='conv3d')(input_img)
         # x = layers.Lambda(dropout(x))
-        high = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(x)
+        high = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu', name='conv3d_1')(x)
 
-        x = layers.MaxPooling3D((2, 2, 2), strides=None)(high)
+        x = layers.MaxPooling3D((2, 2, 2), strides=None, name='max_pooling3d')(high)
 
-        x = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu')(x)
-        mid = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu')(x)
+        x = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu', name='conv3d_2')(x)
+        mid = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu', name='conv3d_3')(x)
 
-        x = layers.MaxPooling3D((2, 2, 2), strides=None)(mid)
+        x = layers.MaxPooling3D((2, 2, 2), strides=None, name='max_pooling3d_1')(mid)
 
-        x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
-        x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
-        x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
-        x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
+        x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu', name='conv3d_4')(x)
+        x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu', name='conv3d_5')(x)
+        x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu', name='conv3d_6')(x)
+        x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu', name='conv3d_7')(x)
 
-        x = layers.UpSampling3D(size=(2, 2, 2), data_format='channels_last')(x)
-        x = layers.Conv3D(64, (2, 2, 2), padding='same', activation='relu')(x)
+        x = layers.Conv3DTranspose(size=(2, 2, 2), data_format='channels_last', name='upsample_1')(x)
+        x = layers.Conv3D(64, (2, 2, 2), padding='same', activation='relu', name='conv3d_8')(x)
 
-        x = layers.concatenate([x, mid])
-        x = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu')(x)
-        x = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu')(x)
+        x = layers.concatenate([x, mid], name='concat_1')
+        x = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu', name='conv3d_9')(x)
+        x = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu', name='conv3d_10')(x)
 
-        x = layers.UpSampling3D(size=(2, 2, 2), data_format='channels_last')(x)
-        x = layers.Conv3D(48, (2, 2, 2), padding='same', activation='relu')(x)
+        x = layers.Conv3DTranspose(size=(2, 2, 2), data_format='channels_last', name='upsample_2')(x)
+        x = layers.Conv3D(48, (2, 2, 2), padding='same', activation='relu', name='conv3d_11')(x)
 
-        x = layers.concatenate([x, high])
-        x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(x)
-        x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(x)
+        x = layers.concatenate([x, high], name='concat_2')
+        x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu', name='conv3d_12')(x)
+        x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu', name='conv3d_13')(x)
+
+        # for the classification model
 
         output = layers.Conv3D(class_num, (1, 1, 1), padding='same', activation='softmax', name="cls_layer")(x)
+        if self.cls_reg:  # for the regression model
+            output = layers.Conv3D(64, (3, 3, 3), padding='same', strides=1, activation='linear', name="reg_layer")(x)
 
         model = Model(input_img, output)
         return model
 
-    def unet_encoder(self, input_shape):
-        # The UNET model from DeepFinder
+    def unet3d_encoder(self, input_shape):
+
+        # # The UNET model from DeepFinder
         input_img = layers.Input(shape=(input_shape[0], input_shape[1], input_shape[2], 1))
 
         x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu')(input_img)
@@ -126,13 +133,16 @@ class CNNModels:
 
         x = layers.MaxPooling3D((2, 2, 2), strides=None)(mid)
 
-        # x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
-        # x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
-        # x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
-        # x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
-        x = layers.Dense(units=512, activation="relu")(x)
-
-        output = layers.Dense(units=1, activation="sigmoid")(x)
+        x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
+        x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
+        x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
+        x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu')(x)
+        x = layers.Dense(units=1024, activation="relu")(x)
+        x = layers.Dense(units=1024, activation="relu")(x)
+        x = layers.Dropout(.25)(x)
+        # x = layers.Dense(units=1024, activation="relu")(x)
+        x = layers.Flatten()(x)
+        output = layers.Dense(units=2, activation="sigmoid")(x)
 
         model = Model(input_img, output)
         return model

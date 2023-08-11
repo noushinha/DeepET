@@ -71,7 +71,7 @@ class_names_list = ["pt", "rb"]
 class_names = {0: "bg", 1: "pt", 2: "rb"}
 reversed_class_names = OrderedDict({"bg": 0, "pt": 1, "rb": 2})
 
-# Invitro with class proteasob me
+# Invitro with class proteasome
 # class_radius = [0, 10]
 # class_names_list = ["pt"]
 # class_names = {0: "bg", 1: "pt"}

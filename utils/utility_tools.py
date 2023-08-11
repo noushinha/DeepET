@@ -8,6 +8,8 @@
 # Team Leader: Daniel Baum
 # License: GPL v3.0. See <https://www.gnu.org/licenses/>
 # ============================================================================================
+import sys
+
 import pandas as pd
 import os
 import random
@@ -154,8 +156,6 @@ def read_xml2(filename):
 
         if object_id is not None:
             object_id = int(object_id)
-        else:
-            object_id = p
         if tomo_idx is not None:
             tomo_idx = int(tomo_idx)
         add_obj(obj_list, tomo_idx=tomo_idx, obj_id=object_id, label=int(lbl), coord=(float(z), float(y), float(x)))

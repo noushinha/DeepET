@@ -33,12 +33,14 @@ class TrainingWindow(QMainWindow):
         white_color = QColor(255, 255, 255)
         self.ui.textEdit.setTextColor(white_color)
 
+        self.model_names = ["segmentation", "regression"]
         self.model_names = ["3D UNet", "3D UCaps", "TL 3D UNet"]
         self.loss_names = ["Dice", "BCE Dice", "Categorical", "Focal", "Focal tversky", "tversky"]
         self.opt_names = ["Adam", "SGD", "RMS Prop"]
         self.lr_names = ["Fixed", "Step", "Exponential", "Polynomial", "Cyclic"]
         self.aug_name = ["None", "Horizontal Rotation", "Vertical Rotation", "Brightness", "Noise", "Contrast", "Elastic Deformation"]
 
+        self.generate_model_type_radio_btns(2)
         self.generate_model_radio_btns(3)
         self.generate_optimizer_radio_btns(3)
         self.generate_loss_radio_btns(6)

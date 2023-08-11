@@ -8,7 +8,7 @@
 # Team Leader: Daniel Baum
 # License: GPL v3.0. See <https://www.gnu.org/licenses/>
 # ============================================================================================
-
+import os.path
 import re
 import time
 import math
@@ -25,6 +25,7 @@ import numpy as np
 from sklearn.metrics import precision_recall_fscore_support
 # from utils.cyclicR import CyclicLR
 # from utils.params import *
+import params
 from utils.plots import *
 from utils.utility_tools import *
 # from utils.CyclicLR.clr_callback import CyclicLR
@@ -224,8 +225,8 @@ class TrainModel:
             self.fit_model()  # fit the data to the model and train the model
             self.plots()  # plot the results
             self.save()  # save the results as txt
-        else:
-            self.fit_model2()
+        # else:
+        #     self.fit_model()
 
         plt.show(block=True)
 
@@ -237,27 +238,70 @@ class TrainModel:
         elif self.obj.model_type == "3D UNet":
             self.net = cnnobj.unet3d((self.obj.patch_size, self.obj.patch_size, self.obj.patch_size), self.obj.classNum)
         elif self.obj.model_type == "TL 3D UNet":
+            # pretrained_net = cnnobj.unet3d_encoder((self.obj.patch_size, self.obj.patch_size, self.obj.patch_size))
+            # pretrained_weight_path = '/media/noushin/Data/Cryo-ET/DeepET/data2/results/pretraining/real_vs_synthetic/real_synthetic_pretraining_weights.h5'
+            # pretrained_net.load_weights(pretrained_weight_path)
             self.net = cnnobj.unet3d((self.obj.patch_size, self.obj.patch_size, self.obj.patch_size), self.obj.classNum)
             self.net.load_weights(self.weight_path)
 
             # freezing specific layers
+            # i = 1
+            # for layer in pretrained_net.layers[1:11]:
+            #     j = 0
+            #     for layer2 in pretrained_net.layers:
+            #         if layer.name == layer2.name:
+            #             try:
+            #                 print(pretrained_net.layers[i].name)
+            #                 print(self.net.layers[j].name)
+            #                 realvssynt_weights = pretrained_net.layers[i].weights[0]
+            #                 TL_weights = self.net.layers[j].weights[0]
+            #                 avg_weights = (TL_weights + realvssynt_weights) / 2
+            #                 self.net.layers[j].set_weights([avg_weights, self.net.layers[j].bias])
+            #             except:
+            #                 pass
+            #         j += 1
+            #     i += 1
+
+            #     # freezing specific layers
             layer_freezing_list = ['conv3d_4', 'conv3d_5', 'conv3d_6', 'conv3d_7']
             for layer in self.net.layers:
                 if layer.name in layer_freezing_list:
                     layer.trainable = False
             print("Started Transfer Learning by loading weights...")
-            # to train only the decoder
-            # for layer in self.net.layers[:11]:
-            #     layer.trainable = False
+            #     ############## Code we used so far for TL#########
 
-            # Create the model again
-            # from keras import models
-            # model = models.Sequential()
-            # # Add the 3d-UNet base model but this time without the classification layer
-            # model.add(self.net)
-            # # Add a new classification layer
-            # model.add(layers.Conv3D(len(self.obj.class_names), (1, 1, 1),
-            #                         padding='same', activation='softmax', name="cls_layer"))
+            print("Started Transfer Learning by loading weights...")
+
+        # elif self.obj.model_type == "TL 3D UNet":
+        #     self.net = cnnobj.unet3d((self.obj.patch_size, self.obj.patch_size, self.obj.patch_size), self.obj.classNum)
+        #
+        #     ############## Code we used so far for TL#########
+        #     self.net = cnnobj.unet3d((self.obj.patch_size, self.obj.patch_size, self.obj.patch_size), self.obj.classNum)
+        #     self.net.load_weights(self.weight_path)
+        #
+        #     # freezing specific layers
+        #     layer_freezing_list = ['conv3d_4', 'conv3d_5', 'conv3d_6', 'conv3d_7']
+        #     for layer in self.net.layers:
+        #         if layer.name in layer_freezing_list:
+        #             layer.trainable = False
+        #     print("Started Transfer Learning by loading weights...")
+        #     ############## Code we used so far for TL#########
+
+
+
+
+        #     to train only the decoder
+        #     for layer in self.net.layers[:11]:
+        #         layer.trainable = False
+        #
+        #     Create the model again
+        #     from keras import models
+        #     model = models.Sequential()
+        #     # Add the 3d-UNet base model but this time without the classification layer
+        #     model.add(self.net)
+        #     # Add a new classification layer
+        #     model.add(layers.Conv3D(len(self.obj.class_names), (1, 1, 1),
+        #                             padding='same', activation='softmax', name="cls_layer"))
         # elif self.obj.model_type == "classification":
         #     self.net = cnnobj.cnn3d((self.obj.patch_size, self.obj.patch_size, self.obj.patch_size))
 
@@ -268,99 +312,6 @@ class TrainModel:
         # set the properties of the mdoel
         self.set_optimizer()
         self.set_compile()
-
-    # def fit_model2(self):
-    #     label_list = []
-    #     for l_list in range(self.obj.classNum):
-    #         label_list.append(l_list)
-    #     start = time.perf_counter()
-    #
-    #     # if you use size of generated tensor it would be more accurate and it will never throw error
-    #     # len(int(np.round(len(.9 * self.list_annotations)))/self.obj.batch_size) - 1
-    #     steps_per_epoch = int(np.round((1 - self.obj.vald_prc) * len(self.list_annotations)) / self.obj.batch_size)
-    #     vald_steps_per_epoch = int(np.round(self.obj.vald_prc * len(self.list_annotations)) / self.obj.batch_size) - 1
-    #     counter = 0
-    #
-    #     print("Train - Steps per epoch: ", steps_per_epoch)
-    #     print("Validation - Steps per epoch: ", vald_steps_per_epoch)
-    #
-    #     for e in range(self.obj.epochs):
-    #         flag_new_epoch = True
-    #         print("########## New Epoch ##########\n")
-    #         self.lr = self.initial_lr
-    #         list_train_loss = []
-    #         list_train_acc = []
-    #         list_vald_acc = []
-    #         list_vald_loss = []
-    #         list_f1_score = []
-    #         list_recall = []
-    #         list_precision = []
-    #         list_lr = []
-    #
-    #         # self.lr_type = "cyclic"
-    #         self.set_lr(counter)
-    #
-    #         for b in range(steps_per_epoch):
-    #             # fetch the current batch of patches
-    #             if b != 0:
-    #                 flag_new_epoch = False
-    #
-    #             list_lr.append(k.eval(self.net.optimizer.lr))
-    #             batch_tomo, batch_mask = self.fetch_batch2(b, self.obj.batch_size, flag_new_epoch, "Train")
-    #
-    #
-    #
-    #             loss_train = self.net.train_on_batch(batch_tomo, batch_mask)
-    #             display('epoch %d/%d - b %d/%d - loss: %.3f - acc: %.3f - lr: %.7f' % (e + 1, self.obj.epochs,
-    #                                                                                    b + 1, steps_per_epoch,
-    #                                                                                    loss_train[0], loss_train[1],
-    #                                                                                    k.eval(self.net.optimizer.lr)))
-    #             list_train_loss.append(loss_train[0])
-    #             list_train_acc.append(loss_train[1])
-    #
-    #             counter = counter + 1
-    #
-    #         for d in range(vald_steps_per_epoch):
-    #             batch_tomo_vald, batch_mask_vald = self.fetch_batch(d, self.obj.batch_size, False, "Validation")
-    #
-    #             # evaluate trained model on the validation set
-    #             loss_val = self.net.evaluate(batch_tomo_vald, batch_mask_vald, verbose=0)
-    #             batch_pred = self.net.predict(batch_tomo_vald)
-    #             scores = precision_recall_fscore_support(batch_mask_vald.argmax(axis=-1).flatten(),
-    #                                                      batch_pred.argmax(axis=-1).flatten(), average=None,
-    #                                                      labels=label_list, zero_division=0)
-    #             print("val. loss: {vl}, \n val acc: {va}".format(vl=np.round(loss_val[0], 2),
-    #                                                              va=np.round(loss_val[1], 2)))
-    #             print("F1 Score : {f1s}, \n Recall: {res}, \n Precision: {prs}".format(f1s=np.round(scores[2], 2),
-    #                                                                                    res=np.round(scores[1], 2),
-    #                                                                                    prs=np.round(scores[0], 2)))
-    #             print(np.unique(np.argmax(batch_pred, 4)))
-    #
-    #             list_vald_loss.append(loss_val[0])
-    #             list_vald_acc.append(loss_val[1])
-    #             list_f1_score.append(scores[2])
-    #             list_recall.append(scores[1])
-    #             list_precision.append(scores[0])
-    #
-    #         self.history_train_loss.append(list_train_loss)
-    #         self.history_lr.append(list_lr)
-    #         self.history_train_acc.append(list_train_acc)
-    #         self.history_vald_loss.append(list_vald_loss)
-    #         self.history_vald_acc.append(list_vald_acc)
-    #         self.history_f1_score.append(list_f1_score)
-    #         self.history_recall.append(list_recall)
-    #         self.history_precision.append(list_precision)
-    #
-    #         print("################################################################################\n")
-    #         if (e + 1) % 50 == 0:
-    #             self.set_weight_callback(e + 1)
-    #
-    #     self.save_history(batch_tomo)
-    #     self.net.save(self.output_path + '/model_final_weights.h5')
-    #     end = time.perf_counter()
-    #     self.process_time = (end - start)
-    #     display(self.process_time)
-
 
     def fit_model(self):
         label_list = []
@@ -516,88 +467,6 @@ class TrainModel:
 
         class_idx = np.concatenate(class_idx)
         return class_idx
-
-    # def fetch_batch2(self, b, bsize, flag_new_epoch, flag_new_batch):
-    #     bstart = b * self.obj.batch_size
-    #     bend = (b * self.obj.batch_size) + self.obj.batch_size
-    #
-    #     if b == 0:
-    #         print("********** " + flag_new_batch + " **********")
-    #
-    #     mid_dim = int(np.floor(self.obj.patch_size / 2))
-    #     num_train_samples = int(np.round(len(self.list_annotations) * (1-self.obj.vald_prc)))
-    #
-    #     if flag_new_epoch:
-    #         random.shuffle(self.list_annotations)
-    #         self.train_samples = self.list_annotations[0:num_train_samples]
-    #         self.valid_samples = self.list_annotations[num_train_samples:-1]
-    #
-    #     batch_tomo = np.zeros((bsize, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, 1))
-    #     batch_mask = np.zeros((bsize, self.obj.patch_size, self.obj.patch_size, self.obj.patch_size, self.obj.classNum))
-    #
-    #     cnt = 0
-    #     batch_tomo_cls = []
-    #
-    #     for i in range(bstart, bend/2):
-    #         if flag_new_batch == "Train":
-    #             samples_list = self.train_samples
-    #         else:
-    #             samples_list = self.valid_samples
-    #
-    #         tomo_idx = int(samples_list[i]['tomo_idx'])
-    #         batch_tomo_cls.append(int(samples_list[i]['label']))
-    #
-    #         sample_tomo = self.patches_tomos[tomo_idx]
-    #         sample_mask = self.patches_masks[tomo_idx]
-    #
-    #
-    #         # Get patch position:
-    #         x, y, z = get_patch_position(self.patches_tomos[tomo_idx].shape, mid_dim, samples_list[i], 0)
-    #
-    #         # extract the patch:
-    #         patch_tomo = sample_tomo[z - mid_dim:z + mid_dim, y - mid_dim:y + mid_dim, x - mid_dim:x + mid_dim]
-    #         patch_tomo = (patch_tomo - np.mean(patch_tomo)) / np.std(patch_tomo)
-    #
-    #
-    #         batch_tomo[cnt, :, :, :, 0] = patch_tomo
-    #
-    #         cnt = cnt + 1
-    #
-    #
-    #
-    #     for i in range(bend/2, bend):
-    #         if flag_new_batch == "Train":
-    #             samples_list = self.train_samples
-    #         else:
-    #             samples_list = self.valid_samples
-    #
-    #         tomo_idx = int(samples_list[i]['tomo_idx'])
-    #         batch_tomo_cls.append(int(samples_list[i]['label']))
-    #
-    #         sample_tomo = self.patches_tomos[tomo_idx]
-    #         sample_mask = self.patches_masks[tomo_idx]
-    #
-    #         bg_tomo = self.generate_background(sample_tomo, sample_mask)
-    #
-    #         # Get patch position:
-    #         x, y, z = get_patch_position(self.patches_tomos[tomo_idx].shape, mid_dim, samples_list[i], 0)
-    #
-    #
-    #         patch_tomo = bg_tomo[z - mid_dim:z + mid_dim, y - mid_dim:y + mid_dim, x - mid_dim:x + mid_dim]
-    #         patch_tomo = (patch_tomo - np.mean(patch_tomo)) / np.std(patch_tomo)
-    #         batch_tomo[cnt, :, :, :, 0] = patch_tomo
-    #
-    #         cnt = cnt + 1
-    #
-    #     particle_labels = np.array([1 for _ in range(self.obj.batch_size/2)])
-    #     bg_labels = np.array([0 for _ in range(self.obj.batch_size/2)])
-    #
-    #     batch_mask[cnt] = np.concatenate((particle_labels, bg_labels), axis=0)
-    #
-    #     save_csv(batch_tomo_cls, self.output_path, "Train", "Labels")
-    #     return batch_tomo, batch_mask
-
-
 
     def fetch_batch(self, b, bsize, flag_new_epoch, flag_new_batch):
         """
