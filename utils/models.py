@@ -1,27 +1,30 @@
 from __future__ import absolute_import, division, print_function
-
-# from collections import OrderedDict
-# import pytorch_lightning as pl
-# import torch
-# import torch.nn.functional as F
-# from utils.ucap_layers import ConvSlimCapsule3D, MarginLoss
-# from monai.data import decollate_batch
-# from monai.inferers import sliding_window_inference
-# from monai.losses import DiceCELoss
-# from monai.metrics import DiceMetric
-# from monai.networks import one_hot
-# from monai.networks.blocks import Convolution, UpSample
-# from monai.networks.layers.factories import Conv
-# from monai.transforms import AsDiscrete, Compose, EnsureType
-# from monai.visualize.img2tensorboard import plot_2d_or_3d_image
-# from torch import nn
 from keras import Model, layers
-from utils.layers import *
+# from utils.layers import *
+import numpy as np
 
+# for 3D-UCaps
+from collections import OrderedDict
+import pytorch_lightning as pl
+import torch
+import torch.nn.functional as F
+from ucap_layers import ConvSlimCapsule3D, MarginLoss
+from monai.data import decollate_batch
+from monai.inferers import sliding_window_inference
+from monai.losses import DiceCELoss
+from monai.metrics import DiceMetric
+from monai.networks import one_hot
+from monai.networks.blocks import Convolution, UpSample
+from monai.networks.layers.factories import Conv
+from monai.transforms import AsDiscrete, Compose, EnsureType
+from monai.visualize.img2tensorboard import plot_2d_or_3d_image
+from torch import nn
+from skimage import exposure
 
 class CNNModels:
     def __int__(self, clssification_or_regression):
         self.cls_reg = clssification_or_regression
+
     def unet2d(self, input_shape, class_num):
         # The original 2D UNET mdoel
         input_img = layers.Input(shape=(input_shape[0], input_shape[1], 1))
@@ -79,41 +82,63 @@ class CNNModels:
         input_img = layers.Input(shape=(input_shape[0], input_shape[1], input_shape[2], 1), name='input_1')
 
         x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu', name='conv3d')(input_img)
-        # x = layers.Lambda(dropout(x))
+        # x = layers.BatchNormalization()(x)
         high = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu', name='conv3d_1')(x)
-
-        x = layers.MaxPooling3D((2, 2, 2), strides=None, name='max_pooling3d')(high)
+        # x = layers.BatchNormalization()(high)
+        x = layers.MaxPooling3D((2, 2, 2), strides=None, name='max_pooling3d')(x)
 
         x = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu', name='conv3d_2')(x)
+        # x = layers.BatchNormalization()(x)
         mid = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu', name='conv3d_3')(x)
+        # x = layers.BatchNormalization()(mid)
 
-        x = layers.MaxPooling3D((2, 2, 2), strides=None, name='max_pooling3d_1')(mid)
+        x = layers.MaxPooling3D((2, 2, 2), strides=None, name='max_pooling3d_1')(x)
 
         x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu', name='conv3d_4')(x)
+        # x = layers.BatchNormalization()(x)
         x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu', name='conv3d_5')(x)
+        # x = layers.BatchNormalization()(x)
         x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu', name='conv3d_6')(x)
+        # x = layers.BatchNormalization()(x)
         x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu', name='conv3d_7')(x)
+        # x = layers.BatchNormalization()(x)
+        # x = layers.Conv3DTranspose(filters=None, kernel_size=(2, 2, 2),
+        # data_format='channels_last', name='upsample_1')(x)
+        # x = layers.Conv3D(64, (2, 2, 2), padding='same', activation='relu', name='conv3d_8')(x)
 
-        x = layers.Conv3DTranspose(size=(2, 2, 2), data_format='channels_last', name='upsample_1')(x)
+        x = layers.UpSampling3D(size=(2, 2, 2), data_format='channels_last', name='upsample_1')(x)
         x = layers.Conv3D(64, (2, 2, 2), padding='same', activation='relu', name='conv3d_8')(x)
+        # x = layers.BatchNormalization()(x)
 
         x = layers.concatenate([x, mid], name='concat_1')
         x = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu', name='conv3d_9')(x)
+        # x = layers.BatchNormalization()(x)
         x = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu', name='conv3d_10')(x)
+        # x = layers.BatchNormalization()(x)
 
-        x = layers.Conv3DTranspose(size=(2, 2, 2), data_format='channels_last', name='upsample_2')(x)
+        x = layers.UpSampling3D(size=(2, 2, 2), data_format='channels_last', name='upsample_2')(x)
         x = layers.Conv3D(48, (2, 2, 2), padding='same', activation='relu', name='conv3d_11')(x)
+        # x = layers.BatchNormalization()(x)
 
         x = layers.concatenate([x, high], name='concat_2')
         x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu', name='conv3d_12')(x)
+        # x = layers.BatchNormalization()(x)
         x = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu', name='conv3d_13')(x)
+        # x = layers.BatchNormalization()(x)
+        # classification head
+        # output = layers.Conv3D(class_num, (1, 1, 1), padding='same', activation='softmax', name="cls_layer")(x)
+        # Regression head
+        x = layers.Dropout(0.25)(x)
 
-        # for the classification model
+        # output = layers.Conv3D(1, (1, 1, 1), activation='linear', name="reg_layer")(x)
+        output = layers.Dense(1, activation='linear', name="reg_layer")(x)
 
-        output = layers.Conv3D(class_num, (1, 1, 1), padding='same', activation='softmax', name="cls_layer")(x)
-        if self.cls_reg:  # for the regression model
-            output = layers.Conv3D(64, (3, 3, 3), padding='same', strides=1, activation='linear', name="reg_layer")(x)
-
+        # vmin, vmax = np.quantile(output, q=(0.05, 0.95))
+        # output = exposure.rescale_intensity(
+        #     output,
+        #     in_range=(vmin, vmax),
+        #     out_range=np.float32
+        # )
         model = Model(input_img, output)
         return model
 
@@ -150,24 +175,6 @@ class CNNModels:
 
 # Pytorch Lightning module
 # from __future__ import absolute_import, division, print_function
-
-from collections import OrderedDict
-
-import pytorch_lightning as pl
-import torch
-import torch.nn.functional as F
-from ucap_layers import ConvSlimCapsule3D, MarginLoss
-from monai.data import decollate_batch
-from monai.inferers import sliding_window_inference
-from monai.losses import DiceCELoss
-from monai.metrics import DiceMetric
-from monai.networks import one_hot
-from monai.networks.blocks import Convolution, UpSample
-from monai.networks.layers.factories import Conv
-from monai.transforms import AsDiscrete, Compose, EnsureType
-from monai.visualize.img2tensorboard import plot_2d_or_3d_image
-from torch import nn
-
 
 # Pytorch Lightning module
 class UCaps3D(pl.LightningModule):

@@ -36,7 +36,7 @@ class TrainingWindow(QMainWindow):
 
         self.train_names = ["segmentation", "regression"]
         self.model_names = ["3D UNet", "3D UCaps", "TL 3D UNet"]
-        self.loss_names = ["Dice", "BCE Dice", "MSE", "Huber"]  # "Categorical", "Focal", "Focal tversky", "tversky"
+        self.loss_names = ["Dice", "Quantile", "MSE", "MAE", "Huber"]  # "BCE Dice", "Categorical", "Focal", "Focal tversky", "tversky"
         self.opt_names = ["Adam", "SGD", "RMS Prop"]
         self.lr_names = ["Fixed", "Step", "Exponential", "Polynomial", "Cyclic"]
         self.aug_name = ["None", "Horizontal Rotation", "Vertical Rotation", "Brightness",
@@ -45,7 +45,7 @@ class TrainingWindow(QMainWindow):
         self.generate_train_type_radio_btns(2)
         self.generate_model_radio_btns(3)
         self.generate_optimizer_radio_btns(3)
-        self.generate_loss_radio_btns(4)
+        self.generate_loss_radio_btns(5)
         self.generate_lr_radio_btns(5)
         self.generate_aug_check_btns(6)
 
@@ -88,7 +88,7 @@ class TrainingWindow(QMainWindow):
             traingroup_btns.addButton(train_rbtn)
             horizontalBox.addWidget(train_rbtn, 1, btn_num, 1, 1)
             train_rbtn.setText(self.train_names[btn_num])
-            if btn_num == 0:
+            if btn_num == 1:
                 train_rbtn.setChecked(True)
         self.ui.gridLayout_2.addLayout(horizontalLayoutTrain, 8, 1, 1, 1)
 
@@ -144,7 +144,7 @@ class TrainingWindow(QMainWindow):
             modelgroup_btns.addButton(model_rbtn)
             horizontalBox.addWidget(model_rbtn, 1, btn_num, 1, 1)
             model_rbtn.setText(self.loss_names[btn_num])
-            if btn_num == 1:
+            if btn_num == 4:
                 model_rbtn.setChecked(True)
 
         self.ui.gridLayout_2.addLayout(horizontalLayoutLoss, 11, 1, 1, 1)
@@ -163,7 +163,7 @@ class TrainingWindow(QMainWindow):
             lrgroup_btns.addButton(lr_rbtn)
             horizontalBox.addWidget(lr_rbtn, 1, btn_num, 1, 1)
             lr_rbtn.setText(self.lr_names[btn_num])
-            if btn_num == 4:
+            if btn_num == 0:
                 lr_rbtn.setChecked(True)
 
         self.ui.gridLayout_2.addLayout(horizontalLayoutLR, 12, 1, 1, 1)
@@ -212,9 +212,9 @@ class TrainingWindow(QMainWindow):
         if flag:
             self.set_train(self.train_names[1])
             self.set_model(self.model_names[0])
-            self.set_loss(self.loss_names[2])
+            self.set_loss(self.loss_names[4])
             self.set_opt(self.opt_names[0])
-            self.set_lr(self.lr_names[4])
+            self.set_lr(self.lr_names[0])
             self.set_aug(self.aug_name[0])
 
     def set_train(self, radio_text):
@@ -239,7 +239,9 @@ class TrainingWindow(QMainWindow):
             self.loss = "bce_dice_loss"
         elif radio_text == "MSE":
             self.loss = "mse"
-        elif radio_text == "huber":
+        elif radio_text == "MAE":
+            self.loss = "mae"
+        elif radio_text == "Huber":
             self.loss = "huber"
         # elif radio_text == "Categorical":
         #     self.loss = "categorical_crossentropy"

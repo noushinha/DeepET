@@ -1,6 +1,7 @@
 import tensorflow as tf
 import keras.backend as bk
 from keras.losses import binary_crossentropy, MeanSquaredError, MeanAbsoluteError, Huber
+# import tensorflow_probability as tfp
 import numpy as np
 
 
@@ -151,16 +152,42 @@ class Semantic_loss_functions(object):
 
     def mse(self, y_true, y_pred):
         mse = MeanSquaredError(reduction="auto")
-        return mse(y_true, y_pred).numpy()
+        return mse(y_true, y_pred)
 
 
     def mae(self, y_true, y_pred):
         mae = MeanAbsoluteError(reduction="auto")
-        return mae(y_true, y_pred).numpy()
+        return mae(y_true, y_pred)
 
     def huber(self, y_true, y_pred):
-        huber= Huber(reduction="auto", delta=1.0)
-        return huber(y_true, y_pred).numpy()
+        hub = Huber(reduction="auto", delta=1.5)
+        return hub(y_true, y_pred)
+
+    def QuantileLoss(self, perc, delta=1e-4):
+        perc = np.array(perc).reshape(-1)
+        perc.sort()
+        perc = perc.reshape(1, -1)
+
+        def _qloss(y_true, y_pred):
+            I = tf.cast(y_true <= y_pred, tf.float32)
+            d = bk.abs(y_true - y_pred)
+            correction = I * (1 - perc) + (1 - I) * perc
+            # huber loss
+            huber_loss = bk.sum(correction * tf.where(d <= delta, 0.5 * d ** 2 / delta, d - 0.5 * delta), -1)
+            # order loss
+            q_order_loss = bk.sum(bk.maximum(0.0, y_pred[:, :-1] - y_pred[:, 1:] + 1e-6), -1)
+            return huber_loss + q_order_loss
+
+        return _qloss
+
+    # def quadratic_loss_and_gradient(x):
+    #     minimum = np.ones([64], dtype='float64')
+    #     scales = np.arange(64, dtype='float64') + 1.0
+    #
+    #     return tfp.math.value_and_gradient(
+    #         lambda x: tf.reduce_sum(
+    #             scales * tf.math.squared_difference(x, minimum), axis=-1),
+    #         x)
 
     # def gen_dice_loss(self, y_true, y_pred):
     #     '''

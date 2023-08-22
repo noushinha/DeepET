@@ -22,7 +22,7 @@ from lxml import etree
 import mrcfile as mrc
 from utils.params import *
 import nrrd
-
+from sklearn.metrics import mean_squared_error
 
 def display(message):
     print(message)
@@ -666,3 +666,10 @@ def save_npy(data, output_path, flag="Train", name="Probabilities"):
 def save_csv(data, output_path, flag="Train", name="Probabilities"):
     df = pd.DataFrame(data)
     df.to_csv(os.path.join(output_path, flag + "_" + name + ".csv"), index=False)
+
+
+# def coefficient_of_determination(ys_orig, ys_line):
+#     y_mean_line = [np.mean(ys_orig) for y in ys_orig]
+#     squared_error_regr = mean_squared_error(ys_orig, ys_line)
+#     squared_error_y_mean = mean_squared_error(ys_orig, y_mean_line)
+#     return 1 - (squared_error_regr/squared_error_y_mean)
