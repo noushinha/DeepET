@@ -174,9 +174,9 @@ class Ui_MainWindow(object):
         self.widthL.setText(_translate("MainWindow", "Width:"))
         self.heightL.setText(_translate("MainWindow", "Height:"))
         self.depthL.setText(_translate("MainWindow", "Depth:"))
-        self.width.setText(_translate("MainWindow", "409"))  # R 409, V2 451, V3 409
-        self.height.setText(_translate("MainWindow", "409"))  # R 409, V2 451, V3 409
-        self.depth.setText(_translate("MainWindow", "154"))  # R 154, V2 146, V3 102
+        self.width.setText(_translate("MainWindow", "1000"))  # R 409, V2 451, V3 409
+        self.height.setText(_translate("MainWindow", "1000"))  # R 409, V2 451, V3 409
+        self.depth.setText(_translate("MainWindow", "250"))  # R 154, V2 146, V3 102
         self.AugmentL.setText(_translate("MainWindow", "Augmentation (%):"))
         self.ValidationL.setText(_translate("MainWindow", "Validation (%):"))
         self.augment.setText(_translate("MainWindow", "0.0"))
@@ -188,10 +188,10 @@ class Ui_MainWindow(object):
         # self.classnames.setText(_translate("MainWindow", "4d8q, 1bxn, 3gl1"))
         self.classnames.setText(_translate("MainWindow", "pt, rb"))  # invitro
         self.basePath.setText(_translate("MainWindow", "/data2/"))
-        self.outputPath.setText(_translate("MainWindow", "/data2/results/RealData/"))
-        # self.outputPath.setText(_translate("MainWindow", "/data2/results/SyntheticData/"))
+        # self.outputPath.setText(_translate("MainWindow", "/data2/results/RealData/"))
+        self.outputPath.setText(_translate("MainWindow", "/data2/results/SyntheticData/"))
         # self.weightPath.setText(_translate("MainWindow", "/data2/results/RealData/SOnR150EV3BottleNeckFreezedCyclicShapeMask/model_final_weights.h5"))
-        self.weightPath.setText(_translate("MainWindow", "/data2/results/RealData/SOnR150EV2HLBottleNeckFreezedCyclicShapeMask/model_final_weights.h5"))
+        self.weightPath.setText(_translate("MainWindow", ""))
         # self.weightPath.setText(_translate("MainWindow", "/data2/results/SyntheticData/FewShotLearningV3R/model_final_weights.h5"))
         # self.weightPath.setText(_translate("MainWindow", "/data2/results/SyntheticData/FreshTrainOnV3/model_final_weights.h5"))
         # self.weightPath.setText(_translate("MainWindow", "/data2/results/SyntheticData/FreshTrainOnV3ShapedMask/model_final_weights.h5"))

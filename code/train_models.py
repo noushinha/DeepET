@@ -327,9 +327,19 @@ class TrainModel:
         for l_list in range(self.obj.classNum):
             label_list.append(l_list)
         start = time.perf_counter()
-        self.list_annotations = read_xml2(os.path.join(self.train_img_path, "object_list_train.xml"))
+
+
         # if you use size of generated tensor it would be more accurate and it will never throw error
         # len(int(np.round(len(.9 * self.list_annotations)))/self.obj.batch_size) - 1
+        # self.selected_tomo_indices = []
+        self.list_annotations = read_xml2(os.path.join(self.train_img_path, "object_list_train.xml"))
+        # num_tomos = list(range(0, (len(self.list_tomos_IDs))))
+        # random.shuffle(num_tomos)
+        # teils = int(len(self.list_tomos_IDs) / 3)
+        # for tindx in range(0, teils):
+        #     self.selected_tomo_indices.append(num_tomos[tindx: tindx + 3])
+        # selected_tomos = self.list_tomos_IDs[selected_tomo_indx]
+        # self.list_annotations = total_list_annotations["tomo_id" == selected_tomo_indx]
         steps_per_epoch = int(np.round((1-self.obj.vald_prc) * len(self.list_annotations)) / self.obj.batch_size)
         vald_steps_per_epoch = int(np.round(self.obj.vald_prc * len(self.list_annotations)) / self.obj.batch_size) - 1
         counter = 0
