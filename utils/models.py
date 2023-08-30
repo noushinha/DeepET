@@ -85,14 +85,14 @@ class CNNModels:
         # x = layers.BatchNormalization()(x)
         high = layers.Conv3D(32, (3, 3, 3), padding='same', activation='relu', name='conv3d_1')(x)
         # x = layers.BatchNormalization()(high)
-        x = layers.MaxPooling3D((2, 2, 2), strides=None, name='max_pooling3d')(x)
+        x = layers.MaxPooling3D((2, 2, 2), strides=None, name='max_pooling3d')(high)
 
         x = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu', name='conv3d_2')(x)
         # x = layers.BatchNormalization()(x)
         mid = layers.Conv3D(48, (3, 3, 3), padding='same', activation='relu', name='conv3d_3')(x)
         # x = layers.BatchNormalization()(mid)
 
-        x = layers.MaxPooling3D((2, 2, 2), strides=None, name='max_pooling3d_1')(x)
+        x = layers.MaxPooling3D((2, 2, 2), strides=None, name='max_pooling3d_1')(mid)
 
         x = layers.Conv3D(64, (3, 3, 3), padding='same', activation='relu', name='conv3d_4')(x)
         # x = layers.BatchNormalization()(x)

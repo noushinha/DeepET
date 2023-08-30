@@ -144,7 +144,7 @@ class TrainModel:
 
         self.list_tomos_IDs.sort(key=lambda f: int(re.sub('\D', '', f)))
         self.list_masks_IDs.sort(key=lambda r: int(re.sub('\D', '', r)))
-
+        # print(self.list_tomos_IDs)
         # self.fetch_tomos()
 
     def fetch_tomos(self, tomo_indices):
@@ -164,7 +164,7 @@ class TrainModel:
         for t in tomo_indices:
             # display("********** Fetch Tomo {tnum} **********".format(tnum=self.list_tomos_IDs[t]))
             tomo = read_mrc(self.list_tomos_IDs[t])
-            # tomo = np.flip(tomo, axis=1)
+            tomo = np.flip(tomo, axis=1)
             mask = read_mrc(self.list_masks_IDs[t])
             mask = np.flip(mask, axis=1)
 
@@ -443,7 +443,7 @@ class TrainModel:
                 batch_tomo_vald, batch_mask_vald = self.fetch_batch(d, e, self.obj.batch_size, False, "Validation")
 
                 # evaluate trained model on the validation set
-                loss_val = self.net.evaluate(batch_tomo_vald, batch_mask_vald, verbose=1)
+                loss_val = self.net.evaluate(batch_tomo_vald, batch_mask_vald, verbose=0)
                 batch_pred = self.net.predict(batch_tomo_vald)
                 # write_mrc2(batch_tomo_vald[0, :, :, :, 0], os.path.join('/media/noushin/Data/Cryo-ET/DeepET/data2/temp/patch_tomo_vald.mrc'))
                 # write_mrc2(np.average(batch_pred[0, :, :, :, :], axis=3), os.path.join('/media/noushin/Data/Cryo-ET/DeepET/data2/temp/patch_mask_vald.mrc'))
@@ -460,14 +460,17 @@ class TrainModel:
                     list_recall.append(scores[1])
                     list_precision.append(scores[0])
                     print(np.unique(np.argmax(batch_pred, 4)))
-                # else:
+                else:
                     # scores = r2_score(batch_mask_vald.argmax(axis=-1).flatten(),
                     #          batch_pred.argmax(axis=-1).flatten(), multioutput='variance_weighted')
+                    scores = r2_score(batch_mask_vald.flatten(),
+                                      batch_pred.flatten(), multioutput='variance_weighted')
                     # scores = coefficient_of_determination(batch_mask_vald.argmax(axis=-1).flatten(),
                     #                                       batch_pred.argmax(axis=-1).flatten())
-                    # print("validation MSE: {vl}, validation MAE: {va}".format(vl=np.round(loss_val[0], 2),
-                    #                                                           va=np.round(loss_val[1], 2)))
-                    # list_recall.append(loss_val[1])
+                    print("MSE: {vl}, MAE: {va}, R2: {r2}".format(vl=np.round(loss_val[0], 2),
+                                                                  va=np.round(loss_val[1], 2),
+                                                                  r2=np.round(scores, 2)))
+                    list_recall.append(scores)
                     # list_precision.append(loss_val[0])
 
                 list_vald_loss.append(loss_val[0])
@@ -557,12 +560,11 @@ class TrainModel:
         batch_tomo_cls = []
         # list_of_val_samples = []
 
-        for i in range(0, 12):
+        for i in range(0, bsize):
             if flag_new_batch == "Train":
                 samples_list = self.train_samples
             else:
                 samples_list = self.valid_samples
-
 
             tomo_idx = int(samples_list[i]['tomo_idx'])
             sorted_ids = sorted(Unik_ids)
@@ -582,17 +584,17 @@ class TrainModel:
             patch_tomo = (patch_tomo - np.mean(patch_tomo)) / np.std(patch_tomo)
 
             patch_mask = sample_mask[z - mid_dim:z + mid_dim, y - mid_dim:y + mid_dim, x - mid_dim:x + mid_dim]
-            # patch_mask = (patch_mask - np.min(patch_mask)) / (np.max(patch_mask) - np.min(patch_mask))
-            vmin, vmax = np.quantile(patch_mask, q=(0.20, 0.80))
-            patch_mask = exposure.rescale_intensity(
-                patch_mask,
-                in_range=(vmin, vmax),
-                out_range=np.float32
-            )
+            patch_mask = (patch_mask - np.min(patch_mask)) / (np.max(patch_mask) - np.min(patch_mask))
+            # vmin, vmax = np.quantile(patch_mask, q=(0.20, 0.80))
+            # patch_mask = exposure.rescale_intensity(
+            #     patch_mask,
+            #     in_range=(vmin, vmax),
+            #     out_range=np.float32
+            # )
             if e == 0 and flag_new_batch == "Train" and b==0:
-                tmp_dir = '/media/noushin/Data/Cryo-ET/DeepET/data2/temp/synth_training_patch'
-                write_mrc2(patch_tomo, os.path.join(tmp_dir, f'tomo_patch_{i}_{tomo_idx}_{x}_{y}_{z}.mrc'))
-                write_mrc2(patch_mask, os.path.join(tmp_dir, f'mask_patch_{i}_{tomo_idx}_{x}_{y}_{z}.mrc'))
+                tmp_dir = '/media/noushin/Data/Cryo-ET/DeepET/data2/temp/real_training_patch'
+                write_mrc2(np.flip(patch_tomo, axis=1), os.path.join(tmp_dir, f'tomo_patch_{i}_{tomo_idx}_{x}_{y}_{z}.mrc'))
+                write_mrc2(np.flip(patch_mask, axis=1), os.path.join(tmp_dir, f'mask_patch_{i}_{tomo_idx}_{x}_{y}_{z}.mrc'))
             # save_npy(patch_mask, self.output_path, "ground", "truth")
             batch_tomo[cnt, :, :, :, 0] = patch_tomo
             # convert masks to categorical labels for classification/segmentation but not for regression
@@ -757,7 +759,7 @@ class TrainModel:
         if self.obj.train_type == "segmentation":
             save_csv(self.history_f1_score, self.output_path, "Validation", "F1Score_Details")
             save_csv(self.history_precision, self.output_path, "Validation", "Precision_Details")
-            save_csv(self.history_recall, self.output_path, "Validation", "Recall_Details")
+        save_csv(self.history_recall, self.output_path, "Validation", "Recall_Details")
 
         # averaging the accuracy and loss over all folds
         self.train_acc = np.mean(self.history_train_acc, axis=1)
@@ -786,9 +788,10 @@ class TrainModel:
         plot_train_vs_vald(self.train_loss[start_point:], self.vald_loss[start_point:],
                            self.output_path, self.obj.epochs, is_loss=True)
 
-        plt.figure(num=2, figsize=(8, 6), dpi=100)
-        plot_train_vs_vald(self.train_acc[start_point:], self.vald_acc[start_point:],
-                           self.output_path, self.obj.epochs)
+        if self.obj.train_type == "segmentation":
+            plt.figure(num=2, figsize=(8, 6), dpi=100)
+            plot_train_vs_vald(self.train_acc[start_point:], self.vald_acc[start_point:],
+                               self.output_path, self.obj.epochs)
 
         # plt.figure(num=3, figsize=(8, 6), dpi=100)
         # plot_lr(self.lr_history['iterations'], self.lr_history['lr'], self.output_path, self.obj.epochs)
@@ -800,7 +803,10 @@ class TrainModel:
             general_plot(self.precision, self.output_path, ('Precision', 'epochs'),
                          self.obj.class_names, self.obj.epochs, 5)
             general_plot(self.recall, self.output_path, ('Recall', 'epochs'),
-                         self.obj.class_names, self.obj.epochs, 6)
+                        self.obj.class_names, self.obj.epochs, 6)
+        # else:
+        #     general_plot(self.recall, self.output_path, ('R2-Score', 'epochs'),
+        #                  self.obj.class_names, self.obj.epochs, 7)
 
     def save(self):
         hyperparameter_setting = self.collect_results()
@@ -810,6 +816,9 @@ class TrainModel:
 
         shutil.copyfile(os.path.join(ROOT_DIR, "code/train_models.py"),
                         os.path.join(self.output_path, "train_models.txt"))
+
+        shutil.copyfile(os.path.join(ROOT_DIR, "utils/models.py"),
+                        os.path.join(self.output_path, "models.txt"))
 
     def set_optimizer(self):
         self.optimizer = Adam(learning_rate=self.lr, beta_1=.9, beta_2=.999, epsilon=1e-08, decay=0.0, clipnorm=10)
