@@ -10,8 +10,4 @@ Details of the 3D-UCaps model architecture can be found here:
 
 ## Cite
 If you use this code for your research, please cite as:
-```
-
-```
-```
 
